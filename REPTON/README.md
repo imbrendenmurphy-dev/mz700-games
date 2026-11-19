@@ -18,6 +18,7 @@ ViBED by BPM.
 
 ![Title](docs/title.png) ![Hub](docs/play.png)
 ![Status](docs/status.png) ![Guide](docs/guide.png)
+![Ending](docs/ending.png)
 
 ## Loading
 
