@@ -38,8 +38,9 @@ def dispcode(ch):
         return ord(ch) - 0x40
     if '0' <= ch <= '9':
         return 0x20 + ord(ch) - 0x30
-    table = {' ': 0x00, '.': 0x2E, '-': 0x2D, '!': 0x52, ':': 0x4F, '=': 0x2B, '/': 0x50,
-             ',': 0x2F, '?': 0x49, '*': 0x6B, '+': 0x6A, "'": 0x57, '(': 0x68, ')': 0x69}
+    # checked against the European (international) CG-ROM
+    table = {' ': 0x00, '.': 0x2E, '-': 0x2A, '!': 0x61, ':': 0x4F, '=': 0x2B, '/': 0x2D,
+             ',': 0x2F, '?': 0x49, '*': 0x6B, '+': 0x6A, "'": 0x67, '"': 0x62, '(': 0x68, ')': 0x69}
     if ch in table:
         return table[ch]
     raise ValueError('no display code for %r' % ch)

@@ -63,4 +63,5 @@ block characters F0h-FFh, giving a 50x50 "pixel" image:
 
 Rendering takes about 150K of the ~212K T-states in three fields. The
 simulator does not model VRAM wait states, so the on-screen FPS readout
-on real hardware is the number to trust.
+on real hardware is the number to trust. (MZ700WIN does not emulate the
+8253 counter the timer reads, so there it shows `FPS --` and `LINES 0000`.)
