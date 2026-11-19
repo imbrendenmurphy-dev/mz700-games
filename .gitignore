@@ -1,0 +1,13 @@
+# build output (release/ is kept)
+build/
+__pycache__/
+*.pyc
+
+# never publish ROM or font images
+*.rom
+*.ROM
+*fon*.dat
+*fon*.jp
+*fon*.jpn
+*.int
+rom/
