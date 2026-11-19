@@ -1,4 +1,4 @@
-; =====================================================================
+﻿; =====================================================================
 ;  ROBOGEDDON 2085 - Sharp MZ-700 version
 ;  64K MZ-700 (PAL, stock European CG-ROM, no PCG). Loads and runs at 1200h.
 ;
@@ -66,6 +66,6 @@ jp_hl:  jp (hl)
 
         include "vars.inc"
 end_of_program:
-        assert end_of_program <= OBJ
+        assert end_of_program <= OLCH
 
         SAVEBIN "../build/robogedn.bin", start, end_of_program-start

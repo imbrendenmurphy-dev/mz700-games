@@ -15,7 +15,11 @@ SNDGATE equ 0E008h      ; bit 0 = sound on
 ; ---------------------------------------------------------------- memory
 ; Every screen-shaped buffer is 1000 bytes in the VRAM layout (row*40+col).
 ; Char and attribute halves sit 400h apart so "set 2,h" hops between them.
+OLCH    equ 8000h       ; object layer: BG + sticky sprites
+OLAT    equ 8400h
+REDRAW  equ 8800h       ; 1 = cell uncovered, objects there must redraw
 OBJ     equ 9000h       ; MAXOBJ objects x 32 bytes
+DLIST   equ 0A800h      ; object-layer cells changed this tick, 252 words
 LISTA   equ 0A000h      ; draw list (cell offsets), 252 words max, 512-aligned
 LISTB   equ 0A200h      ; the other draw list
 BGDL    equ 0A400h      ; background cells changed this tick, 250 words max
@@ -27,7 +31,8 @@ WCH     equ 0B800h      ; work screen: background + this tick's sprites
 WAT     equ 0BC00h
 SCH     equ 0C000h      ; shadow: what VRAM holds now
 SAT     equ 0C400h
-OCC     equ 0C800h      ; occupancy: 0, object index+1, or 80h+bullet
+OCC     equ 0C800h      ; owner of each object-layer cell: 0 or object index+1
+BOCC    equ 0CC00h      ; enemy bullets: 0 or 80h+bullet (cleared every tick)
 STACK   equ 1200h       ; stack grows down into the monitor work area
 
 ; ---------------------------------------------------------------- objects
@@ -51,6 +56,12 @@ ODX     equ 14          ; heading dx (-1..1)
 ODY     equ 15          ; heading dy (-1..1)
 OFL     equ 16          ; type flags (copied by set_type)
 OTI     equ 17          ; type info pointer (word, copied by set_type)
+OLOFS   equ 19          ; where it was last drawn on the object layer (word)
+OLC     equ 21          ; and how it looked
+OLA     equ 22
+ODRAWN  equ 23          ; 1 = drawn on the object layer
+ODIRTY  equ 24          ; 1 = moved or changed look since last drawn
+OUPD    equ 25          ; behaviour routine (word, copied by set_type)
 
 T_DROID   equ 1
 T_PYLON   equ 2
@@ -75,7 +86,8 @@ F_SHOOT   equ 02h       ; player shots destroy it
 F_COUNT   equ 04h       ; must be destroyed to clear the wave
 F_HUMAN   equ 08h
 F_PUSH    equ 10h       ; shots knock it back (crusher)
-F_SOLID   equ 20h       ; goes into the occupancy map
+F_SOLID   equ 20h       ; collides (player, shots, humans)
+F_ANIM    equ 40h       ; look changes by itself (colour cycling): redraw always
 
 ; enemy bullets (8 bytes)
 MAXEB   equ 16

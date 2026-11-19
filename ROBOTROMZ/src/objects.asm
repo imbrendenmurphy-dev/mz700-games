@@ -19,6 +19,20 @@ tinfo_ptr:
 ; IX = object, A = type: set the type and cache its flags and info pointer
 set_type:
         ld (ix+OT),a
+        ld (ix+ODIRTY),1
+        push af
+        add a,a
+        ld hl,upd_tab-2
+        add a,l
+        ld l,a
+        jr nc,.u
+        inc h
+.u:     ld a,(hl)
+        ld (ix+OUPD),a
+        inc hl
+        ld a,(hl)
+        ld (ix+OUPD+1),a
+        pop af
         call tinfo_ptr
         ld (ix+OTI),l
         ld (ix+OTI+1),h
@@ -303,6 +317,7 @@ obj_step:
         jr .d
 .by:    set 1,c
 .d:     inc (ix+OAN)
+        ld (ix+ODIRTY),1
         ret
 
 ; step along the heading, bouncing off the walls
@@ -330,6 +345,7 @@ step_heading:
 
 ; free movement by velocity, bouncing off the walls
 move_free:
+        ld (ix+ODIRTY),1
         ld l,(ix+OXL)
         ld h,(ix+OX)
         ld e,(ix+OVXL)
@@ -391,6 +407,10 @@ target_human:
         ld c,a
         ld h,(iy+OX)
         ld l,(iy+OY)
+        ld a,(objtop)           ; remember its id: objtop - B + 1
+        sub b
+        inc a
+        ld (tgtid),a
 .nx:    ld de,OBJSZ
         add iy,de
         djnz .l
@@ -449,6 +469,7 @@ update_objects:
         or a
         jr z,.live
         dec (ix+OST)
+        ld (ix+ODIRTY),1        ; the sparkle changes
         jr .nx
 .live:  ld a,(ai_on)
         or a
@@ -456,16 +477,8 @@ update_objects:
         ld a,(ix+OT)
         cp T_SKULL
         jr c,.nx
-.ai:    ld a,(ix+OT)
-        add a,a
-        ld e,a
-        ld d,0
-        ld hl,upd_tab-2
-        add hl,de
-        ld a,(hl)
-        inc hl
-        ld h,(hl)
-        ld l,a
+.ai:    ld l,(ix+OUPD)
+        ld h,(ix+OUPD+1)
         call jp_hl
 .nx:    ld de,OBJSZ
         add ix,de
@@ -483,6 +496,7 @@ upd_none:
         ret
 
 upd_timer:                      ; skulls, pop-ups, explosions
+        ld (ix+ODIRTY),1        ; explosions change as the timer runs
         dec (ix+OTM)
         ret nz
         ld (ix+OT),0
@@ -539,17 +553,59 @@ upd_brain:
         call fire_reload
         add a,90
         ld (ix+OAUX2),a
+        call count_missiles     ; at most 5 in the air
+        cp 5
+        jr nc,.mv
         ld a,2
         call fire_at_player
 .mv:    dec (ix+OTM)
         ret nz
         ld a,(ease+E_BRAIN)
         ld (ix+OTM),a
-        call target_human
-        jr nc,.t
+        ld a,(humcnt)           ; no humans left: straight for the player
+        or a
+        jr z,.pl
+        ld a,(ix+OAUX)          ; still after the same human?
+        or a
+        jr z,.scan
+        call id_to_iy
+        ld a,(iy+OT)
+        cp T_MOM
+        jr c,.scan
+        cp T_KID+1
+        jr nc,.scan
+        ld b,(iy+OX)
+        ld c,(iy+OY)
+        jr .t
+.scan:  call target_human
+        jr c,.pl
+        ld a,(tgtid)
+        ld (ix+OAUX),a
+        jr .t
+.pl:    ld (ix+OAUX),0
         call player_bc
 .t:     call toward_bc
         jp obj_step
+
+; A = homing missiles in the air
+count_missiles:
+        push bc
+        push de
+        push hl
+        ld hl,EBUL+BT
+        ld de,EBSZ
+        ld bc,MAXEB*256
+.c:     ld a,(hl)
+        cp 2
+        jr nz,.n
+        inc c
+.n:     add hl,de
+        djnz .c
+        ld a,c
+        pop hl
+        pop de
+        pop bc
+        ret
 
 ; Mutant: fast and twitchy, straight for you
 upd_mutant:
@@ -718,8 +774,9 @@ kill_obj:
         jp play_sfx
 
 ; ---------------------------------------------------------------------
-; draw every object into W (robots first, then humans so robots that
-; catch them can squash or convert them) and count robots still to kill
+; draw every object on the object layer (robots first, then humans so robots
+; that catch them can squash or convert them) and count robots still to kill.
+; Objects that haven't moved or changed cost almost nothing (see obj_draw).
 place_objects:
         xor a
         ld (alive),a
@@ -731,35 +788,46 @@ place_objects:
         ld ix,OBJ
         ld c,1
 .l:     push bc
+        ld a,c
+        ld (curid),a
         ld a,(ix+OT)
         or a
-        jr z,.nx
+        jr z,.gone
         cp T_POP
-        jr nz,.np
-        call place_pop
-        jr .nx
-.np:    ld a,(ix+OFL)
+        jr z,.pop
+        ld a,(ix+OFL)
         bit 2,a                 ; F_COUNT
         jr z,.nc
         ld hl,alive
         inc (hl)
 .nc:    bit 3,a                 ; F_HUMAN: later
         jr nz,.hum
+        bit 6,a                 ; F_ANIM: always redraw
+        jr nz,.full
+        ld a,(ix+ODIRTY)        ; unchanged and still showing? skip it
+        or a
+        jr nz,.full
+        ld a,(ix+ODRAWN)
+        or a
+        jr z,.full
+        ld l,(ix+OLOFS)
+        ld a,(ix+OLOFS+1)
+        add a,high REDRAW
+        ld h,a
+        ld a,(hl)
+        or a
+        jr z,.nx
+.full:  ld (ix+ODIRTY),0
         ld l,(ix+OTI)
         ld h,(ix+OTI+1)
         call obj_look
         call obj_ofs
-        ld a,(ix+OST)
-        or a
-        jr nz,.plain
-        bit 5,(ix+OFL)          ; F_SOLID
-        jr z,.plain
-        pop bc
-        push bc
-        ld a,c
-        call put_occ
+        call obj_draw
         jr .nx
-.plain: call put_cell
+.gone:  call obj_erase          ; freed since last tick (if it was drawn)
+        jr .nx
+.pop:   call obj_erase          ; a rescued human: now a transient pop-up
+        call place_pop
         jr .nx
 .hum:   ld hl,humcnt
         ld a,(hl)
@@ -779,14 +847,14 @@ place_objects:
         inc hl
         ld (hl),d
         inc hl
-        pop bc
-        push bc
-        ld (hl),c
+        ld a,(curid)
+        ld (hl),a
 .nx:    ld de,OBJSZ
         add ix,de
         pop bc
         inc c
-        djnz .l
+        dec b
+        jp nz,.l
 
         ; humans
         ld a,(humcnt)
@@ -806,44 +874,54 @@ place_objects:
         ld (curid),a
         push de
         pop ix
+        ld l,(ix+OTI)
+        ld h,(ix+OTI+1)
+        call obj_look
+        call obj_ofs
         ld a,(ix+OST)
         or a
-        jr nz,.hplain
-        call obj_ofs
-        call occ_at
+        jr nz,.draw
+        push de
+        push hl
+        call occ_at             ; who is showing in the cell we're going to?
         or a
-        jr z,.hsolid
-        bit 7,a
-        jr nz,.hplain           ; bullets pass over humans
+        jr z,.free
+        ld b,a
+        ld a,(curid)
+        cp b
+        jr z,.free
+        ld a,b
         call id_to_iy
+        ld a,(iy+OST)
+        or a
+        jr nz,.free
+        ld a,(iy+OFL)
+        and F_SOLID
+        jr z,.free
         ld a,(iy+OT)
         cp T_CRUSH
         jr z,.squash
         cp T_BRAIN
         jr z,.mutate
-        jr .hplain              ; sharing a cell with a robot: robot wins
-.hsolid:
-        ld l,(ix+OTI)
-        ld h,(ix+OTI+1)
-        call obj_look
-        call obj_ofs
-        ld a,(curid)
-        call put_occ
+        pop hl                  ; another robot is there: stay hidden
+        pop de
+        call obj_erase
         jr .hn
-.hplain:
-        ld l,(ix+OTI)
-        ld h,(ix+OTI+1)
-        call obj_look
-        call obj_ofs
-        call put_cell
+.free:  pop hl
+        pop de
+.draw:  call obj_draw
         jr .hn
 .squash:
+        pop hl
+        pop de
         ld a,T_SKULL
         call set_type
         ld (ix+OTM),100
         ld hl,sfx_human
         jr .lose
 .mutate:
+        pop hl
+        pop de
         ld a,T_MUTANT
         call set_type
         ld a,(ease+E_MUT)
@@ -855,7 +933,8 @@ place_objects:
         inc (hl)
 .hn:    pop hl
         pop bc
-        djnz .h
+        dec b
+        jp nz,.h
         ret
 
 ; HL = cell offset of IX (DE preserved)

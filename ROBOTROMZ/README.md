@@ -15,7 +15,7 @@ it. Original code, ViBED by BPM 2026.
 
 - **Real MZ-700 / UniCMT:** copy `release/ROBOGEDN.MZT` to the USB stick
   (`release/ROBOGEDN.MZF` is the same file under the other common extension)
-  and load it like a tape (`L` from the monitor). It loads at 1200h-2EC8h and
+  and load it like a tape (`L` from the monitor). It loads at 1200h-3079h and
   starts by itself.
 - **MZ700WIN:** File > Open `release/ROBOGEDN.MZT`.
 
@@ -63,13 +63,17 @@ each). The count starts again every wave.
   graphics (the European set's second bank has invaders, robots and little
   people). There is no PCG and nothing is redefined. The title logo is drawn
   with the ROM's 2x2 dot-block characters.
-- The game runs at **50 ticks a second**, one tick per PAL field. Each tick
-  builds a work screen in RAM (background + this tick's sprites). In vertical
-  blank, `flush` compares it with a shadow copy of video RAM and writes only
-  the cells that changed.
-- Collisions use an occupancy map: every robot and bullet writes its id into
-  the cell it is drawn in, so a shot or the player only has to look at one
-  byte.
+- The game runs at **50 ticks a second**, one tick per PAL field, on every
+  wave. The screen is built in RAM in layers: background, then an **object
+  layer** where robots, humans and effects are "sticky" (a robot is only
+  redrawn when it moves or changes look, and one standing still costs about
+  100 T-states a tick), then the work screen with this tick's shots,
+  bullets and player on top. In vertical blank, `flush` writes only the
+  cells that changed to video RAM.
+- Each object-layer cell records which object is showing there. That map is
+  also the collision map: a shot or the player only has to look at one byte.
+  When an object leaves a cell that another object is hiding in, the cell is
+  flagged and the hidden one draws itself again.
 - One-voice sound on the 8253, stepped every tick: shots, explosions,
   rescue arpeggios, jingles.
 - Objects: up to 80 robots, humans and effects, 16 enemy bullets and 6 shots.
@@ -77,23 +81,26 @@ each). The count starts again every wave.
 ### Speed
 
 In the test model (which assumes video RAM wait states on every line, which
-is pessimistic), ordinary waves run at a steady 50 fps. The busiest waves
-(50+ robots, waves 11 and up) run at 25 fps for their first few seconds,
-until you've thinned the robots out, and the game slows down while they do.
-That's the same trade-off the VZ version makes.
+is pessimistic), every wave runs at 50 fps. The busiest, wave 11 with 52
+robots, averages about 70% of a field per tick. Wave 20 (14 mindbots and
+their missiles) misses the odd field in its first seconds, about 4% of ticks.
+At most 5 homing missiles are in the air at once.
 
 ### Memory map
 
 | Address | Use |
 |---|---|
 | 1000h-11FFh | stack (monitor work area; the game never returns to the monitor) |
-| 1200h-2EC8h | code and data |
+| 1200h-3079h | code and data |
+| 8000h-87FFh | object layer (chars, attributes) |
+| 8800h-8BFFh | redraw flags |
 | 9000h-99FFh | objects (80 x 32 bytes) |
-| A000h-A6FFh | draw lists, background change list, enemy bullets, shots |
+| A000h-A9FFh | transient lists, background change list, enemy bullets, shots, dirty list |
 | B000h-B7FFh | background (chars, attributes) |
 | B800h-BFFFh | work screen |
 | C000h-C7FFh | shadow of video RAM |
-| C800h-CBFFh | occupancy map |
+| C800h-CBFFh | owner / collision map |
+| CC00h-CFFFh | enemy bullet map |
 
 ## Building and testing
 
@@ -105,6 +112,7 @@ Needs Python 3 (Pillow only for screenshots) and
 py tools/build.py               # -> build/ and release/ROBOGEDN.MZT (+ .MZF)
 py tools/play.py play 1500      # scripted game in the MZ-700 model, screenshots in build/shots
 py tools/profile.py play 900    # T-states per routine
+py tools/verify.py play 1500     # checks VRAM == work screen and every robot is visible, every tick
 ```
 
 `play.py` scripts: `play`, `stand`, `idle`, `pause`, `title`. Set `WAVE=11`
@@ -134,7 +142,6 @@ real hardware**. Things to check on a real machine:
   firing diagonally) may give phantom key presses if the MZ-700 matrix has no
   diodes. If moving and firing interfere, say which keys, and the fire keys
   can be moved to a different part of the matrix.
-- The speed of the busiest waves.
 
 Not in this version yet (the VZ version has them): power-ups, high-score
 initials, story page, demo mode.

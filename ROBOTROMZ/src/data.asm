@@ -10,10 +10,10 @@ tinfo:
         db 0B3h,0B3h,0E1h, DEAD_SHOT,         25h,00h,  1,0   ; pylon     25
         db 0F5h,0F6h,0C1h, F_DEADLY|F_PUSH|F_SOLID, 0,0, 0,0  ; crusher
         db 38h,39h, 0B1h, DEAD_SHOT|F_COUNT,  00h,05h, 20,0   ; mindbot  500
-        db 34h,35h, 0D1h, DEAD_SHOT|F_COUNT,  00h,01h,  4,0   ; mutant   100
-        db 84h,3Eh, 0E1h, DEAD_SHOT|F_COUNT,  00h,10h, 40,0   ; orb     1000
+        db 34h,35h, 0D1h, DEAD_SHOT|F_COUNT|F_ANIM, 00h,01h, 4,0 ; mutant   100
+        db 84h,3Eh, 0E1h, DEAD_SHOT|F_COUNT|F_ANIM, 00h,10h, 40,0 ; orb     1000
         db 1Dh,1Eh, 0E1h, DEAD_SHOT|F_COUNT,  50h,01h,  6,0   ; seeker   150
-        db 0B1h,0B2h,0E1h, DEAD_SHOT|F_COUNT, 00h,10h, 40,0   ; factory 1000
+        db 0B1h,0B2h,0E1h, DEAD_SHOT|F_COUNT|F_ANIM, 00h,10h, 40,0 ; factory 1000
         db 1Bh,1Ch, 0F1h, DEAD_SHOT|F_COUNT,  00h,02h,  8,0   ; tank     200
         db 43h,45h, 0B1h, F_HUMAN|F_SOLID,    0,0,      0,0   ; mom
         db 44h,45h, 0D1h, F_HUMAN|F_SOLID,    0,0,      0,0   ; dad

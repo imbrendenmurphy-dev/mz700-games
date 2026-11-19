@@ -70,9 +70,19 @@ wait_vblank:
         ret
 
 ; ---------------------------------------------------------------------
-; HL = cell offset, D = char, E = attribute: draw a sprite this tick
-; (all the screen buffers are page aligned, and an offset is < 1000, so
-;  buffer address = offset + (buffer high byte) * 256)
+; Layers (all page aligned, 1000-byte VRAM layout, so a buffer address is
+; offset + high byte * 256):
+;   BG  background: arena, frame, HUD, captions
+;   OL  BG + robots, humans and effects.  Persistent: an object only touches
+;       it when its cell or look changes ("sticky" sprites)
+;   W   OL + this tick's transients (player, shots, bullets, pop-ups)
+;   S   shadow of VRAM
+; OCC holds the id of the object that owns (is visible in) each OL cell.
+; When an owner leaves a cell, REDRAW is set there so that any object hidden
+; underneath draws itself again.  Changed OL cells go on the dirty list.
+; BOCC holds enemy bullets (transient, cleared every tick).
+
+; HL = cell offset, D = char, E = attribute: draw a transient this tick
 put_cell:
         ld bc,(curptr)
         ld a,b                  ; list full? (252 entries)
@@ -99,18 +109,18 @@ put_cell:
         ld (bc),a
         ret
 
-; same, and mark the cell as occupied by A (object index+1 or 80h+bullet)
-put_occ:
+; same, for an enemy bullet: BOCC = A (80h + bullet index)
+put_bocc:
         ld b,a
         ld a,h
-        add a,high OCC
+        add a,high BOCC
         ld c,h
         ld h,a
         ld (hl),b
         ld h,c
         jr put_cell
 
-; A = occupancy at cell HL (HL preserved, BC clobbered)
+; A = owner of cell HL (HL preserved, BC clobbered)
 occ_at:
         ld a,h
         add a,high OCC
@@ -119,12 +129,156 @@ occ_at:
         ld a,(bc)
         ret
 
-; put background back into W (and clear occupancy) under last tick's sprites
+; A = enemy bullet in cell HL (HL preserved, BC clobbered)
+bocc_at:
+        ld a,h
+        add a,high BOCC
+        ld b,a
+        ld c,l
+        ld a,(bc)
+        ret
+
+; HL = cell: add it to the dirty list (or flag a full compare when full)
+dl_add:
+        ld bc,(dlptr)
+        ld a,b
+        rra
+        jr nc,.ok
+        ld a,c
+        cp 0F8h
+        jr c,.ok
+        ld a,1
+        ld (dlfull),a
+        ret
+.ok:    ld a,l
+        ld (bc),a
+        inc bc
+        ld a,h
+        ld (bc),a
+        inc bc
+        ld (dlptr),bc
+        ret
+
+; IX = object (id in curid), HL = its cell, D/E = its look.  Draws it into
+; OL and W unless it's unchanged since last time.
+obj_draw:
+        ld a,(ix+ODRAWN)
+        or a
+        jr z,.new
+        ld a,l
+        cp (ix+OLOFS)
+        jr nz,.mv
+        ld a,h
+        cp (ix+OLOFS+1)
+        jr nz,.mv
+        ld a,d
+        cp (ix+OLC)
+        jr nz,.mv
+        ld a,e
+        cp (ix+OLA)
+        jr nz,.mv
+        ld a,h                  ; uncovered since last time?
+        add a,high REDRAW
+        ld b,a
+        ld c,l
+        ld a,(bc)
+        or a
+        ret z                   ; steady: nothing to do
+.mv:    push hl
+        push de
+        call obj_erase
+        pop de
+        pop hl
+.new:   ld (ix+OLOFS),l
+        ld (ix+OLOFS+1),h
+        ld (ix+OLC),d
+        ld (ix+OLA),e
+        ld (ix+ODRAWN),1
+        ld c,l
+        ld a,h
+        add a,high OLCH
+        ld b,a
+        ld a,d
+        ld (bc),a
+        set 2,b
+        ld a,e
+        ld (bc),a
+        ld a,h
+        add a,high WCH
+        ld b,a
+        ld a,d
+        ld (bc),a
+        set 2,b
+        ld a,e
+        ld (bc),a
+        ld a,h
+        add a,high OCC
+        ld b,a
+        ld a,(curid)
+        ld (bc),a
+        ld a,h
+        add a,high REDRAW
+        ld b,a
+        xor a
+        ld (bc),a
+        jp dl_add
+
+; IX = object (id in curid): take it off OL if it is drawn there
+obj_erase:
+        ld a,(ix+ODRAWN)
+        or a
+        ret z
+        ld (ix+ODRAWN),0
+        ld l,(ix+OLOFS)
+        ld h,(ix+OLOFS+1)
+        ld c,l
+        ld a,h
+        add a,high OCC
+        ld b,a
+        ld a,(curid)
+        ld e,a
+        ld a,(bc)
+        cp e
+        ret nz                  ; something else is showing there now
+        xor a
+        ld (bc),a
+        ld a,h
+        add a,high REDRAW
+        ld b,a
+        ld a,1
+        ld (bc),a
+        ld a,h
+        add a,high BGCH
+        ld b,a
+        ld a,(bc)
+        ld d,a
+        set 2,b
+        ld a,(bc)
+        ld e,a
+        ld a,h
+        add a,high OLCH
+        ld b,a
+        ld a,d
+        ld (bc),a
+        set 2,b
+        ld a,e
+        ld (bc),a
+        ld a,h
+        add a,high WCH
+        ld b,a
+        ld a,d
+        ld (bc),a
+        set 2,b
+        ld a,e
+        ld (bc),a
+        jp dl_add
+
+; put OL back into W (and clear BOCC) under last tick's transients
 restore:
         ld a,(prevcnt)
         or a
         ret z
-        ld c,a
+        ld (fcount),a
         ld hl,(prevlist)
 .l:     ld e,(hl)
         inc hl
@@ -133,27 +287,49 @@ restore:
         push hl
         ld l,e
         ld a,d
-        add a,high BGCH
+        add a,high OLCH
         ld h,a
-        ld a,(hl)               ; BG char
+        ld c,(hl)               ; OL char
         set 2,h
-        ld b,(hl)               ; BG attribute
-        set 3,h                 ; -> WAT
-        ld (hl),b
-        res 2,h                 ; -> WCH
-        ld (hl),a
+        ld b,(hl)               ; OL attribute
         ld a,d
-        add a,high OCC
+        add a,high WAT
+        ld h,a
+        ld (hl),b
+        res 2,h
+        ld (hl),c
+        ld a,d
+        add a,high BOCC
         ld h,a
         ld (hl),0
         pop hl
-        dec c
+        ld a,(fcount)
+        dec a
+        ld (fcount),a
         jr nz,.l
         ret
 
-; in vertical blank: write changed cells, then swap the lists
+; in vertical blank: write changed cells, then swap the transient lists
 flush:
-        ld hl,(prevlist)
+        ld a,(dlfull)
+        or a
+        jr nz,.full
+        ld hl,(dlptr)           ; objects that changed
+        ld de,DLIST
+        or a
+        sbc hl,de
+        srl h
+        rr l
+        ld a,l
+        ex de,hl
+        call flush_list
+        jr .tr
+.full:  call flush_all
+        xor a
+        ld (dlfull),a
+.tr:    ld hl,DLIST
+        ld (dlptr),hl
+        ld hl,(prevlist)        ; transients: last tick's and this tick's
         ld a,(prevcnt)
         call flush_list
         ld hl,(curptr)          ; count = (curptr - curlist) / 2
@@ -192,6 +368,29 @@ flush_list:
         ld d,(hl)
         inc hl
         push hl
+        call flush_cell
+        pop hl
+        ld a,(fcount)
+        dec a
+        ld (fcount),a
+        jr nz,.l
+        ret
+
+; every cell (when the dirty list overflowed)
+flush_all:
+        ld de,0
+.l:     call flush_cell
+        inc de
+        ld a,d
+        cp high 1000
+        jr nz,.l
+        ld a,e
+        cp low 1000
+        jr nz,.l
+        ret
+
+; DE = cell: copy W to VRAM if it differs from the shadow (DE preserved)
+flush_cell:
         ld l,e
         ld a,d
         add a,high WCH
@@ -208,7 +407,7 @@ flush_list:
         res 2,h                 ; -> SCH
         ld a,c
         cp (hl)
-        jr z,.nx
+        ret z
         set 2,h
 .wr:    ld (hl),b               ; shadow attribute
         res 2,h
@@ -219,30 +418,44 @@ flush_list:
         ld (hl),b
         res 3,h                 ; D8xx -> D0xx
         ld (hl),c
-.nx:    pop hl
-        ld a,(fcount)
-        dec a
-        ld (fcount),a
-        jr nz,.l
         ret
 
 ; ---------------------------------------------------------------------
-; background cell HL = (D char, E attr); shows at the next flush
+; background cell HL = (D char, E attr); shows at the next flush.
+; (Also into OL and W; objects in that cell draw themselves again.)
 bg_put:
-        push hl
         push bc
-        ld bc,BGCH
-        add hl,bc
-        ld (hl),d
-        set 2,h
-        ld (hl),e
-        ld bc,WAT-BGAT
-        add hl,bc
-        ld (hl),e
-        res 2,h
-        ld (hl),d
+        ld c,l
+        ld a,h
+        add a,high BGCH
+        ld b,a
+        ld a,d
+        ld (bc),a
+        set 2,b
+        ld a,e
+        ld (bc),a
+        ld a,h
+        add a,high OLCH
+        ld b,a
+        ld a,d
+        ld (bc),a
+        set 2,b
+        ld a,e
+        ld (bc),a
+        ld a,h
+        add a,high WCH
+        ld b,a
+        ld a,d
+        ld (bc),a
+        set 2,b
+        ld a,e
+        ld (bc),a
+        ld a,h
+        add a,high REDRAW
+        ld b,a
+        ld a,1
+        ld (bc),a
         pop bc
-        pop hl
         ld a,(bgcnt)
         cp 250
         ret nc
@@ -265,8 +478,17 @@ bg_put:
         pop hl
         ret
 
-; copy BG to W, S and the real screen in one go (screen changes)
+; copy BG to OL, W, S and the real screen in one go (screen changes).
+; Every object will draw itself again.
 refresh_all:
+        ld hl,BGCH
+        ld de,OLCH
+        ld bc,1000
+        ldir
+        ld hl,BGAT
+        ld de,OLAT
+        ld bc,1000
+        ldir
         ld hl,BGCH
         ld de,WCH
         ld bc,1000
@@ -297,11 +519,33 @@ refresh_all:
         ld bc,999
         ld (hl),0
         ldir
-        xor a
+        ld hl,BOCC
+        ld de,BOCC+1
+        ld bc,999
+        ld (hl),0
+        ldir
+        ld hl,REDRAW
+        ld de,REDRAW+1
+        ld bc,999
+        ld (hl),0
+        ldir
+        ld a,(objtop)           ; nothing is drawn on OL any more
+        or a
+        jr z,.no
+        ld b,a
+        ld hl,OBJ+ODRAWN
+        ld de,OBJSZ
+.o:     ld (hl),0
+        add hl,de
+        djnz .o
+.no:    xor a
         ld (prevcnt),a
         ld (bgcnt),a
+        ld (dlfull),a
         ld hl,(curlist)
         ld (curptr),hl
+        ld hl,DLIST
+        ld (dlptr),hl
         ret
 
 ; fill BG with char 0 and attribute A

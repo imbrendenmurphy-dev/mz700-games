@@ -16,6 +16,7 @@ fcount:     db 0
 objtop:     db 0        ; object slots in use are below this
 humcnt:     db 0
 curid:      db 0
+tgtid:      db 0        ; target_human's pick
 humlist:    ds 16*4     ; humans to place after the robots: IX, id, -
 
 kbuf:       ds 10
@@ -42,7 +43,8 @@ hiscore:    ds 3
 extacc:     dw 0        ; points / 25 toward the next extra life
 hudflag:    db 0
 alive:      db 0
-curflags:   db 0
+dlptr:      dw DLIST    ; dirty list of object-layer cells
+dlfull:     db 0
 rescues:    db 0
 saved:      db 0
 lost:       db 0

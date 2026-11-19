@@ -117,13 +117,19 @@ place_player:
 ; what is in the player's cell?
 player_collide:
         call player_ofs
+        call bocc_at
+        or a
+        jr nz,player_die        ; an enemy bullet
         call occ_at
         or a
         ret z
-        bit 7,a
-        jr nz,player_die        ; an enemy bullet
         call id_to_iy
+        ld a,(iy+OST)           ; still materialising: harmless
+        or a
+        ret nz
         ld a,(iy+OT)
+        or a
+        ret z
         cp T_MOM
         jr c,.robot
         cp T_KID+1
@@ -192,9 +198,7 @@ update_shots:
         or a
         jr z,.nx
         call shot_ofs           ; did something walk into it?
-        call occ_at
-        or a
-        call nz,shot_hit
+        call shot_check
         jr c,.kill
         ld a,(iy+SDIR)
         ld c,a
@@ -218,9 +222,7 @@ update_shots:
         jr nc,.kill
         ld (iy+SY),a
         call shot_ofs
-        call occ_at
-        or a
-        call nz,shot_hit
+        call shot_check
         jr c,.kill
         push hl
         ld a,(iy+SDIR)
@@ -245,8 +247,17 @@ shot_ofs:
         ld c,(iy+SX)
         jp calc_ofs
 
-; A = occupant of the shot's cell.  Carry = the shot is used up.
-; HL and IY preserved.
+; HL = the shot's cell: hit a bullet or the object showing there?
+; Carry = the shot is used up.  HL and IY preserved.
+shot_check:
+        call bocc_at
+        or a
+        call nz,shot_hit
+        ret c
+        call occ_at
+        or a
+        ret z
+; A = occupant of the shot's cell (80h+ = bullet).  Carry = used up.
 shot_hit:
         push hl
         bit 7,a
@@ -254,16 +265,17 @@ shot_hit:
         push ix
         call id_to_ix
         ld a,(ix+OT)
-        call tinfo_ptr
-        inc hl
-        inc hl
-        inc hl
-        ld a,(hl)
+        or a
+        jr z,.pass
+        ld a,(ix+OST)           ; materialising: shots pass through
+        or a
+        jr nz,.pass
+        ld a,(ix+OFL)
         bit 1,a                 ; F_SHOOT
         jr nz,.kill
         bit 4,a                 ; F_PUSH
         jr nz,.push
-        pop ix
+.pass:  pop ix
         pop hl
         or a
         ret
@@ -491,7 +503,7 @@ update_bullets:
         pop bc
         push bc
         ld a,c
-        call put_occ
+        call put_bocc
         jr .nx
 .kill:  ld (iy+BT),0
 .nx:    pop bc
