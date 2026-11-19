@@ -7,6 +7,8 @@ ROM, no PCG), loadable from tape or a UniCMT USB cassette emulator.
 |---|---|
 | [Rotoball](ROTOBALL/) | Milestone 3: rotating-maze game, 8 levels, title, attract mode, music, high scores |
 | [Robogeddon 2085](ROBOTROMZ/) | 0.1: twin-stick arena shooter on the keyboard, 20 waves (`release/ROBOGEDN.MZT`) |
+| [Override](PARADROIMZ/) | 1.0: droid-transfer game, 3 ships / 19 decks, circuit duels, title music, attract mode with AI demo (`release/OVERRIDE.MZT`) |
+| [Rockfall](BOULDER/) | 1.0: cave-digging game, 16 caves, falling boulders, fireflies, butterflies, amoeba, magic wall, title music, attract mode with AI demo (`release/ROCKFALL.MZT`) |
 
 Each game folder has its source, a Python build script (no extra packages
 needed) and a ready-to-load `.MZF` in `release/`.
