@@ -1,4 +1,4 @@
-﻿"""play.py - run ROBOGEDDON in the headless MZ-700 model with scripted keys.
+"""play.py - run ROBOGEDDON in the headless MZ-700 model with scripted keys.
 
     py tools/play.py [script] [ticks]
 
@@ -81,7 +81,7 @@ def patch(m, sym):
         m.mem[sym['player_die']] = 0xC9
     if os.environ.get('DEMO'):          # go straight to the demo page
         m.run_until_pc(sym['front_end'], 10 ** 8)
-        m.mem[sym['page']] = 3
+        m.mem[sym['page']] = 4
         m.mem[sym['demoidx']] = int(os.environ['DEMO']) - 1
 
 

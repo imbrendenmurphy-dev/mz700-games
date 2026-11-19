@@ -26,7 +26,7 @@ BGDL    equ 0A400h      ; background cells changed this tick, 250 words max
 EBUL    equ 0A600h      ; MAXEB enemy bullets x 8 bytes
 SHOTS   equ 0A680h      ; MAXSH player shots x 4 bytes
 PART    equ 8C00h       ; MAXPART particles x 16 bytes
-HISC    equ 0A6A0h      ; high-score table: 8 x 8 bytes
+HISC    equ 0A6C0h      ; high-score table: 8 x 8 bytes
 BGCH    equ 0B000h      ; background: arena, frame, HUD, captions
 BGAT    equ 0B400h
 WCH     equ 0B800h      ; work screen: background + this tick's sprites
@@ -121,7 +121,7 @@ P_DAT   equ 12          ; and attribute
 GRAV    equ 08h
 
 ; player shots (4 bytes)
-MAXSH   equ 6
+MAXSH   equ 12
 SDIR    equ 0           ; 0 free, else direction 1..8 (index into tables)
 SX      equ 1
 SY      equ 2
@@ -152,3 +152,19 @@ S_OVER  equ 4
 PSPDX   equ 48h         ; player speed, cells per tick (8.8)
 PSPDY   equ 3Ch
 FIRE_RATE equ 4         ; ticks between shots
+
+; power-ups
+PU_3WAY   equ 0         ; pickup kinds (OAUX of a T_PICK)
+PU_SHIELD equ 1
+T3WAY     equ 500       ; ticks of triple shot (10 s)
+TSHIELD   equ 300       ; ticks of shield (6 s)
+PICKLIFE  equ 400       ; a pickup lasts 8 s
+
+; attract pages
+PG_TITLE  equ 0
+PG_STORY  equ 1
+PG_ROBOTS equ 2
+PG_HOWTO  equ 3
+PG_DEMO   equ 4
+PG_HEROES equ 5
+NPAGES    equ 6

@@ -68,6 +68,7 @@ jp_hl:  jp (hl)
         include "player.asm"
         include "particles.asm"
         include "demo.asm"
+        include "fx.asm"
         include "front.asm"
         include "data.asm"
 

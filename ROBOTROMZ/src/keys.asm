@@ -95,7 +95,11 @@ read_keys:
         bit 3,a
         jr z,.s4
         set 3,c
-.s4:    ld a,(skeys)
+.s4:    ld a,(kbuf+2)           ; T: row 2 bit 4
+        bit 4,a
+        jr z,.s5
+        set 4,c
+.s5:    ld a,(skeys)
         cpl
         and c
         ld (sedge),a            ; newly pressed
@@ -165,3 +169,4 @@ KS_SPACE equ 01h
 KS_CR    equ 02h
 KS_Q     equ 04h
 KS_M     equ 08h
+KS_T     equ 10h

@@ -52,7 +52,8 @@ for _ in range(80):
 for _ in range(120):                    # heroes page
     tick([])
 m.screen(2).save(os.path.join(OUT, 'name_2.png'))
-tab = m.mem[0xA6A0:0xA6A0 + 64]
+hs = sym.get('HISC', 0xA6C0)
+tab = m.mem[hs:hs + 64]
 for i in range(8):
     e = tab[i * 8:i * 8 + 8]
     print(i + 1, bytes(e[3:6]).decode('ascii', 'replace'), '%02X%02X%02X' % (e[2], e[1], e[0]), 'W%d' % e[6])

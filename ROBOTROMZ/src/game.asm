@@ -42,12 +42,8 @@ check_pause:
         ret nz
         ld a,(sedge)
         and KS_M
-        jr z,.nm
-        ld a,(sndon)            ; M toggles sound
-        xor 1
-        ld (sndon),a
-        call snd_off
-.nm:    ld a,(sedge)
+        call nz,cycle_sound     ; M: ALL / FX / OFF
+        ld a,(sedge)
         and KS_CR
         ret z
         ld a,(state)
@@ -70,7 +66,8 @@ check_pause:
         ld hl,s_blank9
         ld de,0*40+24
         ld c,70h
-        jp print_bg             ; (shows at the next flush)
+        call print_bg           ; (shows at the next flush)
+        jp hud_power
 
 ; ---------------------------------------------------------------------
 tick_intro:
@@ -80,10 +77,13 @@ tick_intro:
         call place_objects
         call update_particles
         call place_player
+        ld a,(framecnt)
+        and 3
+        call z,caption_colours
         ld hl,statetm
         dec (hl)
         ret nz
-        call clear_caption
+        call clear_big
         ld a,S_PLAY
         ld (state),a
         ret
@@ -100,6 +100,9 @@ tick_play:
         call update_shots
         call player_collide
         call place_player
+        call pick_tick
+        call edge_flash
+        call heartbeat
         call hud_update
         ld a,(state)
         cp S_PLAY
@@ -116,14 +119,16 @@ tick_play:
         ld hl,sfx_clear
         ld a,8
         call play_sfx
-        ld hl,s_wave
-        ld de,10*40+14
-        ld c,61h
+        ld hl,s_bigclear
+        ld b,7
+        ld e,61h
+        call big_centre
+        ld hl,s_saved           ; HUMANS SAVED: n
+        ld de,15*40+12
+        ld c,71h
         call print_bg
-        ld a,(wave)
+        ld a,(saved)
         call print_dec2
-        ld hl,s_cleared
-        call print_bg
         ld a,(saved)            ; full family bonus: saved some, lost none
         or a
         ret z
@@ -134,9 +139,45 @@ tick_play:
         ld a,200
         call add_score
         ld hl,s_bonus
-        ld b,14
-        ld c,71h
+        ld b,17
+        ld c,61h
         jp print_centre
+
+; now and then a power-up appears (from wave 2)
+pick_tick:
+        ld a,(wave)
+        cp 2
+        ret c
+        ld a,(demo)
+        or a
+        ret nz
+        ld hl,(picktm)
+        dec hl
+        ld (picktm),hl
+        ld a,h
+        or l
+        ret nz
+        call rand8              ; the next one 14-24 s later
+        ld l,a
+        ld h,0
+        add hl,hl
+        ld de,700
+        add hl,de
+        ld (picktm),hl
+        call rand_pos_robot     ; not right next to you
+        ld a,T_PICK
+        call new_obj
+        ret c
+        call rand8
+        and 1
+        ld (ix+OAUX),a
+        ld hl,PICKLIFE
+        ld (ix+OVXL),l
+        ld (ix+OVXH),h
+        ld (ix+OST),20
+        ld hl,sfx_spawn
+        ld a,2
+        jp play_sfx
 
 tick_dying:
         xor a
@@ -160,6 +201,9 @@ tick_dying:
         ld a,(demo)
         or a
         jp nz,demo_end
+        ld a,(trainer)          ; trainer mode: lives never run out
+        or a
+        jp nz,respawn
         ld hl,lives
         dec (hl)
         call hud_lives
@@ -174,10 +218,10 @@ tick_dying:
         ld hl,sfx_over
         ld a,9
         call play_sfx
-        ld hl,s_gameover
-        ld b,11
-        ld c,21h
-        jp print_centre
+        ld hl,s_biggame
+        ld b,7
+        ld e,21h
+        jp big_centre
 
 tick_clear:
         xor a
@@ -187,6 +231,10 @@ tick_clear:
         call update_particles
         call place_player
         call hud_update
+        call edge_flash
+        ld a,(framecnt)
+        and 3
+        call z,caption_colours
         ld a,(statetm)          ; fireworks
         and 15
         call z,firework
@@ -241,7 +289,7 @@ tick_over:
         call hiscore_rank       ; a place in the table?
         jp nc,title
         call enter_name
-        ld a,4                  ; show the table
+        ld a,PG_HEROES          ; show the table
         ld (page),a
         jp attract
 
@@ -353,6 +401,19 @@ start_wave:
         ld (lost),a
         ld (firecd),a
         ld (pyflip),a
+        ld (edgetm),a
+        ld hl,0                 ; power-ups end with the wave
+        ld (pw3),hl
+        ld (pwsh),hl
+        call rand8              ; the first pickup after 10-20 s
+        ld l,a
+        ld h,0
+        add hl,hl
+        ld de,500
+        add hl,de
+        ld (picktm),hl
+        ld a,30
+        ld (beattm),a
         ; difficulty stage: 3 for waves 1-2, 2 for 3-5, 1 for 6-10, 0 after
         ld a,(wave)
         ld b,3
@@ -439,12 +500,26 @@ start_wave:
         call draw_arena
         call hud_all
         call refresh_all
-        ld hl,s_wave
-        ld de,10*40+16
-        ld c,61h
-        call print_bg
+        ld hl,s_bigwave         ; "WAVE nn" in big letters
+        ld de,capbuf
+        ld bc,5
+        ldir
         ld a,(wave)
-        call print_dec2
+        ld b,'0'-1
+.tens:  inc b
+        sub 10
+        jr nc,.tens
+        add a,'0'+10
+        ex de,hl
+        ld (hl),b
+        inc hl
+        ld (hl),a
+        inc hl
+        ld (hl),0
+        ld hl,capbuf
+        ld b,7
+        ld e,61h
+        call big_centre
         call wave_subtitle
         ld b,14                 ; (row 12 is where the player stands)
         ld c,71h
@@ -796,13 +871,22 @@ hud_all:
         ld de,16
         call print_bcd6
         call hud_lives
-        ld a,(demo)
+        ld a,(trainer)
         or a
-        jr z,hud_score
-        ld hl,s_demo
-        ld de,25
+        jr z,.nt
+        ld hl,s_t
+        ld de,32
         ld c,20h
         call print_bg
+.nt:    ld a,(demo)
+        or a
+        jr z,.nd
+        ld hl,s_demo
+        ld de,24
+        ld c,20h
+        call print_bg
+        jr hud_score
+.nd:    call hud_power
 hud_score:
         ld hl,score
         ld de,0
@@ -826,12 +910,38 @@ hud_lives:
         ret
 
 hud_update:
-        ld a,(hudflag)
+        ld a,(hudpw)
+        or a
+        jr z,.s
+        xor a
+        ld (hudpw),a
+        ld a,(demo)
+        or a
+        call z,hud_power
+.s:     ld a,(hudflag)
         or a
         ret z
         xor a
         ld (hudflag),a
         jr hud_score
+
+; which power-up is on, at column 24 (SHIELD wins over 3-WAY)
+hud_power:
+        ld hl,s_shield
+        ld c,50h
+        ld de,(pwsh)
+        ld a,d
+        or e
+        jr nz,.p
+        ld hl,s_3way
+        ld c,60h
+        ld de,(pw3)
+        ld a,d
+        or e
+        jr nz,.p
+        ld hl,s_blank7
+.p:     ld de,24
+        jp print_bg
 
 ; DE = points (4 BCD digits), A = points / 25 (for the extra-life count)
 add_score:
@@ -869,6 +979,8 @@ add_score:
         inc a
         ld (lives),a
 .full:  call hud_lives
+        ld a,48                 ; the arena edge flashes
+        ld (edgetm),a
         call player_bc          ; a ring of cyan round the player
         ld a,b
         ld b,c

@@ -90,6 +90,16 @@ storyp:     dw 0
 storyc:     dw 0
 storyl:     dw 0
 chase:      db 0
+pw3:        dw 0        ; power-up ticks left: 3-Way, Shield
+pwsh:       dw 0
+picktm:     dw 0        ; ticks until the next pickup appears
+hudpw:      db 0        ; power-up HUD needs redrawing
+edgetm:     db 0        ; arena edge flash
+beattm:     db 0        ; heartbeat
+soundopt:   db 0        ; 0 ALL (effects + heartbeat), 1 FX only, 2 OFF
+trainer:    db 0        ; 1 = infinite lives
+bigr:       db 0
+capbuf:     ds 8
 page:       db 0
 pagetm:     dw 0
 phase:      db 0

@@ -60,7 +60,7 @@ demo_end:
         xor a
         ld (demo),a
         call snd_off
-        ld a,4                  ; on to the high scores
+        ld a,PG_HEROES          ; on to the high scores
         ld (page),a
         jp attract
 

@@ -36,6 +36,24 @@ play_sfx:
         ld (sndleft),a
         ret
 
+; M: sound ALL (effects + heartbeat) -> FX only -> OFF -> ALL
+cycle_sound:
+        ld a,(soundopt)
+        inc a
+        cp 3
+        jr c,.s
+        xor a
+.s:     ld (soundopt),a
+        cp 2
+        ld a,0
+        jr z,.o
+        inc a
+.o:     ld (sndon),a
+        call snd_off
+        ld hl,sfx_rescue        ; a blip to show it's on
+        ld a,1
+        jp play_sfx
+
 snd_off:
         ld hl,0
         ld (sndptr),hl
@@ -245,6 +263,19 @@ sfx_spawn:
         NOTE 1568, 2
         NOTE 1760, 2
         NOTE 1976, 2
+        db 0
+sfx_beat:                       ; the heartbeat: lub ... dub
+        NOTE 70, 2
+        db 3
+        dw 0
+        NOTE 52, 3
+        db 0
+sfx_pick:                       ; power-up
+        NOTE 784, 2
+        NOTE 1047, 2
+        NOTE 1319, 2
+        NOTE 1568, 2
+        NOTE 2093, 6
         db 0
 sfx_type:                       ; typewriter tick
         db 1

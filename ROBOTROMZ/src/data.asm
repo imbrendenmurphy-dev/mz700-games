@@ -22,7 +22,7 @@ tinfo:
         db 81h,81h, 0F1h, 0,                  0,0,      0,0   ; skull
         db 0,0,     61h,  0,                  0,0,      0,0   ; pop-up
         db 0B3h,0EEh,0F1h, 0,                 0,0,      0,0   ; explosion
-        db 0,0,     71h,  0,                  0,0,      0,0   ; (spare)
+        db 0B5h,08Fh,0E1h, F_SOLID|F_ANIM,    0,0,      0,0   ; pickup
 
 pyloncols:                      ; never red or green (droids, crushers)
         db 0F1h,0B1h,0E1h,0D1h
@@ -141,6 +141,14 @@ s_sub_lines: db "CORRIDORS OF DOOM",0
 s_sub_grid:  db "MINEFIELD",0
 s_sub_last:  db "THE LAST STAND",0
 s_demo:      db "DEMO",0
+s_t:         db "T",0
+s_shield:    db "SHIELD ",0
+s_3way:      db "3-WAY  ",0
+s_blank7:    db "       ",0
+s_saved:     db "HUMANS SAVED: ",0
+s_bigwave:   db "WAVE "
+s_bigclear:  db "CLEAR!",0
+s_biggame:   db "GAME OVER",0
 
 ; ---- default high scores: score (BCD, low byte first), initials, wave, -
 hisc_init:
@@ -152,3 +160,5 @@ hisc_init:
         db 00h,50h,01h, "MOM",  5, 0
         db 00h,00h,01h, "DAD",  3, 0
         db 00h,50h,00h, "KID",  2, 0
+
+        include "../build/gen_bigfont.inc"

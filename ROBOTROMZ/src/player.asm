@@ -1,5 +1,5 @@
 ; =====================================================================
-;  player.asm - the player, player shots, enemy bullets
+;  player.asm - the player, power-ups, player shots, enemy bullets
 ; =====================================================================
 
 player_ofs:
@@ -10,6 +10,7 @@ player_ofs:
         jp calc_ofs
 
 player_update:
+        call power_tick
         ld a,(mkeys)
         ld c,a
         ld hl,(px)
@@ -63,7 +64,35 @@ player_update:
         ld a,(hl)
         or a
         ret z
+        ld b,a                  ; B = direction 1..8
+        call spawn_shot
+        ld hl,(pw3)             ; 3-Way: one each side as well
+        ld a,h
+        or l
+        jr z,.snd
+        ld a,b
+        dec a
+        jr nz,.d1
+        ld a,8
+.d1:    push bc
         ld b,a
+        call spawn_shot
+        pop bc
+        ld a,b
+        inc a
+        cp 9
+        jr c,.d2
+        ld a,1
+.d2:    ld b,a
+        call spawn_shot
+.snd:   ld a,FIRE_RATE
+        ld (firecd),a
+        ld hl,sfx_shoot
+        ld a,1
+        jp play_sfx
+
+; B = direction: a shot from the player (if there's a free slot)
+spawn_shot:
         ld iy,SHOTS
         ld de,4
         ld c,MAXSH
@@ -79,19 +108,77 @@ player_update:
         ld (iy+SX),a
         ld a,(py+1)
         ld (iy+SY),a
-        ld a,FIRE_RATE
-        ld (firecd),a
-        ld hl,sfx_shoot
+        ret
+
+; power-up timers; the shield throws off a ring of sparks
+power_tick:
+        ld hl,(pw3)
+        ld a,h
+        or l
+        jr z,.s
+        dec hl
+        ld (pw3),hl
+        ld a,h
+        or l
+        call z,hud_power_dirty
+.s:     ld hl,(pwsh)
+        ld a,h
+        or l
+        ret z
+        dec hl
+        ld (pwsh),hl
+        ld a,h
+        or l
+        jp z,hud_power_dirty
+        ld a,(framecnt)
+        and 15
+        ret nz
+        call player_bc
+        ld a,b
+        ld b,c
+        ld c,a
+        ld a,0D1h
+        ld de,0208h
+        jp burst
+
+hud_power_dirty:
         ld a,1
-        jp play_sfx
+        ld (hudpw),a
+        ret
 
 place_player:
         call player_ofs
         ld de,0CA71h            ; stick man, white on blue
         ld a,(state)
         cp S_DYING
-        jp nz,put_cell
-        ld a,(statetm)          ; dying: flash, then burst
+        jr z,.dying
+        ld bc,(pwsh)            ; shielded: cycling colours (blinks near the end)
+        ld a,b
+        or c
+        jp z,put_cell
+        ld a,b
+        or a
+        jr nz,.cyc
+        ld a,c
+        cp 60
+        jr nc,.cyc
+        ld a,(framecnt)
+        and 4
+        jp z,put_cell
+.cyc:   ld a,(framecnt)
+        and 7
+        add a,2
+        cp 8
+        jr c,.c1
+        sub 6
+.c1:    rlca
+        rlca
+        rlca
+        rlca
+        or 01h
+        ld e,a
+        jp put_cell
+.dying: ld a,(statetm)          ; dying: flash, then burst
         cp 50
         jr c,.burst
         and 7
@@ -114,13 +201,33 @@ place_player:
         jp nc,put_cell
         ret
 
+shielded:                       ; NZ if the shield is up
+        ld hl,(pwsh)
+        ld a,h
+        or l
+        ret
+
 ; what is in the player's cell?
 player_collide:
         call player_ofs
         call bocc_at
         or a
-        jr nz,player_die        ; an enemy bullet
-        call occ_at
+        jr z,.nb
+        ld b,a                  ; an enemy bullet
+        call shielded
+        jp z,player_die
+        ld a,b                  ; the shield soaks it up
+        and 7Fh
+        ld l,a
+        ld h,0
+        add hl,hl
+        add hl,hl
+        add hl,hl
+        ld de,EBUL
+        add hl,de
+        ld (hl),0
+        call player_ofs
+.nb:    call occ_at
         or a
         ret z
         call id_to_iy
@@ -130,6 +237,8 @@ player_collide:
         ld a,(iy+OT)
         or a
         ret z
+        cp T_PICK
+        jp z,.pick
         cp T_MOM
         jr c,.robot
         cp T_KID+1
@@ -177,18 +286,50 @@ player_collide:
         ld hl,sfx_rescue
         ld a,5
         jp play_sfx
-.robot: call tinfo_ptr
-        inc hl
-        inc hl
-        inc hl
-        bit 0,(hl)              ; F_DEADLY
+.robot: ld a,(iy+OFL)
+        bit 0,a                 ; F_DEADLY
         ret z
+        call shielded
+        jr z,player_die
+        ld a,(iy+OFL)           ; shielded: it's destroyed if it can be
+        bit 1,a
+        ret z
+        push iy
+        pop ix
+        jp kill_obj
+.pick:  ld b,(iy+OY)            ; a power-up
+        ld c,(iy+OX)
+        ld (iy+OT),0
+        ld a,(iy+OAUX)
+        or a
+        jr nz,.psh
+        ld hl,T3WAY
+        ld (pw3),hl
+        ld a,0E1h
+        jr .p3
+.psh:   ld hl,TSHIELD
+        ld (pwsh),hl
+        ld a,0D1h
+.p3:    ld de,000Ch
+        call burst
+        call hud_power_dirty
+        ld de,0250h
+        ld a,10
+        call add_score
+        ld hl,sfx_pick
+        ld a,6
+        jp play_sfx
+
 player_die:
         ld a,S_DYING
         ld (state),a
         ld a,90
         ld (statetm),a
         call clear_shots
+        ld hl,0                 ; power-ups go with you
+        ld (pw3),hl
+        ld (pwsh),hl
+        call hud_power_dirty
         call player_bc          ; B = column, C = row
         ld a,b
         ld b,c

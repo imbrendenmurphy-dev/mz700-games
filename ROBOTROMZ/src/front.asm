@@ -12,7 +12,7 @@ front_end:
         call clear_particles
 .newpage:
         ld a,(page)
-        cp 3
+        cp PG_DEMO
         jr nz,.np
         ld a,1
         ret
@@ -32,14 +32,23 @@ front_end:
 .ns:    ld a,(sedge)
         and KS_M
         jr z,.nm
-        ld a,(sndon)
-        xor 1
-        ld (sndon),a
-        call snd_off
+        call cycle_sound
         ld a,(page)
         or a
         call z,show_sound
-.nm:    call animate_page
+.nm:    ld a,(sedge)            ; T: trainer mode
+        and KS_T
+        jr z,.nt
+        ld a,(trainer)
+        xor 1
+        ld (trainer),a
+        ld hl,sfx_type
+        ld a,1
+        call play_sfx
+        ld a,(page)
+        or a
+        call z,show_trainer
+.nt:    call animate_page
         call update_particles
         ld hl,framecnt
         inc (hl)
@@ -52,11 +61,11 @@ front_end:
         jr c,.loop
         ld a,(page)             ; next page
         inc a
-        cp 5
+        cp NPAGES
         jr c,.p
         xor a
 .p:     ld (page),a
-        jr .newpage
+        jp .newpage
 
 draw_page:
         ld a,(page)
@@ -66,6 +75,8 @@ draw_page:
         jp z,draw_story
         dec a
         jp z,draw_gallery
+        dec a
+        jp z,draw_howto
         jp draw_heroes
 
 animate_page:
@@ -79,7 +90,25 @@ animate_page:
         jp z,anim_story
         dec a
         jp z,anim_gallery
+        dec a
+        ret z                   ; how to play: just the border
         jp anim_heroes
+
+; ---------------------------------------------------------------------
+; page 3: how to play
+draw_howto:
+        ld hl,520
+        call set_len
+        call page_frame
+        ld hl,howto_recs
+        call print_recs
+        ld hl,15*40+3           ; the two power-ups
+        ld de,0B5E0h
+        call bg_put
+        ld hl,17*40+3
+        ld de,08FD0h
+        call bg_put
+        jp refresh_all
 
 ; text records: row, column (FFh = centred), attribute, string; FFh ends
 print_recs:
@@ -158,19 +187,34 @@ draw_title:
         ld c,50h
         call print_bcd6
         call show_sound
+        call show_trainer
         call refresh_all
         ld hl,sfx_title
         ld a,1
         jp play_sfx
 
 show_sound:
-        ld hl,s_snd_on
-        ld a,(sndon)
+        ld a,(soundopt)
+        ld hl,s_snd_all
         or a
-        jr nz,.on
+        jr z,.on
+        ld hl,s_snd_fx
+        dec a
+        jr z,.on
         ld hl,s_snd_off
 .on:    ld de,17*40+18
         ld c,70h
+        jp print_bg
+
+show_trainer:
+        ld hl,s_off
+        ld c,70h
+        ld a,(trainer)
+        or a
+        jr z,.t
+        ld hl,s_on
+        ld c,20h
+.t:     ld de,18*40+18
         jp print_bg
 
 anim_title:
@@ -809,6 +853,8 @@ title_recs:
         db "PAUSE       RETURN",0
         db 17,6,70h
         db "SOUND (M)",0
+        db 18,6,70h
+        db "TRAINER (T)",0
         db 20,10,60h
         db "PRESS SPACE TO START",0
         db 22,13,50h
@@ -888,7 +934,37 @@ name_recs:
         db "DEL RUBS OUT",0
         db 0FFh
 
-s_snd_on:   db "ON ",0
-s_snd_off:  db "OFF",0
+s_snd_all:  db "ALL    ",0
+s_snd_fx:   db "FX ONLY",0
+s_snd_off:  db "OFF    ",0
+s_on:       db "ON ",0
+s_off:      db "OFF",0
+
+howto_recs:
+        db 2,0FFh,60h
+        db "- HOW TO PLAY -",0
+        db 4,2,70h
+        db "SHOOT EVERY ROBOT TO CLEAR THE WAVE.",0
+        db 6,2,70h
+        db "TOUCH THE HUMANS TO SAVE THEM:",0
+        db 7,2,70h
+        db "1000, THEN 2000 ... UP TO 5000 EACH.",0
+        db 9,2,70h
+        db "SAVE SOME, LOSE NONE: 5000 BONUS.",0
+        db 11,2,70h
+        db "AN EXTRA LIFE EVERY 25000 POINTS.",0
+        db 13,2,50h
+        db "POWER-UPS, FROM WAVE 2:",0
+        db 15,6,60h
+        db "3-WAY   TRIPLE SHOT, 10 SECONDS",0
+        db 17,6,50h
+        db "SHIELD  6 SECONDS. ROBOTS THAT",0
+        db 18,6,50h
+        db "        TOUCH YOU ARE DESTROYED",0
+        db 20,2,70h
+        db "EACH POWER-UP IS WORTH 250.",0
+        db 22,2,70h
+        db "T ON THE TITLE: TRAINER MODE.",0
+        db 0FFh
 
         include "../build/gen_logo.inc"

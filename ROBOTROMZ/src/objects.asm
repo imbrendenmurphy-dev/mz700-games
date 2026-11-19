@@ -495,9 +495,21 @@ upd_tab:
         dw upd_droid, upd_none, upd_crush, upd_brain
         dw upd_mutant, upd_orb, upd_seeker, upd_fact
         dw upd_tank, upd_human, upd_human, upd_human
-        dw upd_timer, upd_timer, upd_timer, upd_none
+        dw upd_timer, upd_timer, upd_timer, upd_pick
 
 upd_none:
+        ret
+
+upd_pick:                       ; a power-up waits a while, then goes
+        ld l,(ix+OVXL)
+        ld h,(ix+OVXH)
+        dec hl
+        ld (ix+OVXL),l
+        ld (ix+OVXH),h
+        ld a,h
+        or l
+        ret nz
+        ld (ix+OT),0
         ret
 
 upd_timer:                      ; skulls, pop-ups, explosions
@@ -996,6 +1008,8 @@ obj_look:
         ld a,(ix+OT)
         cp T_EXPL
         jr z,.expl
+        cp T_PICK
+        jr z,.pick
         ld d,(hl)
         bit 0,(ix+OAN)
         jr z,.g
@@ -1042,6 +1056,24 @@ obj_look:
         cp 5
         ret nc
         ld d,0EFh
+        ret
+.pick:  ld d,0B5h                ; 3-Way: a yellow trident
+        ld e,0E1h
+        ld a,(ix+OAUX)
+        or a
+        jr z,.p1
+        ld d,08Fh               ; Shield: a cyan circled cross
+        ld e,0D1h
+.p1:    ld a,(ix+OVXH)          ; last 2 seconds: blink white
+        or a
+        ret nz
+        ld a,(ix+OVXL)
+        cp 100
+        ret nc
+        ld a,(framecnt)
+        and 8
+        ret z
+        ld e,0F1h
         ret
 .mat:   inc hl                  ; sparkle in the object's colour
         inc hl
