@@ -1,4 +1,4 @@
-"""play.py - run ROBOGEDDON in the headless MZ-700 model with scripted keys.
+﻿"""play.py - run ROBOGEDDON in the headless MZ-700 model with scripted keys.
 
     py tools/play.py [script] [ticks]
 
@@ -75,10 +75,14 @@ def patch(m, sym):
         w = sym['wave']
         pat = bytes([0x3E, 0x01, 0x32, w & 0xFF, w >> 8])
         i = m.mem.find(pat, sym['new_game'])
-        assert 0 < i - sym['new_game'] < 40
+        assert 0 <= i - sym['new_game'] < 40
         m.mem[i + 1] = int(os.environ['WAVE'])
     if os.environ.get('GOD'):
         m.mem[sym['player_die']] = 0xC9
+    if os.environ.get('DEMO'):          # go straight to the demo page
+        m.run_until_pc(sym['front_end'], 10 ** 8)
+        m.mem[sym['page']] = 3
+        m.mem[sym['demoidx']] = int(os.environ['DEMO']) - 1
 
 
 def main():
@@ -96,8 +100,13 @@ def main():
     t0 = time.time()
     m.run_until_pc(wv, 10 ** 8)
     last = None
+    seed = os.environ.get('SEED')
     for t in range(ticks):
         m.held = script(t)
+        if seed and t == 300:           # same random game whatever ran before
+            v = int(seed)
+            m.mem[sym['seed']] = v & 0xFF
+            m.mem[sym['seed'] + 1] = (v >> 8) | 1
         # leave wait_vblank: run until it returns (PC back in the caller)
         start = m.cpu.t
         m.step()

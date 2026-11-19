@@ -19,6 +19,9 @@ play_sfx:
         ld a,(sndon)
         or a
         ret z
+        ld a,(demo)             ; the demo plays silently
+        or a
+        ret nz
         ld a,(sndptr+1)
         or a
         jr z,.go
@@ -243,6 +246,64 @@ sfx_spawn:
         NOTE 1760, 2
         NOTE 1976, 2
         db 0
+sfx_type:                       ; typewriter tick
+        db 1
+        dw 90
+        db 0
+
+; title tune: a driving minor riff, staccato
+NT      MACRO hz
+        db 5
+        dw 1108800/hz
+        db 1
+        dw 0
+        ENDM
+NL      MACRO hz
+        db 17
+        dw 1108800/hz
+        db 1
+        dw 0
+        ENDM
+sfx_title:
+        NT 440
+        NT 440
+        NT 659
+        NT 440
+        NT 392
+        NT 440
+        NT 523
+        NT 494
+        NT 440
+        NT 440
+        NT 659
+        NT 440
+        NT 587
+        NT 523
+        NT 494
+        NT 392
+        NT 349
+        NT 349
+        NT 523
+        NT 349
+        NT 330
+        NT 349
+        NT 440
+        NT 392
+        NT 330
+        NT 330
+        NT 494
+        NT 330
+        NT 415
+        NT 494
+        NT 587
+        NL 659
+        NT 220
+        NT 220
+        NT 440
+        NT 220
+        NL 880
+        db 0
+
 sfx_over:
         NOTE 392, 12
         NOTE 370, 12

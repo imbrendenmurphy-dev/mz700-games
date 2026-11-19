@@ -10,12 +10,13 @@ frame. It's inspired by the Robotron style of game but contains nothing from
 it. Original code, ViBED by BPM 2026.
 
 ![title](docs/title.png) ![wave 5](docs/wave5.png)
+![the robots](docs/robots.png) ![wave clear](docs/fireworks.png)
 
 ## Play it
 
 - **Real MZ-700 / UniCMT:** copy `release/ROBOGEDN.MZT` to the USB stick
   (`release/ROBOGEDN.MZF` is the same file under the other common extension)
-  and load it like a tape (`L` from the monitor). It loads at 1200h-3079h and
+  and load it like a tape (`L` from the monitor). It loads at 1200h-3F21h and
   starts by itself.
 - **MZ700WIN:** File > Open `release/ROBOGEDN.MZT`.
 
@@ -25,9 +26,10 @@ it. Original code, ViBED by BPM 2026.
 |---|---|
 | **W A S D** | move (8 directions) |
 | **I J K L** or the **cursor keys** | fire (8 directions, hold two for diagonals) |
-| SPACE | start |
+| SPACE | start (from any attract page, or to take over from the demo) |
 | RETURN | pause (Q quits to the title while paused) |
 | M | sound on / off |
+| A-Z, DEL, RETURN | type your initials for the high-score table |
 
 You can move one way and shoot another, which is the whole point of the game.
 
@@ -51,11 +53,37 @@ each). The count starts again every wave.
 | **Tank** (white) | 200 | Lumbers toward you and lobs shells that bounce off the walls |
 
 - Sparks, missiles and shells can be shot down for 25 points.
-- 20 waves from the VZ version: droid swarms, crusher waves, mindbot waves and
-  tank waves. After wave 20 they repeat. The first ten waves ease you in.
+- **40 waves.** The first 20 follow the VZ version (droid swarms, crusher
+  waves, mindbot waves, tank waves). Waves 21-40 are new mixes, ending with
+  *The Last Stand*. After wave 40, waves 21-40 repeat. The first ten waves
+  ease you in.
+- **Formations.** Some waves arrange their pylons as an *Electric Fence*
+  (a ring), *Corridors of Doom* (two walls) or a *Minefield* (a grid), and
+  some start the droids all round the edge (*They're all around you!*).
 - Each wave's robots materialise line by line, top to bottom, under a caption.
+- **Particles:** robots burst into debris in their own colour, crushers spark
+  when you hit them, rescues sparkle, you go out in two bangs, and a cleared
+  wave gets fireworks.
 - **Full Family Bonus**: 5000 for a wave where you save someone and lose no one.
 - An extra life every 25,000 points. 3 lives to start.
+
+## Attract sequence
+
+Left alone, the game cycles through:
+
+1. **Title**: the ROBOGEDDON logo with rolling colours and sparks, a flowing
+   rainbow border, the controls, and a title tune.
+2. **The story so far**, typed out a letter at a time while a human runs from
+   a line of droids.
+3. **The robots**: the rogues' gallery, each robot materialising in turn with
+   its name and points.
+4. **Demo**: the computer plays a wave (silently). Press SPACE to take over
+   with a game of your own.
+5. **Robogeddon heroes**: the top 8 scores, initials and wave reached, with
+   fireworks. A new entry flashes.
+
+A score good enough for the table asks for your initials after GAME OVER.
+The table lasts until you switch off.
 
 ## How it works
 
@@ -74,28 +102,36 @@ each). The count starts again every wave.
   also the collision map: a shot or the player only has to look at one byte.
   When an object leaves a cell that another object is hiding in, the cell is
   flagged and the hidden one draws itself again.
+- Particles (up to 32) go straight into the work screen and, like the
+  robots, are only redrawn when they change cell or look. Half of them move
+  each tick, at double speed.
 - One-voice sound on the 8253, stepped every tick: shots, explosions,
-  rescue arpeggios, jingles.
+  rescue arpeggios, jingles, the title tune.
 - Objects: up to 80 robots, humans and effects, 16 enemy bullets and 6 shots.
+- The demo player looks at the robots every 4th tick: it runs from anything
+  within 5 cells, heads for the nearest human, and fires at the robot that is
+  nearest and best lined up with one of its 8 shooting directions.
 
 ### Speed
 
 In the test model (which assumes video RAM wait states on every line, which
-is pessimistic), every wave runs at 50 fps. The busiest, wave 11 with 52
-robots, averages about 70% of a field per tick. Wave 20 (14 mindbots and
-their missiles) misses the odd field in its first seconds, about 4% of ticks.
-At most 5 homing missiles are in the air at once.
+is pessimistic), ordinary waves run at a steady 50 fps with all the particles.
+The big waves (11 on, 50-70 robots, humans and hatchlings) average 75-85% of
+a field per tick and drop the odd frame in their busiest seconds: 2-13% of
+ticks, depending on the wave. At most 5 homing missiles are in the air at
+once.
 
 ### Memory map
 
 | Address | Use |
 |---|---|
 | 1000h-11FFh | stack (monitor work area; the game never returns to the monitor) |
-| 1200h-3079h | code and data |
+| 1200h-3F21h | code and data |
 | 8000h-87FFh | object layer (chars, attributes) |
 | 8800h-8BFFh | redraw flags |
+| 8C00h-8DFFh | particles (32 x 16 bytes) |
 | 9000h-99FFh | objects (80 x 32 bytes) |
-| A000h-A9FFh | transient lists, background change list, enemy bullets, shots, dirty list |
+| A000h-A9FFh | transient lists, background change list, enemy bullets, shots, high scores, dirty list |
 | B000h-B7FFh | background (chars, attributes) |
 | B800h-BFFFh | work screen |
 | C000h-C7FFh | shadow of video RAM |
@@ -116,7 +152,9 @@ py tools/verify.py play 1500     # checks VRAM == work screen and every robot is
 ```
 
 `play.py` scripts: `play`, `stand`, `idle`, `pause`, `title`. Set `WAVE=11`
-to start on another wave and `GOD=1` to make the player invincible.
+to start on another wave, `GOD=1` to make the player invincible, `SEED=n`
+for the same random game every run, and `DEMO=n` to go straight to the demo.
+`py tools/test_name.py` plays to GAME OVER and types a set of initials.
 The screenshots need a European CG-ROM image at `rom/mz700fon.int` (not
 included).
 
@@ -127,7 +165,9 @@ included).
 | `src/game.asm` | game states, waves, HUD, scoring |
 | `src/objects.asm` | robots, humans, effects: spawning, AI, drawing |
 | `src/player.asm` | player, shots, enemy bullets |
-| `src/front.asm` | title page and robot gallery |
+| `src/particles.asm` | debris, sparkles, fireworks |
+| `src/demo.asm` | the demo's computer player |
+| `src/front.asm` | attract pages, high-score table, initials entry |
 | `src/keys.asm`, `src/sound.asm` | keyboard matrix, sound effects |
 | `src/data.asm` | robot table, waves, difficulty, text |
 | `tools/build.py` | logo generator, assembler run, MZT/MZF wrapper |
@@ -135,7 +175,7 @@ included).
 
 ## Status
 
-Version 0.1: complete and playable in the test model, **not yet tried on
+Version 0.2: complete and playable in the test model, **not yet tried on
 real hardware**. Things to check on a real machine:
 
 - **Keyboard ghosting.** Holding four keys at once (move diagonally while
@@ -143,5 +183,8 @@ real hardware**. Things to check on a real machine:
   diodes. If moving and firing interfere, say which keys, and the fire keys
   can be moved to a different part of the matrix.
 
-Not in this version yet (the VZ version has them): power-ups, high-score
-initials, story page, demo mode.
+- **The DEL key** for rubbing out initials is assumed to be row 7, bit 6 of
+  the keyboard matrix. If it doesn't work, RETURN still finishes the entry.
+
+Not in this version yet (the VZ version has them): power-ups (3-Way, Shield),
+a controls page, and trainer mode.

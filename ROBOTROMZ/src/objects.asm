@@ -344,8 +344,7 @@ step_heading:
         ret
 
 ; free movement by velocity, bouncing off the walls
-move_free:
-        ld (ix+ODIRTY),1
+move_free:                      ; (dirty only when it changes cell)
         ld l,(ix+OXL)
         ld h,(ix+OX)
         ld e,(ix+OVXL)
@@ -357,7 +356,10 @@ move_free:
         cp XMAX+1
         jr nc,.bx
         ld (ix+OXL),l
+        cp (ix+OX)
+        jr z,.y
         ld (ix+OX),h
+        ld (ix+ODIRTY),1
         jr .y
 .bx:    ex de,hl
         call neg_hl
@@ -374,7 +376,10 @@ move_free:
         cp YMAX+1
         jr nc,.by
         ld (ix+OYL),l
+        cp (ix+OY)
+        ret z
         ld (ix+OY),h
+        ld (ix+ODIRTY),1
         ret
 .by:    ex de,hl
         call neg_hl
@@ -763,8 +768,20 @@ kill_obj:
         inc hl
         ld d,(hl)
         inc hl
+        inc hl
+        ld b,(hl)               ; debris count
+        dec hl
+        ld a,b
+        ld (bcnt),a
         ld a,(hl)
         call add_score
+        ld a,(bcnt)
+        ld e,a
+        ld b,(ix+OY)            ; debris in the robot's colour
+        ld c,(ix+OX)
+        ld a,(ix+OAUX)
+        ld d,0
+        call burst
         ld a,T_EXPL
         call set_type
         ld (ix+OTM),12
@@ -784,13 +801,11 @@ place_objects:
         ld a,(objtop)
         or a
         ret z
-        ld b,a
+        ld b,a                  ; B = slots left, C = id
         ld ix,OBJ
         ld c,1
-.l:     push bc
-        ld a,c
-        ld (curid),a
-        ld a,(ix+OT)
+        ; fast path: a robot that hasn't changed and is still showing
+.l:     ld a,(ix+OT)
         or a
         jr z,.gone
         cp T_POP
@@ -800,39 +815,69 @@ place_objects:
         jr z,.nc
         ld hl,alive
         inc (hl)
-.nc:    bit 3,a                 ; F_HUMAN: later
+.nc:    and F_HUMAN|F_ANIM
+        jr nz,.spec
+        or (ix+ODIRTY)          ; (A = 0 here; not drawn => dirty)
+        jr nz,.full
+        ld l,(ix+OLOFS)         ; uncovered since?
+        ld a,(ix+OLOFS+1)
+        add a,high REDRAW
+        ld h,a
+        ld a,(hl)
+        or a
+        jr nz,.full
+.nx:    ld de,OBJSZ
+        add ix,de
+        inc c
+        djnz .l
+        jp .humans
+.spec:  and F_HUMAN             ; humans: later
         jr nz,.hum
-        bit 6,a                 ; F_ANIM: always redraw
-        jr nz,.full
-        ld a,(ix+ODIRTY)        ; unchanged and still showing? skip it
-        or a
-        jr nz,.full
-        ld a,(ix+ODRAWN)
-        or a
+        ld a,(framecnt)         ; F_ANIM: colours change every 4th tick
+        and 3
         jr z,.full
+        ld a,(ix+ODIRTY)
+        or a
+        jr nz,.full
         ld l,(ix+OLOFS)
         ld a,(ix+OLOFS+1)
         add a,high REDRAW
         ld h,a
         ld a,(hl)
         or a
-        jr z,.nx
-.full:  ld (ix+ODIRTY),0
+        jr nz,.full
+        jr .nx
+.full:  push bc
+        ld a,c
+        ld (curid),a
+        ld (ix+ODIRTY),0
         ld l,(ix+OTI)
         ld h,(ix+OTI+1)
         call obj_look
         call obj_ofs
         call obj_draw
+        pop bc
         jr .nx
-.gone:  call obj_erase          ; freed since last tick (if it was drawn)
+.gone:  ld a,(ix+ODRAWN)        ; freed since last tick and still drawn?
+        or a
+        jr z,.nx
+        push bc
+        ld a,c
+        ld (curid),a
+        call obj_erase
+        pop bc
         jr .nx
-.pop:   call obj_erase          ; a rescued human: now a transient pop-up
+.pop:   push bc                 ; a rescued human: now a transient pop-up
+        ld a,c
+        ld (curid),a
+        call obj_erase
         call place_pop
+        pop bc
         jr .nx
 .hum:   ld hl,humcnt
         ld a,(hl)
         cp 16
-        jr nc,.nx
+        jp nc,.nx
         inc (hl)
         add a,a
         add a,a
@@ -847,15 +892,10 @@ place_objects:
         inc hl
         ld (hl),d
         inc hl
-        ld a,(curid)
-        ld (hl),a
-.nx:    ld de,OBJSZ
-        add ix,de
-        pop bc
-        inc c
-        dec b
-        jp nz,.l
+        ld (hl),c
+        jp .nx
 
+.humans:
         ; humans
         ld a,(humcnt)
         or a
@@ -931,6 +971,11 @@ place_objects:
         call play_sfx
         ld hl,lost
         inc (hl)
+        ld b,(ix+OY)            ; a puff of red
+        ld c,(ix+OX)
+        ld a,0A1h
+        ld de,0106h
+        call burst
 .hn:    pop hl
         pop bc
         dec b

@@ -27,8 +27,12 @@ def main():
     wv = sym['wait_vblank']
     m.run_until_pc(wv, 10 ** 8)
     prof = Counter()
+    seed = os.environ.get('SEED')
     for t in range(ticks):
         m.held = script(t)
+        if seed and t == 300:
+            m.mem[sym['seed']] = int(seed) & 0xFF
+            m.mem[sym['seed'] + 1] = (int(seed) >> 8) | 1
         m.step()
         prof_on = m.mem[sym['state']] == 1 and t > 520
         while m.cpu.pc != wv:

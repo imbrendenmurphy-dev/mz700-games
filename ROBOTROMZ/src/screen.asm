@@ -229,6 +229,7 @@ obj_erase:
         or a
         ret z
         ld (ix+ODRAWN),0
+        ld (ix+ODIRTY),1        ; (not drawn => dirty, always)
         ld l,(ix+OLOFS)
         ld h,(ix+OLOFS+1)
         ld c,l
@@ -535,7 +536,10 @@ refresh_all:
         ld b,a
         ld hl,OBJ+ODRAWN
         ld de,OBJSZ
-.o:     ld (hl),0
+.o:     ld (hl),0               ; not drawn
+        inc hl
+        ld (hl),1               ; so dirty (ODIRTY follows ODRAWN)
+        dec hl
         add hl,de
         djnz .o
 .no:    xor a

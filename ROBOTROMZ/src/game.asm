@@ -1,8 +1,11 @@
 ; =====================================================================
-;  game.asm - game states, waves, HUD, captions, scoring
+;  game.asm - game states, waves, HUD, captions, scoring, high scores
 ; =====================================================================
 
 new_game:
+        ld a,1
+new_game_at:                    ; A = first wave
+        ld (wave),a
         xor a
         ld (score),a
         ld (score+1),a
@@ -11,8 +14,7 @@ new_game:
         ld (extacc),hl
         ld a,3
         ld (lives),a
-        ld a,1
-        ld (wave),a
+        call clear_particles
         jp start_wave
 
 ; ---------------------------------------------------------------------
@@ -33,8 +35,11 @@ game_tick:
 state_tab:
         dw tick_intro, tick_play, tick_dying, tick_clear, tick_over
 
-; P (pause) = RETURN.  While paused nothing moves; Q quits to the title.
+; RETURN pauses.  While paused nothing moves; Q quits to the title.
 check_pause:
+        ld a,(demo)
+        or a
+        ret nz
         ld a,(sedge)
         and KS_M
         jr z,.nm
@@ -73,6 +78,7 @@ tick_intro:
         ld (ai_on),a
         call update_objects     ; only counts down the materialising
         call place_objects
+        call update_particles
         call place_player
         ld hl,statetm
         dec (hl)
@@ -89,6 +95,7 @@ tick_play:
         call droid_speed
         call update_objects
         call place_objects
+        call update_particles
         call update_bullets
         call update_shots
         call player_collide
@@ -114,7 +121,7 @@ tick_play:
         ld c,61h
         call print_bg
         ld a,(wave)
-        call print_wave_num
+        call print_dec2
         ld hl,s_cleared
         call print_bg
         ld a,(saved)            ; full family bonus: saved some, lost none
@@ -127,7 +134,7 @@ tick_play:
         ld a,200
         call add_score
         ld hl,s_bonus
-        ld b,12
+        ld b,14
         ld c,71h
         jp print_centre
 
@@ -135,10 +142,24 @@ tick_dying:
         xor a
         ld (ai_on),a
         call place_objects
+        call update_particles
         call place_player
-        ld hl,statetm
+        ld a,(statetm)
+        cp 50
+        jr nz,.nb
+        call player_bc          ; the second, bigger bang
+        ld a,b
+        ld b,c
+        ld c,a
+        ld a,0E1h+GRAV
+        ld de,0010h
+        call burst
+.nb:    ld hl,statetm
         dec (hl)
         ret nz
+        ld a,(demo)
+        or a
+        jp nz,demo_end
         ld hl,lives
         dec (hl)
         call hud_lives
@@ -163,11 +184,18 @@ tick_clear:
         ld (ai_on),a
         call update_objects     ; explosions and pop-ups finish
         call place_objects
+        call update_particles
         call place_player
         call hud_update
+        ld a,(statetm)          ; fireworks
+        and 15
+        call z,firework
         ld hl,statetm
         dec (hl)
         ret nz
+        ld a,(demo)
+        or a
+        jp nz,demo_end
         ld hl,wave
         ld a,(hl)
         cp 99
@@ -175,8 +203,31 @@ tick_clear:
         inc (hl)
         jp start_wave
 
+; a firework somewhere in the middle of the arena
+firework:
+        ld a,30
+        call rand_n
+        add a,5
+        ld c,a
+        ld a,14
+        call rand_n
+        add a,5
+        ld b,a
+        call rand8
+        and 7
+        ld hl,cyctab
+        add a,l
+        ld l,a
+        jr nc,.n
+        inc h
+.n:     ld a,(hl)
+        or GRAV
+        ld de,000Ch
+        jp burst
+
 tick_over:
         call place_objects
+        call update_particles
         ld hl,statetm
         dec (hl)
         jr z,.done
@@ -186,26 +237,104 @@ tick_over:
         ld a,(sedge)
         and KS_SPACE
         ret z
-.done:  call update_hiscore
-        jp title
+.done:  call snd_off
+        call hiscore_rank       ; a place in the table?
+        jp nc,title
+        call enter_name
+        ld a,4                  ; show the table
+        ld (page),a
+        jp attract
 
-update_hiscore:                 ; hiscore = max(hiscore, score)
-        ld hl,score+2
-        ld de,hiscore+2
-        ld b,3
-.c:     ld a,(de)
-        cp (hl)
-        jr c,.new
-        ret nz
-        dec hl
-        dec de
-        djnz .c
-        ret
-.new:   ld hl,score
+; ---------------------------------------------------------------------
+; high scores.  HISC: 8 x (score BCD 3 bytes low first, initials 3, wave, -)
+
+init_hiscores:
+        ld hl,hisc_init
+        ld de,HISC
+        ld bc,64
+        ldir
+        ld a,0FFh
+        ld (hinew),a
+        jp set_hiscore
+
+; hiscore = the table's top score (for the HUD)
+set_hiscore:
+        ld hl,HISC
         ld de,hiscore
         ld bc,3
         ldir
         ret
+
+; does score beat entry 7?  Carry = yes, A = its rank (0..7)
+hiscore_rank:
+        ld ix,HISC
+        ld c,0
+.l:     call beats              ; score > (ix)?
+        jr c,.yes
+        ld de,8
+        add ix,de
+        inc c
+        ld a,c
+        cp 8
+        jr nz,.l
+        or a
+        ret
+.yes:   ld a,c
+        scf
+        ret
+
+beats:                          ; carry if score > the entry at IX
+        ld a,(ix+2)
+        ld hl,score+2
+        cp (hl)
+        jr nz,.d
+        ld a,(ix+1)
+        dec hl
+        cp (hl)
+        jr nz,.d
+        ld a,(ix+0)
+        dec hl
+        cp (hl)
+.d:     ret                     ; carry: entry < score
+
+; insert the score at rank A with blank initials; IX = its entry
+hiscore_insert:
+        ld (hinew),a
+        ld b,a
+        ld a,7                  ; move entries rank..6 down one
+        sub b
+        jr z,.put
+        ld c,a
+        ld b,0
+        sla c                   ; *8
+        rl b
+        sla c
+        rl b
+        sla c
+        rl b
+        ld hl,HISC+7*8-1
+        ld de,HISC+8*8-1
+        lddr
+.put:   ld a,(hinew)
+        add a,a
+        add a,a
+        add a,a
+        ld e,a
+        ld d,0
+        ld ix,HISC
+        add ix,de
+        ld a,(score)
+        ld (ix+0),a
+        ld a,(score+1)
+        ld (ix+1),a
+        ld a,(score+2)
+        ld (ix+2),a
+        ld (ix+3),' '
+        ld (ix+4),' '
+        ld (ix+5),' '
+        ld a,(wave)
+        ld (ix+6),a
+        jp set_hiscore
 
 ; ---------------------------------------------------------------------
 ; set up wave (wave)
@@ -247,27 +376,30 @@ start_wave:
         ld de,ease
         ld bc,8
         ldir
-        ; wave table row: (wave-1) mod 20
+        ; wave table row: waves 1-40, then 21-40 again
         ld a,(wave)
         dec a
-.m20:   cp 20
+.m:     cp NWAVES
         jr c,.r
         sub 20
-        jr .m20
+        jr .m
 .r:     ld l,a
         ld h,0
-        add hl,hl
         ld e,l
         ld d,h
+        add hl,hl               ; *2
+        push hl
         add hl,hl
-        add hl,hl
-        add hl,de               ; *10
+        add hl,hl               ; *8
+        add hl,de               ; *9
+        pop de
+        add hl,de               ; *11
         ld de,wavetab
         add hl,de
         ld (waverow),hl
         ; droid speed: (table delay + ease) * 6 ticks per step
         push hl
-        ld de,9
+        ld de,W_DELAY
         add hl,de
         ld a,(hl)
         ld hl,ease+E_DADD
@@ -302,6 +434,7 @@ start_wave:
         inc de
         pop bc
         djnz .sp
+        call formation
         ; screen
         call draw_arena
         call hud_all
@@ -311,9 +444,9 @@ start_wave:
         ld c,61h
         call print_bg
         ld a,(wave)
-        call print_wave_num
+        call print_dec2
         call wave_subtitle
-        ld b,12
+        ld b,14                 ; (row 12 is where the player stands)
         ld c,71h
         call print_centre
         ld a,S_INTRO
@@ -324,12 +457,13 @@ start_wave:
         ld a,8
         jp play_sfx
 
-print_wave_num:                 ; A = wave, two digits at DE (attribute C)
-        jp print_dec2
-
 ; HL = subtitle for the wave in (waverow)
 wave_subtitle:
         ld ix,(waverow)
+        ld a,(wave)
+        cp 40
+        ld hl,s_sub_last
+        ret z
         ld hl,s_sub_brain
         ld a,(ix+3)
         or a
@@ -342,7 +476,21 @@ wave_subtitle:
         ld a,(ix+2)
         cp 8
         ret nc
-        ld hl,s_sub_orb
+        ld a,(ix+W_FORM)
+        ld hl,s_sub_edge
+        bit 2,a
+        ret nz
+        and 3
+        jr z,.nf
+        ld hl,s_sub_ring
+        dec a
+        ret z
+        ld hl,s_sub_lines
+        dec a
+        ret z
+        ld hl,s_sub_grid
+        ret
+.nf:    ld hl,s_sub_orb
         ld a,(ix+4)
         or a
         ret nz
@@ -352,6 +500,167 @@ wave_subtitle:
         ret z
         ld hl,s_sub_droid
         ret
+
+; arrange pylons (ring / corridors / grid) and droids (round the edges)
+formation:
+        ld ix,(waverow)
+        ld a,(ix+W_FORM)
+        ld (form),a
+        or a
+        ret z
+        xor a
+        ld (fk),a               ; pylon number
+        ld a,(ix+1)
+        ld (fn),a               ; pylon count
+        ld ix,OBJ
+        ld a,(objtop)
+        ld b,a
+.l:     push bc
+        ld a,(ix+OT)
+        cp T_PYLON
+        jr nz,.nd
+        ld a,(form)
+        and 3
+        jr z,.nx
+        call pylon_spot         ; B = row, C = column for pylon (fk)
+        ld hl,fk
+        inc (hl)
+        jr .set
+.nd:    cp T_DROID
+        jr nz,.nx
+        ld a,(form)
+        bit 2,a
+        jr z,.nx
+        call edge_spot
+.set:   ld (ix+OX),c
+        ld (ix+OY),b
+        call set_materialise
+.nx:    ld de,OBJSZ
+        add ix,de
+        pop bc
+        djnz .l
+        ret
+
+; a random cell on the arena's edge
+edge_spot:
+        call rand8
+        and 3
+        jr z,.top
+        dec a
+        jr z,.bot
+        dec a
+        ld c,XMIN
+        jr z,.side
+        ld c,XMAX
+.side:  ld a,YMAX-YMIN+1
+        call rand_n
+        add a,YMIN
+        ld b,a
+        ret
+.top:   ld b,YMIN
+        jr .tb
+.bot:   ld b,YMAX
+.tb:    ld a,XMAX-XMIN+1
+        call rand_n
+        add a,XMIN
+        ld c,a
+        ret
+
+; pylon (fk) of (fn) in the wave's pattern -> B = row, C = column
+pylon_spot:
+        ld a,(form)
+        and 3
+        dec a
+        jr z,.ring
+        dec a
+        jr z,.lines
+        ; grid: 4 columns x 4 rows, clear of the middle
+        ld a,(fk)
+        and 15
+        ld b,a
+        and 3
+        ld hl,grid_cols
+        add a,l
+        ld l,a
+        jr nc,.g1
+        inc h
+.g1:    ld c,(hl)
+        ld a,b
+        rrca
+        rrca
+        and 3
+        ld hl,grid_rows
+        add a,l
+        ld l,a
+        jr nc,.g2
+        inc h
+.g2:    ld b,(hl)
+        ret
+.lines: ; two walls, columns 11 and 28, rows 4..21
+        ld a,(fk)
+        ld c,11
+        bit 0,a
+        jr z,.l1
+        ld c,28
+.l1:    srl a
+        ld b,a
+        add a,a
+        add a,b                 ; (k/2) * 3
+.l2:    cp 18
+        jr c,.l3
+        sub 18
+        jr .l2
+.l3:    add a,4
+        ld b,a
+        ret
+.ring:  ; round a 23 x 15 box: perimeter 76, spaced 76 / n
+        ld a,(fn)
+        ld e,a
+        ld a,76
+        ld d,0
+.d1:    sub e
+        jr c,.d2
+        inc d
+        jr .d1
+.d2:    ld a,(fk)               ; p = k * step
+        ld b,a
+        xor a
+.m1:    dec b
+        jp m,.m2
+        add a,d
+        jr .m1
+.m2:    cp 23
+        jr nc,.r1
+        add a,8
+        ld c,a
+        ld b,5
+        ret
+.r1:    sub 23
+        cp 15
+        jr nc,.r2
+        add a,5
+        ld b,a
+        ld c,31
+        ret
+.r2:    sub 15
+        cp 23
+        jr nc,.r3
+        ld b,a
+        ld a,31
+        sub b
+        ld c,a
+        ld b,20
+        ret
+.r3:    sub 23
+        ld b,a
+        ld a,20
+        sub b
+        ld b,a
+        ld c,8
+        ret
+
+grid_cols:  db 6,12,26,32
+grid_rows:  db 5,9,15,19
 
 ; respawn after a death: robots back to the edges, everything re-materialises
 respawn:
@@ -371,6 +680,8 @@ respawn:
         jr nc,.kill             ; skulls, pop-ups, explosions go
         cp T_MOM
         jr nc,.mat              ; humans stay where they are
+        cp T_PYLON
+        jr z,.mat               ; so do pylons (formations)
         call rand_pos_robot
         ld (ix+OX),c
         ld (ix+OY),b
@@ -458,21 +769,18 @@ draw_arena:
         djnz .sd
         ret
 
-; blank caption rows 10..12 back to the arena
+; blank caption rows 10 and 14 back to the arena
 clear_caption:
         ld hl,10*40+1
         ld de,00h*256+A_ARENA
         ld b,38
         call fill_bg
-        ld hl,11*40+1
-        ld b,38
-        call fill_bg
-        ld hl,12*40+1
+        ld hl,14*40+1
         ld b,38
         jp fill_bg
 
 ; ---------------------------------------------------------------------
-; HUD: score (0-5)  W nn (8-10)  HI hhhhhh (13-21)  lives (34-39)
+; HUD: score (0-5)  W nn (8-10)  HI hhhhhh (13-21)  DEMO (24)  lives (34-39)
 hud_all:
         ld hl,s_w
         ld de,8
@@ -488,6 +796,13 @@ hud_all:
         ld de,16
         call print_bcd6
         call hud_lives
+        ld a,(demo)
+        or a
+        jr z,hud_score
+        ld hl,s_demo
+        ld de,25
+        ld c,20h
+        call print_bg
 hud_score:
         ld hl,score
         ld de,0
@@ -554,6 +869,13 @@ add_score:
         inc a
         ld (lives),a
 .full:  call hud_lives
+        call player_bc          ; a ring of cyan round the player
+        ld a,b
+        ld b,c
+        ld c,a
+        ld a,0D1h
+        ld de,0010h
+        call burst
         ld hl,sfx_extra
         ld a,7
         jp play_sfx

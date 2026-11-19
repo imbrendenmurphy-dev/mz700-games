@@ -16,7 +16,7 @@ FRAME_MC = LINE_MC * FRAME_LINES
 VIS_LINES = 200
 
 KEYS = {'left': (7, 2), 'right': (7, 3), 'down': (7, 4), 'up': (7, 5),
-        'space': (6, 4), 'y': (1, 7), 'z': (1, 6),
+        'space': (6, 4), 'y': (1, 7), 'z': (1, 6), 'del': (7, 6),
         'cr': (0, 0), 'break': (8, 7), 'shift': (8, 0)}
 for _row, _letters in ((2, 'qrstuvwx'), (3, 'ijklmnop'), (4, 'abcdefgh')):
     for _i, _ch in enumerate(_letters):

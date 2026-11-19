@@ -169,6 +169,11 @@ player_collide:
         ld (iy+OTM),50
         ld (iy+OAUX),c
         ld (iy+OST),0
+        ld b,(iy+OY)            ; sparkles
+        ld c,(iy+OX)
+        ld a,0E1h
+        ld de,0108h
+        call burst
         ld hl,sfx_rescue
         ld a,5
         jp play_sfx
@@ -184,6 +189,13 @@ player_die:
         ld a,90
         ld (statetm),a
         call clear_shots
+        call player_bc          ; B = column, C = row
+        ld a,b
+        ld b,c
+        ld c,a
+        ld a,0F1h
+        ld de,0010h
+        call burst
         ld hl,sfx_death
         ld a,9
         jp play_sfx
@@ -294,6 +306,11 @@ shot_hit:
         add hl,bc
         ld e,(hl)
         call obj_step
+        ld b,(ix+OY)            ; sparks off its armour
+        ld c,(ix+OX)
+        ld a,0C1h
+        ld de,0003h
+        call burst
         ld a,(ease+E_CRUSH)
         ld (ix+OTM),a
         ld hl,sfx_push
@@ -315,6 +332,15 @@ shot_hit:
         or a
         jr z,.gone
         ld (hl),0
+        inc hl
+        inc hl
+        ld c,(hl)               ; BX
+        inc hl
+        inc hl
+        ld b,(hl)               ; BY
+        ld a,0F1h
+        ld de,0104h
+        call burst
         ld de,0025h
         ld a,1
         call add_score

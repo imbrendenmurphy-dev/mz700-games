@@ -1,4 +1,4 @@
-﻿; =====================================================================
+; =====================================================================
 ;  ROBOGEDDON 2085 - Sharp MZ-700 version
 ;  64K MZ-700 (PAL, stock European CG-ROM, no PCG). Loads and runs at 1200h.
 ;
@@ -30,16 +30,20 @@ start:
         ld (prevlist),hl
         ld a,1
         ld (sndon),a
-        ld hl,5000h             ; default high score 005000
-        ld (hiscore),hl         ; (BCD, low byte first: 00 50 00)
-        xor a
-        ld (hiscore+2),a
+        call init_hiscores
 
 ; ---------------------------------------------------------------------
-; front end -> game -> front end ...
+; attract sequence -> game (or demo) -> attract ...
 title:
+        xor a
+        ld (page),a
+attract:
         ld sp,STACK
-        call front_end          ; returns when SPACE is pressed
+        xor a
+        ld (demo),a
+        call front_end          ; A = 0: start a game, 1: run the demo
+        or a
+        jp nz,run_demo
         call new_game
 
 main_loop:
@@ -47,6 +51,7 @@ main_loop:
         call flush
         call snd_tick
         call read_keys
+        call demo_ctl
         call check_pause
         call game_tick
         ld hl,framecnt
@@ -61,6 +66,8 @@ jp_hl:  jp (hl)
         include "game.asm"
         include "objects.asm"
         include "player.asm"
+        include "particles.asm"
+        include "demo.asm"
         include "front.asm"
         include "data.asm"
 

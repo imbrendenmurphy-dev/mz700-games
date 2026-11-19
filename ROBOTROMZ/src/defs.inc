@@ -25,6 +25,8 @@ LISTB   equ 0A200h      ; the other draw list
 BGDL    equ 0A400h      ; background cells changed this tick, 250 words max
 EBUL    equ 0A600h      ; MAXEB enemy bullets x 8 bytes
 SHOTS   equ 0A680h      ; MAXSH player shots x 4 bytes
+PART    equ 8C00h       ; MAXPART particles x 16 bytes
+HISC    equ 0A6A0h      ; high-score table: 8 x 8 bytes
 BGCH    equ 0B000h      ; background: arena, frame, HUD, captions
 BGAT    equ 0B400h
 WCH     equ 0B800h      ; work screen: background + this tick's sprites
@@ -100,6 +102,23 @@ BY      equ 4
 BVX     equ 5           ; signed, 1/256 cell per tick
 BVY     equ 6
 BLIFE   equ 7
+
+; particles (8 bytes)
+MAXPART equ 32
+PSZ     equ 16
+P_LIFE  equ 0           ; 0 = free
+P_XL    equ 1
+P_X     equ 2
+P_YL    equ 3
+P_Y     equ 4
+P_VX    equ 5           ; signed, 1/256 cell per tick
+P_VY    equ 6
+P_AT    equ 7           ; attribute; bit 3 = gravity
+P_DOFS  equ 8           ; where it is drawn in W (word)
+P_DRAWN equ 10          ; 1 = drawn there
+P_DCH   equ 11          ; as this char
+P_DAT   equ 12          ; and attribute
+GRAV    equ 08h
 
 ; player shots (4 bytes)
 MAXSH   equ 6
