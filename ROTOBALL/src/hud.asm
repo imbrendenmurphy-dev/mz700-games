@@ -309,6 +309,12 @@ hud_text:               ; row, column offset, text
     db 0FFh
     db 0FFh
 
+txt_demo1:  dsc "  DEMO  PLAY  "
+            db 0FFh
+txt_demo2:  dsc "              "
+            db 0FFh
+txt_demo3:  dsc " PRESS  SPACE "
+            db 0FFh
 txt_level:  dsc "LEVEL 00"
             db 0FFh
 txt_go:     dsc "GO!"

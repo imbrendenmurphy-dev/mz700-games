@@ -1,5 +1,4 @@
-; One sound tick: play the next word of the current sound (see tools/sfx.py).
-; Uses A, DE, HL only and no stack, so the renderer can run it inline.
+; One sound-effect tick: play the next word of the current sound (see tools/sfx.py).
     ld hl,(sndptr)
     ld a,h
     or l

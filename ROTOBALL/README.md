@@ -7,14 +7,15 @@ You turn the maze, not the ball. The ball stays in the centre of a 23x23
 character window, gravity always pulls down the screen, and the whole maze
 rotates around it in real time.
 
-![Milestone 2](docs/milestone-2.png)
+![Title screen](docs/title.png)
+![In game](docs/milestone-2.png)
 
 ## How to play
 
 | Key | Action |
 |---|---|
 | Left / Right (or Z / X) | rotate the maze |
-| SPACE | set off a bomb (if you have one); start a new game after GAME OVER |
+| SPACE | start a game from the title; set off a bomb (if you have one) |
 
 - Collect every **gem** (sparkling diamond) to open the **exit** (blue box,
   which turns into a pulsing ring). Roll into the open exit to clear the level.
@@ -28,10 +29,28 @@ rotates around it in real time.
 - 8 levels that get bigger and busier, 3 lives. Score: gem 50, crawler 100,
   bombed enemy 50, exit 1000.
 
-## Status: milestone 2 - playable game
+## Status: milestone 3 - title, attract mode, music, high scores
+
+- **Title screen:** the ROTOBALL logo is itself rotozoomed across the full
+  screen width. It sways, pulses in size and does a full spin every ~8 s over
+  a rotating lattice of stars, with rainbow marquees and a scrolling message.
+  Pages cycle: instructions, a sprite legend, and the high-score table.
+- **Attract mode:** after the pages, the game plays level 1 by itself. An
+  autopilot tilts the maze to steer gravity along a route that
+  `tools/levels.py` works out (nearest gem first, then the exit). Any key
+  returns to the title.
+- **Music:** an original tune on a three-channel player (lead, bass and drums
+  on the single 8253 voice). Lead and bass alternate tick by tick, and kick,
+  snare and hat hits cut in.
+- **High scores:** a top-5 table. Enter three initials with LEFT/RIGHT and
+  SPACE after a qualifying game.
+- The title code runs from the RAM under the monitor ROM (0000h-0FFFh),
+  switched in with `OUT (E0h)` and copied there at start-up.
+
+Milestone 2 (the game itself):
 
 - Real-time rotating maze at **16.7 fps** (3 video fields per frame) in the
-  simulator, with about 30K T-states spare while turning
+  simulator, with about 20K T-states spare while turning
 - 8 generated levels, gems/exit, mines, crawlers, bombs, shields, lives, score
 - Objects drawn as overlay sprites from the European set's second character
   bank, projected into the rotated view every frame, with 4-frame animation
@@ -41,8 +60,8 @@ rotates around it in real time.
   and jingles with melody and bass interleaved tick by tick
 - On-screen frame timer (FPS) for checking on real hardware
 
-Next (milestone 3): title screen, attract mode, music, high scores, more
-enemy types and hand-designed levels.
+Ideas for next: more enemy types (bouncers, chasers), hand-designed levels,
+in-game music, a faster tape loader.
 
 ## Running it
 
@@ -59,6 +78,7 @@ Needs only Python 3 (no packages):
 ```
 py build.py
 py tools/test_game.py path\to\mz700fon.int      (scripted gameplay checks + screenshots)
+py tools/test_demo.py path\to\mz700fon.int      (title frame rate, attract-mode autopilot)
 py tools/profile.py 90 right                    (T-states per routine while turning)
 ```
 
@@ -71,6 +91,10 @@ py tools/profile.py 90 right                    (T-states per routine while turn
 | `src/physics.asm` | keys, rotation, ball physics |
 | `src/sound.asm`, `src/sndtick.inc` | sound effect player |
 | `src/hud.asm` | status panel, messages, frame timer |
+| `src/music.asm` | three-channel music player |
+| `src/title.asm` | title, attract cycle, high-score entry (runs at 0000h) |
+| `src/titledata.asm` | title pages, scroller text, high-score table |
+| `tools/music.py` | the title tune |
 | `tools/levels.py` | level generator (`py tools/levels.py` prints them as ASCII) |
 | `tools/sfx.py` | sound effects and jingles |
 | `tools/gen_data.py` | tables and unrolled renderer code |

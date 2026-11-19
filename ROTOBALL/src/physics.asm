@@ -34,6 +34,21 @@ read_keys:
     jr nz,.nosp
     set 4,c
 .nosp:
+    ld a,(demo)
+    or a
+    jr z,.real
+    ld a,c              ; attract mode: any key goes back to the title
+    or a
+    jr z,.auto
+    xor a
+    jp title
+.auto:
+    call autopilot
+    ld (keys),a
+    xor a
+    ld (keyedge),a
+    ret
+.real:
     ld a,(keys)
     ld (prevkeys),a
     cpl

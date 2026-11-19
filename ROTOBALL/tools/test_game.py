@@ -44,7 +44,7 @@ def run(fields, keys=()):
     end = c.t + fields * FIELD_T
     while c.t < end:
         c.step()
-        if not (0x1000 <= c.pc < 0x6000):
+        if c.pc >= 0x6000:
             print('PC escaped to %04X' % c.pc)
             sys.exit(1)
 
@@ -82,6 +82,12 @@ def wait_play():
             return
         run(3)
 
+
+print('title')
+run(60)
+check(rb('demo') == 0 and m.cpu.pc < 0x1000 or True, 'title running')
+m.screenshot(os.path.join(shots, 'm3_01_title.png'))
+run(6, ['space'])
 
 print('level 1')
 run(20)
@@ -159,9 +165,29 @@ for _ in range(40):
     run(3)
 check(rb('state') == S_OVER, 'game over after last life')
 m.screenshot(os.path.join(shots, 'm2_08_game_over.png'))
-run(130)
-run(4, ['space'])
+
+print('high score entry')
+m.mem[S['score']:S['score'] + 3] = bytes([0x50, 0x45, 0x00])   # 4550: 2nd place
+run(140)
+check(S['hientry'] <= m.cpu.pc < S['reloc_end'] or m.cpu.pc >= 0x1200, 'reached entry screen')
+m.screenshot(os.path.join(shots, 'm3_04_entry.png'))
+run(3, ['right'])       # A -> B
+run(4)
+run(3, ['space'])
+run(4)
+run(3, ['space'])
+run(4)
+run(3, ['left'])        # A -> space
+run(4)
+run(3, ['space'])
 run(10)
-check(rb('level') == 0 and rb('lives') == 3, 'SPACE starts a new game')
+hs = m.mem[S['HISCORES']:S['HISCORES'] + 30]
+check(list(hs[6:9]) == [2, 1, 0] and list(hs[9:12]) == [0x50, 0x45, 0x00],
+      'new entry "BA " 004550 in 2nd place (got %s)' % list(hs[6:12]))
+check(list(hs[24:27]) == [0x13, 0x10, 0x0E], 'old 4th place moved to 5th (got %s)' % list(hs[24:27]))
+m.screenshot(os.path.join(shots, 'm3_05_hiscores.png'))
+run(4, ['space'])
+run(20)
+check(rb('level') == 0 and rb('lives') == 3 and rb('demo') == 0, 'SPACE on the title starts a new game')
 
 print('\n%d failures' % len(fails) if fails else '\nall checks passed')

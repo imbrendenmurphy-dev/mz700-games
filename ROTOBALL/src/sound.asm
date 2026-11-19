@@ -33,12 +33,22 @@ play_sfx:
     ld (sndpri),a
     ret
 
+; one sound tick: music clock always advances; a sound effect, if any,
+; takes the voice, otherwise the music plays
 snd_tick:
+    call mus_tick
+    ld hl,(sndptr)
+    ld a,h
+    or l
+    jp z,mus_out
     include "sndtick.inc"
     ret
 
 ; while turning with nothing else playing: gritty hiss
 spin_hiss:
+    ld a,(mus_on)       ; music has the voice in attract mode
+    or a
+    ret nz
     ld hl,(sndptr)
     ld a,h
     or l

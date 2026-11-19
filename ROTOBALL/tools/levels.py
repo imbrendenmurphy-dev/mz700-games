@@ -141,7 +141,53 @@ def make_level(cw, ch, seed, n_gem, n_mine, n_crawl, n_bomb, n_shield, n_open, s
                 v = (v << 1) | row[b * 8 + i]
             bits.append(v)
     sx, sy = centre((0, 0))
+    make_level.links = links
     return wbytes, H, sx, sy, bits, objs, wall
+
+
+def demo_path(index):
+    """Waypoints (maze-relative map cells) for the attract-mode autopilot:
+    visit the nearest gem each time, then go to the exit."""
+    wb, h, sx, sy, bits, objs, wall = make_level(*LEVELS[index])
+    links = make_level.links
+
+    def bfs(a, b):
+        prev = {a: None}
+        q = deque([a])
+        while q:
+            c = q.popleft()
+            if c == b:
+                break
+            for n in sorted(links[c]):
+                if n not in prev:
+                    prev[n] = c
+                    q.append(n)
+        path = []
+        c = b
+        while c != a:
+            path.append(c)
+            c = prev[c]
+        return path[::-1]
+
+    cell = lambda o: (o[1] // CELL, o[2] // CELL)
+    gems = [cell(o) for o in objs if o[0] == T_GEM]
+    exit_cell = [cell(o) for o in objs if o[0] == T_EXIT][0]
+    here = (0, 0)
+    route = []
+    while gems:
+        gems.sort(key=lambda g: len(bfs(here, g)))
+        g = gems.pop(0)
+        route += bfs(here, g)
+        here = g
+    route += bfs(here, exit_cell)
+    pts = []
+    for c in route:
+        pts += [c[0] * CELL + 2, c[1] * CELL + 2]
+    out = ['DEMO_PATH:']
+    for i in range(0, len(pts), 16):
+        out.append('    db ' + ','.join(str(v) for v in pts[i:i + 16]))
+    out.append('    db 0FFh')
+    return '\n'.join(out) + '\n'
 
 
 def asm():

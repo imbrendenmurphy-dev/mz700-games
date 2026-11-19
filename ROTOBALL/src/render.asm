@@ -1,22 +1,27 @@
-; ======================================================================
+﻿; ======================================================================
 ;  render.asm - rotating maze renderer, screen copy and colour cycling
 ; ======================================================================
 
-init_lists:             ; LISTPTR[k] = LISTS + k*LIST_BYTES, k = 0..4
+init_lists:             ; LISTPTR[k] = LISTS + k*LIST_BYTES, k = 0..4 (and title's)
     ld hl,LISTPTR
     ld de,LISTS
-    ld b,5
+    ld bc,LIST_BYTES
+    call .tab
+    ld hl,TLISTPTR
+    ld de,TLISTS
+    ld bc,TLIST_BYTES
+.tab:
+    ld a,5
 .lp:
     ld (hl),e
     inc l
     ld (hl),d
     inc l
-    push hl
-    ld hl,LIST_BYTES
-    add hl,de
     ex de,hl
-    pop hl
-    djnz .lp
+    add hl,bc
+    ex de,hl
+    dec a
+    jr nz,.lp
     ret
 
 wait_vblank:            ; wait for the start of the next vertical blank
@@ -95,6 +100,16 @@ setup_render:
     cp b
     ret z
     ld (listang),a
+    ld hl,(Ux)
+    call mul49
+    ld (U49x),hl
+    ld hl,(Uy)
+    call mul49
+    ld (U49y),hl
+    ld hl,LISTPTR
+    ld (lp_base),hl
+    ld hl,lchain_end-(2*VIEW_CHARS-1)*LCHAIN_STEP
+    ld (lchain),hl
     jp build_lists
 
     assert VIEW_CHARS == 23
@@ -131,25 +146,21 @@ mul49:                  ; HL = 45 * HL  (samples per row - 1)
     ret
 
 ; Build the four delta lists (one per half-cell phase of a row's start point).
-; List k holds 50 pointer deltas: 0, then floor(s_i) - floor(s_(i-1)) for the
+; List k holds N pointer deltas: 0, then floor(s_i) - floor(s_(i-1)) for the
 ; samples s_i = f - i*U walking right to left across the row.
+; In: (U49x/y) = (N-1)*U, (lp_base) = list pointer table, (lchain) = entry
+; into the unrolled chain that does N-1 steps. Shared by game and title.
 build_lists:
-    ld hl,(Ux)
-    call mul49
-    ld (U49x),hl
-    ld hl,(Uy)
-    call mul49
-    ld (U49y),hl
     ld (spsave),sp
     xor a
     ld (lclass),a
-.cls:
+bl_cls:
     ld a,(lclass)       ; SP = end of list k (pushes fill it downwards)
     inc a
     add a,a
-    add a,lo(LISTPTR)
+    ld hl,(lp_base)
+    add a,l
     ld l,a
-    ld h,hi(LISTPTR)
     ld a,(hl)
     inc l
     ld h,(hl)
@@ -175,14 +186,19 @@ build_lists:
     or a
     sbc hl,de
     ld bc,(Ux)
+    ld ix,(lchain)
+    jp (ix)
+lchain_start:
     include "../build/gen_listentry.inc"
+lchain_end:
+LCHAIN_STEP = (lchain_end-lchain_start)/LCHAIN_MAX
     ld de,0
     push de
     ld a,(lclass)
     inc a
     ld (lclass),a
     cp 4
-    jp nz,.cls
+    jp nz,bl_cls
     ld sp,(spsave)
     ret
 
@@ -217,7 +233,8 @@ render:
     ld a,(rowcnt)
     and 3
     jp nz,.notick
-    include "sndtick.inc"
+    ld sp,(spsave)      ; SP is free between rows: borrow the real stack
+    call snd_tick
 .notick:
     ld a,(rowcnt)
     dec a

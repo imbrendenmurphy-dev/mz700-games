@@ -23,9 +23,14 @@ def main():
         S[k] = int(v, 16)
     m = MZ700()
     m.load_mzf(os.path.join(ROOT, 'build', 'ROTOBALL.MZF'))
-    m.run_fields(30)
+    m.run_fields(30)            # title screen
+    m.held = {'space'}
+    m.run_fields(6)
+    m.held = set()
+    m.run_fields(150)           # level intro over, playing
     m.held = set(keys)
-    addrs = sorted((v, k) for k, v in S.items() if v < 0x6000)
+    # code labels only (constants are upper case)
+    addrs = sorted((v, k) for k, v in S.items() if v < 0x6000 and k != k.upper())
     import bisect
     starts = [a for a, _ in addrs]
 

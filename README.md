@@ -5,7 +5,7 @@ ROM, no PCG), loadable from tape or a UniCMT USB cassette emulator.
 
 | Game | Status |
 |---|---|
-| [Rotoball](ROTOBALL/) | Milestone 2: playable rotating-maze game, 8 levels |
+| [Rotoball](ROTOBALL/) | Milestone 3: rotating-maze game, 8 levels, title, attract mode, music, high scores |
 
 Each game folder has its source, a Python build script (no extra packages
 needed) and a ready-to-load `.MZF` in `release/`.

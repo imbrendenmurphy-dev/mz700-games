@@ -12,7 +12,9 @@ SNDGATE = 0E008h        ; bit0 = sound on
 ; ---------------------------------------------------------------- memory
 STACK   = 1200h         ; stack grows down into the free monitor work area
 LISTPTR = 0C380h        ; 5 words: start of delta list k (k = 0..4), page-local
-LISTS   = 0C400h        ; 4 lists x 50 words
+TLISTPTR = 0C390h       ; the same for the title's 80-sample rows
+LISTS   = 0C400h        ; 4 lists x 46 words
+TLISTS  = 0CA00h        ; 4 lists x 80 words
 OBJS    = 0C600h        ; MAXOBJ objects x 8 bytes
 OVL     = 0C800h        ; overlay list: count, then (row, col, char, attr)
 OVLOLD  = 0C900h        ; last frame's overlay cells: count, then (row, col)

@@ -36,6 +36,7 @@ def read_mzf(path):
 class MZ700:
     def __init__(self, font_path=None):
         self.mem = bytearray(65536)
+        self.low_ram = False
         self.row = 0
         self.held = set()
         self.ctr1_load_t = 0
@@ -72,7 +73,11 @@ class MZ700:
 
     # ---------------------------------------------------------------- I/O
     def io_write(self, port, v):
-        pass                          # bank switching ports E0-E6: ignored (RAM model)
+        p = port & 0xFF               # bank switching: E0 = RAM at 0000h, E2/E4 = ROM back
+        if p == 0xE0:
+            self.low_ram = True
+        elif p in (0xE2, 0xE4):
+            self.low_ram = False
 
     def mem_read(self, a):
         if a < 0xE000 or a > 0xE00F:
@@ -103,7 +108,7 @@ class MZ700:
 
     def mem_write(self, a, v):
         if a < 0x1000:
-            return True               # monitor ROM area
+            return not self.low_ram   # monitor ROM unless banked out to RAM
         if a < 0xE000 or a > 0xE00F:
             return False
         if a == 0xE000:

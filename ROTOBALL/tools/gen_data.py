@@ -6,6 +6,7 @@ import math
 import os
 
 import levels
+import music
 import sfx
 
 VIEW_CHARS = 23          # view is 23x23 characters = 46x46 blocks
@@ -13,6 +14,45 @@ VIEW_X = 1               # screen column / row of the view's top-left corner
 VIEW_Y = 1
 VIEW_C = VIEW_CHARS // 2 # centre character (the ball)
 SAMPLES = 2 * VIEW_CHARS # blocks per row
+
+T_W = 40                 # title logo band: 40 x 10 characters = 80 x 20 blocks
+T_H = 10
+T_Y = 1                  # screen row of the band
+TCHARBUF = 0xC000        # title back buffer, 64-byte row stride
+LCHAIN_MAX = 2 * T_W - 1 # longest delta-list chain (title rows)
+
+# Logo font, 7 x 9 cells per letter
+FONT = {
+    'R': ['######.', '##...##', '##...##', '##...##', '######.', '##.##..', '##..##.', '##...##', '##...##'],
+    'O': ['.#####.', '##...##', '##...##', '##...##', '##...##', '##...##', '##...##', '##...##', '.#####.'],
+    'T': ['#######', '#######', '..###..', '..###..', '..###..', '..###..', '..###..', '..###..', '..###..'],
+    'B': ['######.', '##...##', '##...##', '##..##.', '######.', '##...##', '##...##', '##...##', '######.'],
+    'A': ['..###..', '.##.##.', '##...##', '##...##', '#######', '##...##', '##...##', '##...##', '##...##'],
+    'L': ['##.....', '##.....', '##.....', '##.....', '##.....', '##.....', '##.....', '##.....', '#######'],
+}
+
+
+def gen_logo(word='ROTOBALL', gap=1):
+    rows = []
+    for r in range(9):
+        line = ''
+        for i, ch in enumerate(word):
+            line += FONT[ch][r] + ('.' * gap if i < len(word) - 1 else '')
+        rows.append(line)
+    w = len(rows[0])
+    wb = (w + 7) // 8
+    data = []
+    for line in rows:
+        line = line + '.' * (wb * 8 - w)
+        for b in range(wb):
+            v = 0
+            for c in line[b * 8:b * 8 + 8]:
+                v = (v << 1) | (c == '#')
+            data.append(v)
+    out = ['LOGO_W = %d' % w, 'LOGO_WB = %d' % wb, 'LOGO_H = 9', 'LOGO:']
+    for i in range(0, len(data), 16):
+        out.append('    db ' + ','.join(str(v) for v in data[i:i + 16]))
+    return '\n'.join(out) + '\n'
 CHARBUF = 0xC000         # back buffer, 32-byte row stride
 MAP_PAGE = 0x60          # map row R lives at page MAP_PAGE+R, column = low byte
 MAP_ROWS = 96
@@ -52,12 +92,12 @@ def gen_tables():
 SAMPLE = ['    pop de', '    add hl,de', '    ld a,(hl)', '    rla', '    rl c']
 
 
-def gen_pass(lower):
+def gen_pass(lower, width=VIEW_CHARS):
     """Rows are drawn right to left: lower row gives BR,BL then upper gives TR,TL,
     so C ends as bit0=TL bit1=TR bit2=BL bit3=BR - the F0h-FFh block code.
     The output pointer lives in the shadow HL."""
-    out = ['; unrolled render pass (%s block row), %d chars' % ('lower' if lower else 'upper', VIEW_CHARS)]
-    for _ in range(VIEW_CHARS):
+    out = ['; unrolled render pass (%s block row), %d chars' % ('lower' if lower else 'upper', width)]
+    for _ in range(width):
         if lower:
             out += SAMPLE + SAMPLE + ['    ld a,c', '    exx', '    ld (hl),a', '    dec l', '    exx']
         else:
@@ -66,7 +106,7 @@ def gen_pass(lower):
     return '\n'.join(out) + '\n'
 
 
-def gen_rowsetup(lower):
+def gen_rowsetup(lower, listptr='LISTPTR'):
     """Round the row's start point to the nearest half cell (RT already has the
     +1/4 cell rounding offset added), pick the delta list for that half-cell
     phase, and load SP (list), HL (map pointer), HL' (output)."""
@@ -78,20 +118,21 @@ def gen_rowsetup(lower):
     if lower:
         out += ['    ld de,(Vy)', '    add hl,de']
     out += ['    ld a,l', '    and 80h', '    rlca', '    rlca', '    or c',
-            '    ld c,h', '    add a,a', '    add a,lo(LISTPTR)', '    ld l,a', '    ld h,hi(LISTPTR)',
+            '    ld c,h', '    add a,a', '    add a,lo(%s)' % listptr, '    ld l,a', '    ld h,hi(%s)' % listptr,
             '    ld a,(hl)', '    inc l', '    ld h,(hl)', '    ld l,a', '    ld sp,hl', '    ld h,c', '    ld l,b',
             '    exx', '    ld hl,(outptr)', '    exx']
     return '\n'.join(out) + '\n'
 
 
 def gen_listentry():
-    """Delta list builder body, repeated SAMPLES-1 times. Walks from the last
+    """Delta list builder body, repeated LCHAIN_MAX times (callers jump in part
+    way for shorter rows). Walks from the last
     sample back to sample 0 adding U; pushes d = floor(old) - floor(new) so
     pops come out in order. main HL = u, BC = Ux; shadow HL' = v, BC' = Uy."""
     one = ['    ld d,h', '    add hl,bc', '    ld a,d', '    sub h', '    ld e,a', '    rla', '    sbc a,a',
            '    exx', '    ld d,h', '    add hl,bc', '    add a,d', '    sub h', '    exx', '    ld d,a',
            '    push de']
-    return '\n'.join(one * (SAMPLES - 1)) + '\n'
+    return '\n'.join(one * LCHAIN_MAX) + '\n'
 
 
 def gen_blit():
@@ -143,6 +184,12 @@ def main():
         'VIEW_Y = %d' % VIEW_Y,
         'VIEW_C = %d' % VIEW_C,
         'LIST_BYTES = %d' % (2 * SAMPLES),
+        'LCHAIN_MAX = %d' % LCHAIN_MAX,
+        'T_W = %d' % T_W,
+        'T_H = %d' % T_H,
+        'T_Y = %d' % T_Y,
+        'TCHARBUF = 0%04Xh' % TCHARBUF,
+        'TLIST_BYTES = %d' % (4 * T_W),
         'CHARBUF = 0%04Xh' % CHARBUF,
         'MAP_PAGE = 0%02Xh' % MAP_PAGE,
         'MAP_ROWS = %d' % MAP_ROWS,
@@ -162,6 +209,13 @@ def main():
         'gen_blit.inc': gen_blit(),
         'gen_colours.inc': gen_colours(),
         'gen_border.inc': gen_border(),
+        'gen_tpass_lower.inc': gen_pass(True, T_W),
+        'gen_tpass_upper.inc': gen_pass(False, T_W),
+        'gen_trow_lower.inc': gen_rowsetup(True, 'TLISTPTR'),
+        'gen_trow_upper.inc': gen_rowsetup(False, 'TLISTPTR'),
+        'gen_logo.inc': gen_logo(),
+        'gen_music.inc': music.asm(),
+        'gen_demo.inc': levels.demo_path(0),
     }
     for name, text in files.items():
         with open(os.path.join(bdir, name), 'w', newline='\n') as f:

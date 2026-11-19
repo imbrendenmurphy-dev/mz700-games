@@ -4,6 +4,7 @@ Syntax (case-insensitive mnemonics):
   label:            global label           .loop:   local label (scoped to last global)
   NAME equ expr     NAME = expr
   org / db / dw / ds / align / include "file" / dsc "TEXT" (MZ display codes, no terminator)
+  phase addr / dephase: assemble code to run at addr while emitting it here
   Numbers: 123, 0x1F, 1Fh, 0b1010, %1010, 'A'.   $ = current address.
   Functions in expressions: lo(x), hi(x).
 Includes the undocumented IXH/IXL/IYH/IYL forms and SLL.
@@ -219,7 +220,7 @@ class Asm:
                     return [0xE9]
                 if a[0] == 'ind' and a[1].strip().upper() in ('IX', 'IY'):
                     return [0xDD if a[1].strip().upper() == 'IX' else 0xFD, 0xE9]
-                if a[0] == 'xr':
+                if a[0] == 'xr' or (a[0] == 'ix' and a[2] == '0'):
                     return [a[1], 0xE9]
                 return [0xC3] + self.n16(ops[0])
             return [0xC2 | CC[ops[0].strip().upper()] << 3] + self.n16(ops[1])
@@ -395,14 +396,15 @@ class Asm:
 
     def emit(self, bs):
         for x in bs:
-            if self.final and self.pc in self.out:
-                raise AsmError('overlapping output at %04X' % self.pc)
-            self.out[self.pc] = x & 0xFF
+            o = (self.pc + self.delta) & 0xFFFF
+            if self.final and o in self.out:
+                raise AsmError('overlapping output at %04X' % o)
+            self.out[o] = x & 0xFF
             self.pc += 1
 
     def load(self, path):
         lines = []
-        with open(path, encoding='utf-8') as f:
+        with open(path, encoding='utf-8-sig') as f:
             for n, raw in enumerate(f.read().split('\n'), 1):
                 m = re.match(r'^\s*include\s+"([^"]+)"', raw, re.I)
                 if m:
@@ -415,6 +417,7 @@ class Asm:
     def run_pass(self, lines, final):
         self.final = final
         self.pc = 0
+        self.delta = 0          # output address - logical address (PHASE)
         self.out = {}
         self.scope = 'top'
         self.defined_this_pass = set()
@@ -449,6 +452,14 @@ class Asm:
         ops = self.splitops(rest) if rest else []
         if mn == 'ORG':
             self.pc = self.ev(rest)
+            self.delta = 0
+        elif mn == 'PHASE':         # assemble for another run address, keep output here
+            target = self.ev(rest)
+            self.delta = self.pc + self.delta - target
+            self.pc = target
+        elif mn == 'DEPHASE':
+            self.pc = self.pc + self.delta
+            self.delta = 0
         elif mn == 'ALIGN':
             a = self.ev(rest)
             while self.pc % a:

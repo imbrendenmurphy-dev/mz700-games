@@ -12,18 +12,14 @@ game_logic:
     jp z,clearing
     cp S_READY
     jp z,ready
-    ; S_OVER: wait for a fresh SPACE press, then a new game
-    ld a,(timer)
-    or a
-    jr z,.wait
-    dec a
-    ld (timer),a
-    ret
-.wait:
-    ld a,(keyedge)
-    and K_FIRE
-    ret z
-    jp new_game
+    ; S_OVER: after a pause, high-score entry or back to the title
+    ld hl,timer
+    dec (hl)
+    ret nz
+    call qualifies
+    jp c,hientry
+    ld a,2
+    jp title
 
 ready:                  ; level intro / respawn: look around, no gravity yet
     call rotate
@@ -55,6 +51,9 @@ dying:
     ld hl,timer
     dec (hl)
     ret nz
+    ld a,(demo)         ; attract mode ends at the first mishap
+    or a
+    jr nz,demo_end
     ld a,(lives)
     or a
     jr z,.over
@@ -74,6 +73,9 @@ clearing:
     ld hl,timer
     dec (hl)
     ret nz
+    ld a,(demo)
+    or a
+    jr nz,demo_end
     ld a,(level)
     inc a
     cp NUM_LEVELS
@@ -82,6 +84,121 @@ clearing:
 .ok:
     ld (level),a
     jp start_level
+
+demo_end:
+    xor a
+    jp title
+
+; ----------------------------------------------------------------------
+; Attract-mode autopilot: steer gravity towards the next waypoint of the
+; route worked out by tools/levels.py. Rotating the angle up turns gravity
+; anticlockwise; P = C*dx + S*dy is minus the cross product g x d.
+autopilot:
+    ld hl,(demo_wp)
+    ld a,(hl)
+    cp 0FFh
+    jr z,.none
+    add a,MAZE_COL0
+    ld d,a
+    ld e,80h
+    push hl
+    ld hl,(ballx)
+    ex de,hl
+    or a
+    sbc hl,de           ; dx = target - ball
+    ld (cdx),hl
+    pop hl
+    inc hl
+    ld a,(hl)
+    add a,MAP_PAGE+MAZE_ROW0
+    ld d,a
+    ld e,80h
+    ld hl,(bally)
+    ex de,hl
+    or a
+    sbc hl,de
+    ld (cdy),hl
+    ld hl,(cdx)         ; close enough: next waypoint
+    call abs_hi
+    or a
+    jr nz,.far
+    ld a,l
+    cp 0C0h
+    jr nc,.far
+    ld hl,(cdy)
+    call abs_hi
+    or a
+    jr nz,.far
+    ld a,l
+    cp 0C0h
+    jr nc,.far
+    ld hl,(demo_wp)
+    inc hl
+    inc hl
+    ld (demo_wp),hl
+.none:
+    xor a
+    ret
+.far:
+    ld hl,(cdx)
+    call clamp_q
+    ld (t_dx),a
+    ld hl,(cdy)
+    call clamp_q
+    ld (t_dy),a
+    call get_cs
+    call dot_g          ; HL = dot(g, d)
+    push hl
+    ld a,(cos8v)        ; P = C*dx + S*dy
+    ld e,a
+    ld a,(t_dx)
+    call mul_s8
+    push hl
+    ld a,(sin8v)
+    ld e,a
+    ld a,(t_dy)
+    call mul_s8
+    pop de
+    add hl,de
+    pop de              ; DE = dot
+    bit 7,d
+    jr nz,.turn         ; pointing away: always turn
+    push hl             ; |P| < dot/4: close enough, hold still
+    bit 7,h
+    call nz,neg_hl
+    srl d
+    rr e
+    srl d
+    rr e
+    or a
+    sbc hl,de
+    pop hl
+    jr c,.none
+.turn:
+    bit 7,h
+    ld a,K_RIGHT        ; P < 0 (cross > 0): angle up
+    ret nz
+    ld a,K_LEFT
+    ret
+
+clamp_q:                ; HL (8.8 cells) -> A = quarter cells, clamped to +-60
+    ld a,h
+    bit 7,h
+    jr nz,.neg
+    cp 15
+    jr c,.ok
+    ld a,60
+    ret
+.neg:
+    cp -15
+    jr nc,.ok
+    ld a,-60
+    ret
+.ok:
+    add hl,hl
+    add hl,hl
+    ld a,h
+    ret
 
 ; ----------------------------------------------------------------------
 start_level:
