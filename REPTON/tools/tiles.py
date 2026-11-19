@@ -89,7 +89,7 @@ KEY_A = [look(c(0x184, YELLOW), c(0x1B7, YELLOW), BLANK, BLANK)] * 6 + \
         [look(c(0x184, WHITE), c(0x1B7, WHITE), BLANK, BLANK)] * 2
 SAFE_L = look(c(0x18B, WHITE, RED), c(0x18B, WHITE, RED), c(0x18B, WHITE, RED), c(0x186, YELLOW, RED))
 CAGE_L = solid4(0x1B4, CYAN)
-BARRIER_L = solid4(0x175, YELLOW, RED)
+BARRIER_L = solid4(0x175, WHITE, BLUE)
 CROWN_A = [look(c(0x163, col), c(0x163, col), c(0x7A, col), c(0x7A, col)) for col in
            (YELLOW, YELLOW, YELLOW, WHITE, YELLOW, YELLOW, RED, YELLOW)]
 
@@ -133,9 +133,9 @@ def brick(fg, bg, g=0x1F6):
 THEMES = [
     theme('SUNLIT', earth(YELLOW), brick(RED, YELLOW), YELLOW, solid4(0x18A, BLUE, BLACK),
           look(c(0x163, GREEN), c(0x163, GREEN), c(0x175, GREEN), c(0x175, GREEN))),
-    theme('LOAM', earth(RED), brick(RED, WHITE), WHITE, solid4(0x18A, CYAN, BLACK),
+    theme('LOAM', earth(RED, g2=0xA6), brick(RED, WHITE), WHITE, solid4(0x18A, CYAN, BLACK),
           look(c(0x1E9, RED), BLANK, BLANK, c(0x1E9, RED))),
-    theme('MOSS', earth(GREEN), brick(GREEN, BLUE, 0x1B4), BLUE, solid4(0x18A, GREEN, BLACK),
+    theme('MOSS', earth(GREEN), brick(YELLOW, GREEN), GREEN, solid4(0x18A, GREEN, BLACK),
           look(c(0x19F, GREEN), BLANK, BLANK, c(0x19F, GREEN))),
     theme('ICE', earth(CYAN), brick(WHITE, CYAN, 0x18A), CYAN, solid4(0x18A, BLUE, BLACK),
           look(c(0x6B, WHITE), BLANK, BLANK, c(0x6B, CYAN))),

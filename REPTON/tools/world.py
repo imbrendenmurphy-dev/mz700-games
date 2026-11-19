@@ -30,6 +30,11 @@ class Region:
     def __init__(self, key, name, theme, rows, hint=''):
         self.key, self.name, self.theme, self.hint = key, name, theme, hint
         assert len(rows) == H - 2, (key, len(rows))
+        # a short row is padded with its last character
+        rows = [r + r[-1] * (W - 2 - len(r)) if len(r) < W - 2 else r for r in rows]
+        bad = ['%s row %d: %d chars %r' % (key, y, len(r), r) for y, r in enumerate(rows) if len(r) != W - 2]
+        if bad:
+            raise AssertionError(' / '.join(bad))
         self.rows = rows
         self.cells = [E['STEEL']] * RSZ
         self.trans = {}             # digit -> pos
@@ -78,6 +83,7 @@ class World:
         self.idx = {r.key: i for i, r in enumerate(regions)}
         self.start_region = 0
         self.start_pos = regions[0].start
+        assert len(regions) <= 18
         assert self.start_pos is not None
         self.trans = []
         used = set()
@@ -89,9 +95,13 @@ class World:
                 assert (rs, ds) not in used, (s, ds)
                 used.add((rs, ds))
                 self.trans.append(Trans(rs, regions[rs].trans[ds], rt, regions[rt].arrival(dt)))
+        self.loose = []
         for i, r in enumerate(regions):
             for d in r.trans:
-                assert (i, d) in used, 'transporter %s%s goes nowhere' % (r.key, d)
+                if (i, d) not in used:
+                    self.loose.append(r.key + d)
+                    # unfinished world: a loose transporter leads back to the start
+                    self.trans.append(Trans(i, r.trans[d], 0, self.start_pos_of(regions)))
         self.switches = []
         for key, n, tkey, (x, y) in switches:
             r = regions[self.idx[key]]
@@ -103,6 +113,10 @@ class World:
         for i, r in enumerate(regions):
             n = sum(1 for p in range(RSZ) if r.cells[p] == E['SWITCH'])
             assert n == sum(1 for s in self.switches if s.region == i), 'switch count ' + r.key
+
+    @staticmethod
+    def start_pos_of(regions):
+        return regions[0].start
 
     def trans_at(self, region, pos):
         for t in self.trans:

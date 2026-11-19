@@ -79,29 +79,38 @@ class Pilot:
         return bad
 
     def bfs(self, goal, into=False, avoid=()):
-        """path (list of dirs) from the player to goal (a cell index); with
-        into=True the goal itself need not be passable (step into it)"""
+        """cheapest path (list of dirs) from the player to goal (a cell index):
+        a step costs 1, or 8 under a rock or an egg; with into=True the goal
+        itself need not be passable (step into it)"""
+        import heapq
         g = self.g
         b = g.base()
+        m = g.mem
         start = g.pos
         bad = self.danger_cells() | set(avoid)
+        heavy = {E['ROCK'], E['ROCKF'], E['EGG'], E['EGGF']}
+        dist = {start: 0}
         prev = {start: None}
-        q = deque([start])
+        q = [(0, start)]
         while q:
-            p = q.popleft()
+            dd, p = heapq.heappop(q)
             if p == goal:
                 break
+            if dd > dist[p]:
+                continue
             for d, off in STEP.items():
                 n = p + off
-                if n in prev:
-                    continue
-                v = g.mem[b + n] & M
+                v = m[b + n] & M
                 ok = v in PASS and n not in bad
                 if n == goal and into:
                     ok = True
-                if ok:
+                if not ok:
+                    continue
+                c = dd + (8 if m[b + n - W] & M in heavy else 1)
+                if c < dist.get(n, 1 << 30):
+                    dist[n] = c
                     prev[n] = (p, d)
-                    q.append(n)
+                    heapq.heappush(q, (c, n))
         if goal not in prev:
             return None
         path = []
@@ -129,7 +138,18 @@ class Pilot:
                 continue
             if not path:
                 return
-            if self.safe(path):
+            if not self.safe(path):
+                # try paths that avoid the first step of this one
+                avoid = set(avoid)
+                for _ in range(3):
+                    avoid.add(self.g.pos + STEP[path[0]])
+                    alt = self.bfs(goal, into, avoid)
+                    if alt is None:
+                        break
+                    path = alt
+                    if self.safe(path):
+                        break
+            if path and self.safe(path):
                 ev = self.step(path[0])
                 if into and len(path) == 1 and ('switch' in ev or 'transport' in ev or 'win' in ev
                                                 or 'blocked' in ev or 'gate_shut' in ev):
@@ -149,6 +169,22 @@ class Pilot:
             else:
                 raise Fail('trapped\n' + self.g.show())
         raise Fail('go %d,%d took too long\n%s' % (x, y, self.g.show()))
+
+    def seq(self, s, limit=300, look=4):
+        """wait until the whole move string (plus `look` idle ticks) is safe, then do it"""
+        plan = []
+        for tok in s.split():
+            n = int(tok[1:]) if len(tok) > 1 else 1
+            plan += [LETTER[tok[0]]] * n
+        for _ in range(limit):
+            if self.safe(plan, len(plan) + look):
+                for d in plan:
+                    self.step(d)
+                return
+            if not self.safe([0]):
+                raise Fail('seq: waiting is not safe' + chr(10) + self.g.show())
+            self.step(0)
+        raise Fail('seq %r never safe%s%s' % (s, chr(10), self.g.show()))
 
     def moves(self, s):
         for tok in s.split():
@@ -202,6 +238,8 @@ def run(solution, keys=None, show=False):
                 ev = pl.go(cmd[1], cmd[2], into=True)
             elif op == 'mv':
                 pl.moves(cmd[1])
+            elif op == 'seq':
+                pl.seq(*cmd[1:])
             elif op == 'wait':
                 for _ in range(cmd[1]):
                     pl.step(0)
