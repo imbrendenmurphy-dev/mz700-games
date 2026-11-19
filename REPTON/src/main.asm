@@ -124,7 +124,7 @@ init_once:
         include "../build/gen_world.inc"
         include "../build/gen_music.inc"
         include "../build/gen_logo.inc"
-        include "demo.asm"
+        include "../build/gen_demo.inc"
 
 end_of_program:
         ASSERT WORLD_END <= SNAP

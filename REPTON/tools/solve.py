@@ -66,6 +66,14 @@ class Pilot:
                 return True
         return True
 
+    def safe_trip(self, path, into=False):
+        """safe to go there and (where creatures roam) to come back again?"""
+        if not self.danger_cells():
+            return self.safe(path)
+        back = [{1: 3, 3: 1, 2: 4, 4: 2}[d] for d in reversed(path[:-1] if into else path)]
+        plan = path + back
+        return self.safe(plan, len(plan) + 3)
+
     def danger_cells(self):
         g = self.g
         b = g.base()
@@ -78,7 +86,7 @@ class Pilot:
                     bad.add(p + d)
         return bad
 
-    def bfs(self, goal, into=False, avoid=()):
+    def bfs(self, goal, into=False, avoid=(), danger=True):
         """cheapest path (list of dirs) from the player to goal (a cell index):
         a step costs 1, or 8 under a rock or an egg; with into=True the goal
         itself need not be passable (step into it)"""
@@ -87,7 +95,7 @@ class Pilot:
         b = g.base()
         m = g.mem
         start = g.pos
-        bad = self.danger_cells() | set(avoid)
+        bad = (self.danger_cells() if danger else set()) | set(avoid)
         heavy = {E['ROCK'], E['ROCKF'], E['EGG'], E['EGGF']}
         dist = {start: 0}
         prev = {start: None}
@@ -120,7 +128,7 @@ class Pilot:
             path.append(d)
         return path[::-1]
 
-    def go(self, x, y, into=False, limit=600, avoid=()):
+    def go(self, x, y, into=False, limit=1500, avoid=()):
         goal = (y + 1) * W + x + 1
         r0 = self.g.region
         waited = 0
@@ -131,25 +139,29 @@ class Pilot:
                 return
             path = self.bfs(goal, into, avoid)
             if path is None:
+                path = self.bfs(goal, into, avoid, danger=False)
+            if path is None:
                 waited += 1
-                if waited > 40:
-                    raise Fail('no path to %d,%d in %s\n%s' % (x, y, self.g.wd.regions[r0].key, self.g.show()))
+                if waited > 300:
+                    raise Fail('no path to %d,%d in %s%s%s' % (x, y, self.g.wd.regions[r0].key, chr(10), self.g.show()))
                 self.step(0)
                 continue
             if not path:
                 return
-            if not self.safe(path):
-                # try paths that avoid the first step of this one
-                avoid = set(avoid)
+
+            def ok(pth):
+                return self.safe_trip(pth, into) if waited < 25 else self.safe(pth)
+            if not ok(path):
+                av = set(avoid)
                 for _ in range(3):
-                    avoid.add(self.g.pos + STEP[path[0]])
-                    alt = self.bfs(goal, into, avoid)
+                    av.add(self.g.pos + STEP[path[0]])
+                    alt = self.bfs(goal, into, av, danger=False)
                     if alt is None:
                         break
-                    path = alt
-                    if self.safe(path):
+                    if ok(alt):
+                        path = alt
                         break
-            if path and self.safe(path):
+            if path and ok(path):
                 ev = self.step(path[0])
                 if into and len(path) == 1 and ('switch' in ev or 'transport' in ev or 'win' in ev
                                                 or 'blocked' in ev or 'gate_shut' in ev):
@@ -159,7 +171,7 @@ class Pilot:
             if self.safe([0]):
                 self.step(0)
                 waited += 1
-                if waited > 60:
+                if waited > 300:
                     raise Fail('stuck waiting near %d,%d\n%s' % (x, y, self.g.show()))
                 continue
             for d in (1, 2, 3, 4):

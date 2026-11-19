@@ -60,6 +60,13 @@ mdy             ds 1
 mhor            ds 1
 mver            ds 1
 sdir            ds 1
+anim_fe         ds 1
+page_len        ds 1
+page_allow_load ds 1
+page_fx         ds 2
+rec_pct         ds 1
+mos_n           ds 1
+mos_base        ds 2
 
 ; per tick
 frame_ctr       ds 1

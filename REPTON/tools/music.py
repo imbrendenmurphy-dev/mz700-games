@@ -59,41 +59,43 @@ def pattern(lead, bass, drums, fx=None):
     return out + [0xFF]
 
 
-# ------------------------------------------------------------------ title: "Under the Mountain"
+# ------------------------------------------------------------------ title: "The Sun Mosaic"
 def bass_bar(root, style=0):
-    """16 rows of bass: driving octaves (0) or a galloping figure (1)"""
+    """16 rows of bass: octave bounce (0), walking (1) or long notes (2)"""
     r1 = root
     r2 = root[:-1] + str(int(root[-1]) + 1)
     if style == 0:
-        return '%s - %s - %s - %s - %s - %s - %s - %s -' % (r1, r2, r1, r2, r1, r2, r1, r2)
-    return '%s - %s %s - %s %s - %s - %s %s - %s - -' % (r1, r1, r2, r1, r1, r2, r1, r1, r2)
+        return '%s - %s - %s - %s - %s - %s - %s - %s -' % (r1, r1, r2, r1, r1, r1, r2, r1)
+    if style == 1:
+        return '%s - - %s - - %s - %s - - %s - - %s -' % (r1, r2, r1, r2, r1, r2)
+    return '%s - - - - - - - %s - - - - - - -' % (r1, r1)
 
 
-DR_A = 'k . h . s . h . k . h k s . h .'
-DR_B = 'k . h . s . h . k . k . s . s s'
-DR_C = 'k . . . s . . . k . . . s . . .'
-DR_D = 'k . . . . . . . k . . . s . . .'
+DR_A = 'k . h . s . h h k . h . s . h .'
+DR_B = 'k . h . s . h . k h k . s . s s'
+DR_C = 'k . . . h . . . s . . . h . . .'
+DR_D = 'k . . . . . . . . . . . . . . .'
 
-# (lead, bass root, drums)
+# (lead, bass root, bass style, drums)
 VERSE = [
-    ('E5 - - - B4 - E5 - G5 - - - F#5 - E5 -', 'E2', DR_C),
-    ('G5 - - - E5 - C5 - E5 - G5 - C6 - B5 -', 'C3', DR_C),
-    ('A5 - - - F#5 - D5 - F#5 - A5 - D6 - C6 -', 'D3', DR_C),
-    ('B5 - - - A5 - G5 - F#5 - - - D#5 - B4 -', 'B2', DR_B),
-    ('E5 - G5 - B5 - E6 - D6 - B5 - G5 - E5 -', 'E2', DR_A),
-    ('A5 - - - C6 - B5 - A5 - G5 - E5 - C5 -', 'A2', DR_A),
-    ('D#5 - F#5 - B5 - - - A5 - F#5 - D#5 - B4 -', 'B2', DR_A),
-    ('E5 - - - - - - - . . E5 - F#5 - G5 -', 'E2', DR_B),
+    ('A4 - C5 - E5 - - - D5 - C5 - B4 - G4 -', 'A2', 1, DR_C),
+    ('A4 - - - E5 - - - A5 - G5 - E5 - - -', 'F2', 1, DR_C),
+    ('D5 - - - F5 - E5 - D5 - C5 - B4 - C5 -', 'D2', 1, DR_C),
+    ('E5 - - - - - - - . . B4 - C5 - D5 -', 'E2', 1, DR_B),
+    ('A4 - C5 - E5 - A5 - G5 - E5 - C5 - E5 -', 'A2', 0, DR_A),
+    ('F5 - - - E5 - D5 - C5 - - - A4 - - -', 'F2', 0, DR_A),
+    ('G4 - B4 - D5 - G5 - F5 - D5 - B4 - G4 -', 'G2', 0, DR_A),
+    ('A4 - - - - - - - . . E5 - G#5 - B5 -', 'E2', 0, DR_B),
 ]
 CHORUS = [
-    ('B5 - - - D6 - - - B5 - A5 - G5 - - -', 'G2', DR_A),
-    ('A5 - - - F#5 - - - D5 - E5 - F#5 - - -', 'D3', DR_A),
-    ('G5 - - - B5 - - - E6 - D6 - B5 - - -', 'E2', DR_A),
-    ('C6 - B5 - A5 - G5 - E5 - - - G5 - - -', 'C3', DR_B),
-    ('A5 - - - C6 - - - E6 - - - C6 - A5 -', 'A2', DR_A),
-    ('F#5 - - - A5 - - - D6 - - - C6 - A5 -', 'D3', DR_A),
-    ('B5 - A5 - G5 - F#5 - D#5 - F#5 - A5 - B5 -', 'B2', DR_A),
-    ('D#6 - - - - - - - B5 - - - . . . .', 'B2', DR_B),
+    ('C6 - - - B5 - A5 - G5 - - - E5 - - -', 'C3', 0, DR_A),
+    ('F5 - - - G5 - A5 - C6 - - - A5 - - -', 'F2', 0, DR_A),
+    ('B5 - - - A5 - G5 - D5 - - - G5 - - -', 'G2', 0, DR_A),
+    ('E5 - - - G#5 - B5 - E6 - - - D6 - - -', 'E2', 0, DR_B),
+    ('A5 - - - C6 - - - E6 - D6 - C6 - B5 -', 'A2', 0, DR_A),
+    ('A5 - G5 - F5 - - - D5 - - - F5 - A5 -', 'D2', 0, DR_A),
+    ('G#5 - - - B5 - - - E6 - - - B5 - G#5 -', 'E2', 0, DR_A),
+    ('A5 - - - - - - - - - - - . . . .', 'A2', 2, DR_C),
 ]
 
 
@@ -110,15 +112,13 @@ def shimmer(lead):
 
 def title_song():
     pats = []
-    # intro: the bass alone, then chord stabs over it
-    for root, chord, arp in (('E2', 'E4', 2), ('C3', 'C5', 1), ('D3', 'D5', 1), ('B2', 'B4', 1)):
-        lead = '%s - - - . . %s - - - . . %s - . .' % (chord, chord, chord)
-        pats.append(pattern(lead, bass_bar(root, 1), DR_D, arp))
+    # intro: minor chord stabs over a slow bass
+    for root, chord, arp in (('A2', 'A4', 2), ('F2', 'F4', 1), ('D2', 'D5', 2), ('E2', 'E4', 1)):
+        lead = '%s - - - - - %s - - - . . %s - . .' % (chord, chord, chord)
+        pats.append(pattern(lead, bass_bar(root, 2), DR_D, arp))
     loop_from = len(pats)
-    for i, (lead, root, dr) in enumerate(VERSE):
-        pats.append(pattern(lead, bass_bar(root, 0 if i < 4 else 1), dr, shimmer(lead)))
-    for lead, root, dr in CHORUS:
-        pats.append(pattern(lead, bass_bar(root, 1), dr, shimmer(lead)))
+    for lead, root, st, dr in VERSE + CHORUS:
+        pats.append(pattern(lead, bass_bar(root, st), dr, shimmer(lead)))
     return dict(speed=6, pats=pats, loop_from=loop_from, loop=True)
 
 
@@ -131,16 +131,15 @@ SONGS = {}
 
 def build_songs():
     SONGS['SONG_TITLE'] = title_song()
-    SONGS['SONG_CAVE'] = jingle('E5 - G5 - B5 - E6 - - - B5 - E6 - - - - - .',
-                                'E2 - - - E3 - - - E2 - - - E3 - - - - - .',
-                                'k . h . s . h . k . h . s . . . . . .', speed=5, fx=[0] * 12 + [2] * 7)
-    SONGS['SONG_CLEAR'] = jingle('G5 - B5 - D6 - G6 - - - D6 - G6 - - - - - .',
-                                 'G2 - - - D3 - - - G2 - - - - - - - - - .',
-                                 'k . . . s . . . k . . . s . . . . . .', speed=4, fx=[0] * 12 + [1] * 7)
-    SONGS['SONG_GAMEOVER'] = jingle(
-        'B4 - - - A4 - - - G4 - - - F#4 - - - E4 - - - D#4 - - - E4 - - - - - - - .',
-        'E2 - - - D2 - - - C2 - - - B1 - - - C2 - - - B1 - - - E2 - - - - - - - .',
-        'k . . . s . . . k . . . s . . . k . . . s . . . k . . . . . . . .', speed=8)
+    SONGS['SONG_ENTER'] = jingle('A4 - C5 - E5 - A5 - - - - - .',
+                                 'A2 - - - - - - - - - - - .',
+                                 'k . . . h . . . s . . . .', speed=4, fx=[0] * 8 + [2] * 5)
+    SONGS['SONG_WIN'] = dict(speed=6, loop=True, loop_from=0, pats=[
+        pattern(lead, bass_bar(root, 0), DR_A, shimmer(lead)) for lead, root, st, dr in CHORUS])
+    SONGS['SONG_OVER'] = jingle(
+        'E5 - - - D5 - - - C5 - - - B4 - - - A4 - - - - - - - .',
+        'A2 - - - G2 - - - F2 - - - E2 - - - A2 - - - - - - - .',
+        'k . . . s . . . k . . . s . . . k . . . . . . . .', speed=8)
 
 
 # ------------------------------------------------------------------ effects
@@ -187,8 +186,9 @@ def gen_asm():
         out.append('%s:' % name)
         out.append('        db %d' % s['speed'])
         names = ['%s_p%d' % (name, i) for i in range(len(s['pats']))]
-        if s.get('loop_from'):
-            out.append('        dw ' + ','.join(names[:s['loop_from']]))
+        if s.get('loop_from') is not None and s.get('loop'):
+            if s['loop_from']:
+                out.append('        dw ' + ','.join(names[:s['loop_from']]))
             out.append('%s_loop:' % name)
             out.append('        dw ' + ','.join(names[s['loop_from']:]))
             out.append('        dw 0FFFFh, %s_loop' % name)

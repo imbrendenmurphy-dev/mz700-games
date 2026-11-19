@@ -8,20 +8,25 @@
 ; ---------------------------------------------------------------------
 game:
         cp 2
-        jr z,.loaded
-        call new_world
-        jr .go
-.loaded:
+        jr nz,.new
+        call tape_load
+        ret nz
         call resume_world
+        jr .go
+.new:   call new_world
 .go:    xor a
         ld (demo),a
         ld hl,0
         ld (replay_ptr),hl
+        call mus_stop
         call play
         ld a,(won)
         or a
         jp nz,ending
-        ret
+        call sfx_stop
+        call record_entry
+        ld hl,SONG_TITLE
+        jp mus_play
 
 ; demo_game: the attract-mode demo replays the start of the solution
 demo_game:
@@ -284,7 +289,9 @@ do_transport:
         ld e,(ix+4)
         ld d,(ix+5)
         call enter_region
-        jp show_view
+        call show_view
+        ld hl,SONG_ENTER
+        jp mus_play
 
 ; ---------------------------------------------------------------------
 ; switches: open the barriers they are wired to (maybe far away)

@@ -18,11 +18,14 @@ HUDROW          equ 0
 build_cur:
         ld a,(anim)
         and 7
-        ld c,a
-        rrca
-        rrca                        ; phase * 64
         ld l,a
         ld h,0
+        add hl,hl
+        add hl,hl
+        add hl,hl
+        add hl,hl
+        add hl,hl
+        add hl,hl                   ; phase * 64
         ld de,ANIM
         add hl,de
         ld de,CUR
