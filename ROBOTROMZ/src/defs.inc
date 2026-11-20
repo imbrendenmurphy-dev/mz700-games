@@ -134,7 +134,7 @@ YMIN    equ 2
 YMAX    equ 23
 CX      equ 19          ; player start cell
 CY      equ 12
-A_ARENA equ 71h         ; empty arena: white on blue
+A_ARENA equ 70h         ; empty arena: white on black
 
 ; key bits (both sticks)
 K_UP    equ 01h

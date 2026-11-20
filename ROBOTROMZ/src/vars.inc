@@ -27,7 +27,11 @@ sedge:      db 0
 
 sndptr:     dw 0
 sndleft:    db 0
-sndmode:    db 0
+sndkind:    db 0        ; current step: kind
+snddel:     dw 0        ; divisor change per tick
+sndwob:     db 0        ; warble phase
+sndnz:      dw 0        ; noise mask (0 = not noise)
+nseed:      dw 1F35h    ; noise generator
 snddiv:     dw 0
 sndpri:     db 0
 sndon:      db 1
@@ -103,3 +107,4 @@ capbuf:     ds 8
 page:       db 0
 pagetm:     dw 0
 phase:      db 0
+bordcol:    db 20h      ; this wave's arena frame colour

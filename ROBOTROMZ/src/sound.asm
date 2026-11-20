@@ -1,9 +1,15 @@
 ; =====================================================================
-;  sound.asm - one-voice effects on 8253 counter 0, stepped every tick
+;  sound.asm - one voice on 8253 counter 0: sweeps, warbles and noise
 ;
-;  A sound is a list of notes: db ticks, dw divisor (tone = 1108800 /
-;  divisor Hz; 0 = rest).  ticks + 80h = noise: a random divisor from
-;  divisor to divisor+2047 every tick.  db 0 ends the sound.
+;  A sound is a list of steps (6 bytes):
+;     db ticks, kind ; dw start divisor, divisor change per tick
+;  kind 0 tone, 5 warble (+-1/8 every other tick), 4 rest,
+;       1/2/3 noise: a random divisor from (divisor) to (divisor + 1FFh /
+;       7FFh / 1FFFh) - re-rolled continuously while the CPU waits for
+;       vertical blank, so it's real noise, not 50 Hz grit.
+;  Tone = 1108800 / divisor Hz.  db 0 ends the sound.
+;  Sweeping the divisor makes the falling zaps and rising whoops of the
+;  arcade machines of the time.
 ; =====================================================================
 
 init_hw:
@@ -50,13 +56,14 @@ cycle_sound:
         inc a
 .o:     ld (sndon),a
         call snd_off
-        ld hl,sfx_rescue        ; a blip to show it's on
+        ld hl,sfx_spawn         ; a blip to show it's on
         ld a,1
         jp play_sfx
 
 snd_off:
         ld hl,0
         ld (sndptr),hl
+        ld (sndnz),hl
         xor a
         ld (sndleft),a
         ld (sndpri),a
@@ -67,49 +74,112 @@ snd_tick:
         ld hl,(sndptr)
         ld a,h
         or a
-        jr z,.quiet
+        jp z,.quiet
         ld a,(sndleft)
         or a
         jr nz,.run
-        ld a,(hl)               ; next note
+        ld a,(hl)               ; next step
         or a
-        jr z,snd_off
-        inc hl
-        ld (sndmode),a
-        and 7Fh
+        jp z,snd_off
         ld (sndleft),a
+        inc hl
+        ld a,(hl)
+        ld (sndkind),a
+        inc hl
         ld e,(hl)
         inc hl
         ld d,(hl)
         inc hl
-        ld (sndptr),hl
         ld (snddiv),de
+        ld e,(hl)
+        inc hl
+        ld d,(hl)
+        inc hl
+        ld (snddel),de
+        ld (sndptr),hl
 .run:   ld hl,sndleft
         dec (hl)
-        ld de,(snddiv)
-        ld a,d
-        or e
-        jr z,.quiet
-        ld a,(sndmode)
-        rla
-        jr nc,.out
-        push de
-        call rand
-        pop de
+        ld a,(sndkind)
+        cp 4
+        jr z,.quiet             ; a rest
+        ld hl,0                 ; noise mask
+        or a
+        jr z,.nm
+        cp 5
+        jr z,.nm
+        ld hl,01FFh
+        dec a
+        jr z,.nm
+        ld hl,07FFh
+        dec a
+        jr z,.nm
+        ld hl,1FFFh
+.nm:    ld (sndnz),hl
         ld a,h
-        and 07h
-        ld h,a
+        or l
+        jr z,.tone
+        call noise_out
+        jr .gate
+.tone:  ld de,(snddiv)
+        ld a,(sndkind)
+        cp 5
+        jr nz,.out
+        ld a,(sndwob)           ; warble: +- 1/8, alternate ticks
+        xor 1
+        ld (sndwob),a
+        ld h,d
+        ld l,e
+        srl h
+        rr l
+        srl h
+        rr l
+        srl h
+        rr l
+        or a
+        jr z,.sub
         add hl,de
+        ex de,hl
+        jr .out
+.sub:   ex de,hl
+        or a
+        sbc hl,de
         ex de,hl
 .out:   ld a,e
         ld (CTR0),a
         ld a,d
         ld (CTR0),a
-        ld a,1
+.gate:  ld a,1
         ld (SNDGATE),a
+        ld hl,(snddiv)          ; sweep
+        ld de,(snddel)
+        add hl,de
+        ld (snddiv),hl
         ret
 .quiet: xor a
         ld (SNDGATE),a
+        ld hl,0
+        ld (sndnz),hl
+        ret
+
+; a fresh random divisor for a noise step (also called from wait_vblank)
+noise_out:
+        push hl
+        push de
+        call nrand
+        ld a,(sndnz)
+        and l
+        ld e,a
+        ld a,(sndnz+1)
+        and h
+        ld d,a
+        ld hl,(snddiv)
+        add hl,de
+        ld a,l
+        ld (CTR0),a
+        ld a,h
+        ld (CTR0),a
+        pop de
+        pop hl
         ret
 
 ; HL = xorshift16 random number (also in seed)
@@ -130,6 +200,26 @@ rand:
         xor h
         ld h,a
         ld (seed),hl
+        ret
+
+; the same for noise, on its own seed (so sound never changes the game)
+nrand:
+        ld hl,(nseed)
+        ld a,h
+        rra
+        ld a,l
+        rra
+        xor h
+        ld h,a
+        ld a,l
+        rra
+        ld a,h
+        rra
+        xor l
+        ld l,a
+        xor h
+        ld h,a
+        ld (nseed),hl
         ret
 
 ; A = random byte (BC, DE preserved)
@@ -163,181 +253,209 @@ rand_n:
         ret
 
 ; ---------------------------------------------------------------------
-; effects (priority in brackets where they are played)
-NOTE    MACRO hz, ticks
-        db ticks
-        dw 1108800/hz
+; step macros (frequencies in Hz)
+DV      equ 1108800
+TONE    MACRO t, hz             ; a steady tone
+        db t, 0
+        dw DV/hz, 0
+        ENDM
+SWP     MACRO t, hz1, hz2       ; a tone sweeping from hz1 to hz2
+        db t, 0
+        dw DV/hz1, (DV/hz2-DV/hz1)/t
+        ENDM
+WRB     MACRO t, hz1, hz2       ; the same, warbling
+        db t, 5
+        dw DV/hz1, (DV/hz2-DV/hz1)/t
+        ENDM
+NZ      MACRO t, k, d1, d2      ; noise of band k, base divisor d1 -> d2
+        db t, k
+        dw d1, (d2-d1)/t
+        ENDM
+REST    MACRO t
+        db t, 4
+        dw 0, 0
+        ENDM
+NT      MACRO hz                ; a staccato note of the title riff
+        db 5, 0
+        dw DV/hz, 0
+        db 1, 4
+        dw 0, 0
+        ENDM
+ZAP     MACRO                   ; the falling zap that ends a bar
+        db 4, 0
+        dw DV/1400, (DV/300-DV/1400)/4
         ENDM
 
-sfx_shoot:
-        db 1
-        dw 300
-        db 1
-        dw 450
-        db 1
-        dw 700
+; ---- in play
+sfx_shoot:                      ; a short laser crack: down from 3 kHz
+        SWP 2, 3200, 1500
+        SWP 2, 1500, 650
         db 0
-sfx_boom:
-        db 82h
-        dw 600
-        db 84h
-        dw 1500
-        db 84h
-        dw 3000
+sfx_boom:                       ; a thump, a crash, then rumble falling away
+        TONE 1, 70
+        NZ 3, 2, 300, 700
+        NZ 10, 3, 700, 3600
         db 0
-sfx_zap:
-        db 2
-        dw 250
-        db 2
-        dw 180
+sfx_bigboom:                    ; the same, bigger and longer
+        TONE 2, 55
+        NZ 4, 2, 250, 700
+        NZ 26, 3, 700, 7000
         db 0
-sfx_push:
-        db 2
-        dw 6000
-        db 2
-        dw 9000
+sfx_zap:                        ; a bullet shot down: a spit of noise
+        NZ 3, 1, 120, 400
         db 0
-sfx_efire:
-        db 2
-        dw 1400
-        db 2
-        dw 1100
+sfx_push:                       ; a crusher knocked back: a dull clank
+        TONE 2, 60
+        NZ 2, 2, 900, 1600
         db 0
-sfx_rescue:
-        NOTE 523, 3
-        NOTE 659, 3
-        NOTE 784, 3
-        NOTE 1047, 6
+sfx_efire:                      ; seeker spark
+        SWP 3, 900, 300
         db 0
-sfx_human:                      ; a human is lost
-        NOTE 220, 6
-        NOTE 165, 6
-        NOTE 110, 10
+sfx_missile:                    ; mindbot missile: a rising hiss
+        NZ 6, 1, 700, 150
         db 0
-sfx_mutate:
-        NOTE 880, 3
-        NOTE 440, 3
-        NOTE 880, 3
-        NOTE 440, 3
-        NOTE 220, 8
+sfx_shell:                      ; tank shell: a low thoomp
+        SWP 3, 160, 80
         db 0
-sfx_death:
-        NOTE 880, 4
-        NOTE 784, 4
-        NOTE 659, 4
-        NOTE 523, 4
-        NOTE 440, 4
-        NOTE 349, 4
-        NOTE 262, 6
-        NOTE 196, 8
-        db 0A0h
-        dw 3000
+sfx_rescue:                     ; two climbing whoops and a shimmer
+        SWP 5, 300, 1200
+        SWP 5, 450, 1800
+        WRB 10, 1800, 2200
         db 0
-sfx_wave:
-        NOTE 392, 6
-        NOTE 523, 6
-        NOTE 659, 6
-        NOTE 784, 12
-        db 4
-        dw 0
-        NOTE 659, 6
-        NOTE 784, 18
+sfx_human:                      ; a human lost: a long fall and a crunch
+        SWP 18, 900, 120
+        NZ 6, 3, 1500, 4000
         db 0
-sfx_clear:
-        NOTE 523, 5
-        NOTE 659, 5
-        NOTE 784, 5
-        NOTE 1047, 5
-        NOTE 784, 5
-        NOTE 1047, 15
+sfx_mutate:                     ; a human turned: a sick warble up and down
+        WRB 24, 150, 600
+        WRB 12, 600, 200
         db 0
-sfx_extra:
-        NOTE 1047, 4
-        NOTE 1319, 4
-        NOTE 1568, 4
-        NOTE 1047, 4
-        NOTE 1319, 4
-        NOTE 1568, 10
+sfx_spawn:                      ; something hatches / materialises
+        SWP 4, 200, 700
         db 0
-sfx_spawn:
-        NOTE 1568, 2
-        NOTE 1760, 2
-        NOTE 1976, 2
+sfx_pick:                       ; a power-up: a whoop that keeps going
+        SWP 8, 400, 2400
+        WRB 10, 2400, 2600
+        db 0
+sfx_extra:                      ; extra life: three whoops and a trill
+        SWP 6, 200, 1600
+        REST 2
+        SWP 6, 200, 1600
+        REST 2
+        SWP 6, 200, 1600
+        WRB 14, 1600, 1600
+        db 0
+sfx_death:                      ; you: a crash, a long warbling fall, rumble
+        NZ 6, 3, 400, 1500
+        WRB 60, 700, 60
+        NZ 20, 3, 3000, 12000
         db 0
 sfx_beat:                       ; the heartbeat: lub ... dub
-        NOTE 70, 2
-        db 3
-        dw 0
-        NOTE 52, 3
+        TONE 2, 55
+        REST 3
+        TONE 3, 45
         db 0
-sfx_pick:                       ; power-up
-        NOTE 784, 2
-        NOTE 1047, 2
-        NOTE 1319, 2
-        NOTE 1568, 2
-        NOTE 2093, 6
+
+; ---- between waves
+sfx_wave:                       ; a new wave: a growl climbing out of the dark
+        WRB 50, 60, 500
+        SWP 10, 500, 1500
+        NZ 10, 1, 150, 600
+        db 0
+sfx_clear:                      ; cleared: a dive and a soaring climb
+        SWP 15, 1500, 150
+        SWP 15, 150, 2000
+        WRB 10, 2000, 2000
+        db 0
+sfx_over:                       ; game over: a slow descent into rumble
+        WRB 40, 220, 110
+        WRB 40, 110, 55
+        WRB 60, 55, 30
+        NZ 30, 3, 6000, 20000
         db 0
 sfx_type:                       ; typewriter tick
-        db 1
-        dw 90
+        NZ 1, 1, 60, 60
         db 0
 
-; title tune: a driving minor riff, staccato
-NT      MACRO hz
-        db 5
-        dw 1108800/hz
-        db 1
-        dw 0
-        ENDM
-NL      MACRO hz
-        db 17
-        dw 1108800/hz
-        db 1
-        dw 0
-        ENDM
+; ---- title: a rising growl, a crash, then a menacing minor ostinato
+; (E phrygian, then up a fourth) with a falling zap at the end of each
+; bar, and a long warbling fall to finish
 sfx_title:
-        NT 440
-        NT 440
-        NT 659
-        NT 440
-        NT 392
-        NT 440
-        NT 523
-        NT 494
-        NT 440
-        NT 440
-        NT 659
-        NT 440
-        NT 587
-        NT 523
-        NT 494
-        NT 392
-        NT 349
-        NT 349
-        NT 523
-        NT 349
+        WRB 60, 50, 400
+        NZ 12, 3, 1500, 6000
+        REST 6
+        ; A
+        NT 165
+        NT 165
         NT 330
-        NT 349
-        NT 440
-        NT 392
+        NT 165
+        NT 175
+        NT 165
+        NT 294
+        NT 262
+        NT 165
+        NT 165
         NT 330
+        NT 165
+        NT 196
+        NT 175
+        NT 165
+        NT 147
+        ZAP
+        ; A
+        NT 165
+        NT 165
         NT 330
-        NT 494
+        NT 165
+        NT 175
+        NT 165
+        NT 294
+        NT 262
+        NT 165
+        NT 165
         NT 330
-        NT 415
-        NT 494
-        NT 587
-        NL 659
+        NT 165
+        NT 196
+        NT 175
+        NT 165
+        NT 147
+        ZAP
+        ; B (up a fourth)
         NT 220
         NT 220
         NT 440
         NT 220
-        NL 880
-        db 0
-
-sfx_over:
-        NOTE 392, 12
-        NOTE 370, 12
-        NOTE 349, 12
-        NOTE 330, 30
+        NT 233
+        NT 220
+        NT 392
+        NT 349
+        NT 220
+        NT 220
+        NT 440
+        NT 220
+        NT 262
+        NT 233
+        NT 220
+        NT 196
+        ZAP
+        ; A
+        NT 165
+        NT 165
+        NT 330
+        NT 165
+        NT 175
+        NT 165
+        NT 294
+        NT 262
+        NT 165
+        NT 165
+        NT 330
+        NT 165
+        NT 196
+        NT 175
+        NT 165
+        NT 147
+        ; the sting
+        WRB 50, 330, 41
+        NZ 20, 3, 3000, 15000
         db 0

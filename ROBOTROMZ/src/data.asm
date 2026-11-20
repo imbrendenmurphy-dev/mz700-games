@@ -7,33 +7,33 @@
 ;      particles when destroyed
 DEAD_SHOT equ F_DEADLY|F_SHOOT|F_SOLID
 tinfo:
-        db 30h,31h, 0A1h, DEAD_SHOT|F_COUNT,  00h,01h,  4,5   ; droid    100
-        db 0B3h,0B3h,0E1h, DEAD_SHOT,         25h,00h,  1,3   ; pylon     25
-        db 0F5h,0F6h,0C1h, F_DEADLY|F_PUSH|F_SOLID, 0,0, 0,0  ; crusher
-        db 38h,39h, 0B1h, DEAD_SHOT|F_COUNT,  00h,05h, 20,8   ; mindbot  500
-        db 34h,35h, 0D1h, DEAD_SHOT|F_COUNT|F_ANIM, 00h,01h, 4,5 ; mutant   100
-        db 84h,3Eh, 0E1h, DEAD_SHOT|F_COUNT|F_ANIM, 00h,10h, 40,10 ; orb     1000
-        db 1Dh,1Eh, 0E1h, DEAD_SHOT|F_COUNT,  50h,01h,  6,4   ; seeker   150
-        db 0B1h,0B2h,0E1h, DEAD_SHOT|F_COUNT|F_ANIM, 00h,10h, 40,10 ; factory 1000
-        db 1Bh,1Ch, 0F1h, DEAD_SHOT|F_COUNT,  00h,02h,  8,8   ; tank     200
-        db 43h,45h, 0B1h, F_HUMAN|F_SOLID,    0,0,      0,0   ; mom
-        db 44h,45h, 0D1h, F_HUMAN|F_SOLID,    0,0,      0,0   ; dad
-        db 44h,43h, 0E1h, F_HUMAN|F_SOLID,    0,0,      0,0   ; kid
-        db 81h,81h, 0F1h, 0,                  0,0,      0,0   ; skull
-        db 0,0,     61h,  0,                  0,0,      0,0   ; pop-up
-        db 0B3h,0EEh,0F1h, 0,                 0,0,      0,0   ; explosion
-        db 0B5h,08Fh,0E1h, F_SOLID|F_ANIM,    0,0,      0,0   ; pickup
+        db 30h,31h, 0A0h, DEAD_SHOT|F_COUNT,  00h,01h,  4,5   ; droid    100
+        db 0B3h,0B3h,0E0h, DEAD_SHOT,         25h,00h,  1,3   ; pylon     25
+        db 0F5h,0F6h,0C0h, F_DEADLY|F_PUSH|F_SOLID, 0,0, 0,0  ; crusher
+        db 38h,39h, 0B0h, DEAD_SHOT|F_COUNT,  00h,05h, 20,8   ; mindbot  500
+        db 34h,35h, 0D0h, DEAD_SHOT|F_COUNT|F_ANIM, 00h,01h, 4,5 ; mutant   100
+        db 84h,3Eh, 0E0h, DEAD_SHOT|F_COUNT|F_ANIM, 00h,10h, 40,10 ; orb     1000
+        db 1Dh,1Eh, 0E0h, DEAD_SHOT|F_COUNT,  50h,01h,  6,4   ; seeker   150
+        db 0B1h,0B2h,0E0h, DEAD_SHOT|F_COUNT|F_ANIM, 00h,10h, 40,10 ; factory 1000
+        db 1Bh,1Ch, 0F0h, DEAD_SHOT|F_COUNT,  00h,02h,  8,8   ; tank     200
+        db 43h,45h, 0B0h, F_HUMAN|F_SOLID,    0,0,      0,0   ; mom
+        db 44h,45h, 0D0h, F_HUMAN|F_SOLID,    0,0,      0,0   ; dad
+        db 44h,43h, 0E0h, F_HUMAN|F_SOLID,    0,0,      0,0   ; kid
+        db 81h,81h, 0F0h, 0,                  0,0,      0,0   ; skull
+        db 0,0,     60h,  0,                  0,0,      0,0   ; pop-up
+        db 0B3h,0EEh,0F0h, 0,                 0,0,      0,0   ; explosion
+        db 0B5h,08Fh,0E0h, F_SOLID|F_ANIM,    0,0,      0,0   ; pickup
 
 pyloncols:                      ; never red or green (droids, crushers)
-        db 0F1h,0B1h,0E1h,0D1h
+        db 0F0h,0B0h,0E0h,0D0h
 matglyph:
         db 0EFh,0EEh,0B3h,0EEh
 cyctab:                         ; colour cycle for orbs and factories
-        db 0A1h,0E1h,0F1h,0D1h,0C1h,0B1h,0D1h,0F1h
+        db 0A0h,0E0h,0F0h,0D0h,0C0h,0B0h,0D0h,0F0h
 ebglyph:                        ; enemy bullets: char, attribute
-        db 46h,61h              ; spark: yellow cross
-        db 3Fh,0A1h             ; missile: red rocket (bank 2)
-        db 47h,71h              ; shell: white ball
+        db 46h,60h              ; spark: yellow cross
+        db 3Fh,0A0h             ; missile: red rocket (bank 2)
+        db 47h,70h              ; shell: white ball
 
 ; ---- waves: droids, pylons, crushers, mindbots, orbs, factories,
 ;             moms, dads, kids, droid step delay, formation

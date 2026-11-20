@@ -137,7 +137,7 @@ power_tick:
         ld a,b
         ld b,c
         ld c,a
-        ld a,0D1h
+        ld a,0D0h
         ld de,0208h
         jp burst
 
@@ -148,7 +148,7 @@ hud_power_dirty:
 
 place_player:
         call player_ofs
-        ld de,0CA71h            ; stick man, white on blue
+        ld de,0CA70h            ; stick man, white on black
         ld a,(state)
         cp S_DYING
         jr z,.dying
@@ -175,7 +175,6 @@ place_player:
         rlca
         rlca
         rlca
-        or 01h
         ld e,a
         jp put_cell
 .dying: ld a,(statetm)          ; dying: flash, then burst
@@ -186,10 +185,9 @@ place_player:
         rlca
         rlca
         rlca
-        or 01h
         ld e,a
         jp put_cell
-.burst: ld e,0F1h
+.burst: ld e,0F0h
         ld d,0B3h
         cp 35
         jp nc,put_cell
@@ -280,7 +278,7 @@ player_collide:
         ld (iy+OST),0
         ld b,(iy+OY)            ; sparkles
         ld c,(iy+OX)
-        ld a,0E1h
+        ld a,0E0h
         ld de,0108h
         call burst
         ld hl,sfx_rescue
@@ -305,11 +303,11 @@ player_collide:
         jr nz,.psh
         ld hl,T3WAY
         ld (pw3),hl
-        ld a,0E1h
+        ld a,0E0h
         jr .p3
 .psh:   ld hl,TSHIELD
         ld (pwsh),hl
-        ld a,0D1h
+        ld a,0D0h
 .p3:    ld de,000Ch
         call burst
         call hud_power_dirty
@@ -334,7 +332,7 @@ player_die:
         ld a,b
         ld b,c
         ld c,a
-        ld a,0F1h
+        ld a,0F0h
         ld de,0010h
         call burst
         ld hl,sfx_death
@@ -384,7 +382,7 @@ update_shots:
         ld hl,shotch
         add hl,bc
         ld d,(hl)
-        ld e,51h                ; cyan on blue
+        ld e,50h                ; cyan on blue
         pop hl
         call put_cell
         jr .nx
@@ -449,7 +447,7 @@ shot_hit:
         call obj_step
         ld b,(ix+OY)            ; sparks off its armour
         ld c,(ix+OX)
-        ld a,0C1h
+        ld a,0C0h
         ld de,0003h
         call burst
         ld a,(ease+E_CRUSH)
@@ -479,7 +477,7 @@ shot_hit:
         inc hl
         inc hl
         ld b,(hl)               ; BY
-        ld a,0F1h
+        ld a,0F0h
         ld de,0104h
         call burst
         ld de,0025h
@@ -523,8 +521,15 @@ fire_at_player:
         ld a,140
 .life:  ld (iy+BLIFE),a
         call aim_bullet
+        ld a,(iy+BT)            ; spark, missile or shell: each has its sound
         ld hl,sfx_efire
-        ld a,1
+        dec a
+        jr z,.snd
+        ld hl,sfx_missile
+        dec a
+        jr z,.snd
+        ld hl,sfx_shell
+.snd:   ld a,1
         jp play_sfx
 
 ; point bullet IY at the player

@@ -5,9 +5,10 @@ character ROM, no PCG), played on the keyboard and loaded from tape or a
 UniCMT USB cassette emulator.
 
 This is the MZ-700 version of the VZ200/VZ300 game *Robogeddon 2085*: the
-same robots, waves and family to rescue, on a blue arena in a green checked
-frame. It's inspired by the Robotron style of game but contains nothing from
-it. Original code, ViBED by BPM 2026.
+same robots, waves and family to rescue, on a black arena in a thin frame
+whose colour changes from wave to wave. It's inspired by the Robotron style
+of game but contains nothing from it. Original code, music and sound effects,
+ViBED by BPM 2026.
 
 ![title](docs/title.png) ![wave 5](docs/wave5.png)
 ![the robots](docs/robots.png) ![wave clear](docs/fireworks.png)
@@ -17,7 +18,7 @@ it. Original code, ViBED by BPM 2026.
 
 - **Real MZ-700 / UniCMT:** copy `release/ROBOGEDN.MZT` to the USB stick
   (`release/ROBOGEDN.MZF` is the same file under the other common extension)
-  and load it like a tape (`L` from the monitor). It loads at 1200h-46D3h and
+  and load it like a tape (`L` from the monitor). It loads at 1200h-4A45h and
   starts by itself.
 - **MZ700WIN:** File > Open `release/ROBOGEDN.MZT`.
 
@@ -87,7 +88,7 @@ each). The count starts again every wave.
 Left alone, the game cycles through:
 
 1. **Title**: the ROBOGEDDON logo with rolling colours and sparks, a flowing
-   rainbow border, the controls, and a title tune.
+   rainbow frame, the controls, and the title tune.
 2. **The story so far**, typed out a letter at a time while a human runs from
    a line of droids.
 3. **The robots**: the rogues' gallery, each robot materialising in turn with
@@ -122,8 +123,24 @@ The table lasts until you switch off.
 - Particles (up to 32) go straight into the work screen and, like the
   robots, are only redrawn when they change cell or look. Half of them move
   each tick, at double speed.
-- One-voice sound on the 8253, stepped every tick: shots, explosions,
-  rescue arpeggios, jingles, the title tune.
+- **Sound** is one voice on the 8253 timer, in the style of the arcade
+  machines of the early 80s: everything is built from pitch **sweeps**,
+  **warbles** and **noise**, not tunes on a beeper.
+  - Each sound is a list of steps (tone, warble, rest, or noise in three
+    bands), each with a pitch sweep per tick.
+  - Noise is re-rolled continuously while the CPU waits for vertical blank
+    (thousands of times a second), so explosions are a real crash and
+    rumble rather than 50 Hz grit. It has its own random generator, so sound
+    never changes the game.
+  - Shots are a short falling laser crack; robots die with a thump, a crash
+    and a falling rumble (bigger robots, bigger bang); a rescue is two
+    climbing whoops and a shimmer; you die in a crash and a long warbling fall.
+  - A new wave growls up out of the dark; game over sinks into a rumble.
+  - The title tune: a rising growl and a crash, then a menacing minor
+    ostinato with a falling zap at the end of each bar, and a long
+    warbling fall.
+  - `py tools/sndwav.py` renders all of it to WAV files in `build/sound/`
+    from the test model, so you can hear it without the machine.
 - Objects: up to 80 robots, humans and effects, 16 enemy bullets and 12 shots (3-Way needs them).
 - The demo player looks at the robots every 4th tick: it runs from anything
   within 5 cells, heads for the nearest human, and fires at the robot that is
@@ -143,7 +160,7 @@ once.
 | Address | Use |
 |---|---|
 | 1000h-11FFh | stack (monitor work area; the game never returns to the monitor) |
-| 1200h-46D3h | code and data |
+| 1200h-4A45h | code and data |
 | 8000h-87FFh | object layer (chars, attributes) |
 | 8800h-8BFFh | redraw flags |
 | 8C00h-8DFFh | particles (32 x 16 bytes) |
@@ -192,6 +209,7 @@ included).
 | `src/data.asm` | robot table, waves, difficulty, text |
 | `tools/build.py` | logo and caption-font generator, assembler run, MZT/MZF wrapper |
 | `tools/mzemu.py`, `tools/z80.py` | MZ-700 test model (with VRAM wait states) and Z80 |
+| `tools/sndwav.py` | renders the title tune, every effect and a game to WAV |
 
 ## Status
 

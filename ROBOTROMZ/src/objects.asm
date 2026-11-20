@@ -798,8 +798,13 @@ kill_obj:
         call set_type
         ld (ix+OTM),12
         ld (ix+OST),0
+        ld a,(bcnt)             ; big robots (8+ debris) go with a bigger bang
+        cp 8
         ld hl,sfx_boom
         ld a,3
+        jp c,play_sfx
+        ld hl,sfx_bigboom
+        ld a,4
         jp play_sfx
 
 ; ---------------------------------------------------------------------
@@ -985,7 +990,7 @@ place_objects:
         inc (hl)
         ld b,(ix+OY)            ; a puff of red
         ld c,(ix+OX)
-        ld a,0A1h
+        ld a,0A0h
         ld de,0106h
         call burst
 .hn:    pop hl
@@ -1058,12 +1063,12 @@ obj_look:
         ld d,0EFh
         ret
 .pick:  ld d,0B5h                ; 3-Way: a yellow trident
-        ld e,0E1h
+        ld e,0E0h
         ld a,(ix+OAUX)
         or a
         jr z,.p1
         ld d,08Fh               ; Shield: a cyan circled cross
-        ld e,0D1h
+        ld e,0D0h
 .p1:    ld a,(ix+OVXH)          ; last 2 seconds: blink white
         or a
         ret nz
@@ -1073,7 +1078,7 @@ obj_look:
         ld a,(framecnt)
         and 8
         ret z
-        ld e,0F1h
+        ld e,0F0h
         ret
 .mat:   inc hl                  ; sparkle in the object's colour
         inc hl
@@ -1101,7 +1106,7 @@ place_pop:
         ld a,(ix+OAUX)
         add a,21h
         ld d,a
-        ld e,61h
+        ld e,60h
         ld b,4
 .l:     push bc
         push hl

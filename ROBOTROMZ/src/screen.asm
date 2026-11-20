@@ -56,6 +56,9 @@ wait_vblank:
         ld a,(polx)
         ld c,a
         ld de,0
+        ld a,(sndnz+1)          ; a noise sound playing? keep it noisy
+        or a
+        jr nz,wait_noisy
 .w0:    inc de
         ld a,(hl)
         xor c
@@ -67,6 +70,31 @@ wait_vblank:
         rla
         jr c,.w1
         ld (slack),de           ; idle time, 33 T per count
+        ret
+
+; the same, re-rolling the noise divisor all the time we wait
+; (each noise_out is ~250 T: counted as 8 loops in the idle figure)
+wait_noisy:
+.n0:    ld a,(hl)               ; until the display starts
+        xor c
+        rla
+        jr c,.n1
+        call .roll
+        jr .n0
+.n1:    ld a,(hl)               ; until vertical blank
+        xor c
+        rla
+        jr nc,.nd
+        call .roll
+        jr .n1
+.nd:    ld (slack),de
+        ret
+.roll:  call noise_out
+        ld a,e
+        add a,8
+        ld e,a
+        ret nc
+        inc d
         ret
 
 ; ---------------------------------------------------------------------

@@ -39,6 +39,7 @@ class MZ:
         s.waits = 0
         s.vram_writes = []      # (t, addr) log when enabled
         s.log_writes = False
+        s.snd = None            # list -> log (t, addr, value) of 8253 / gate writes
         s.cpu = Z80(s.rd, s.wr, lambda p: 0xFF, s.outp)
         s.cpu.pc = exe
         s.cpu.t = 3000          # arbitrary phase
@@ -85,6 +86,8 @@ class MZ:
             if a < 0xE010:
                 if a == 0xE000:
                     s.row = v & 0x0F
+                elif s.snd is not None and 0xE004 <= a <= 0xE008:
+                    s.snd.append((s.now(), a, v))
                 return
         s.mem[a] = v
 

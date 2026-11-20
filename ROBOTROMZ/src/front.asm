@@ -135,28 +135,13 @@ print_recs:
 .ctr:   call print_centre
         jr .l
 
-page_frame:                     ; black page inside a checked border
+page_frame:                     ; black page inside a thin frame (colours roll)
         call clear_particles
         ld a,70h
         call clear_bg
-        ld hl,BGCH
-        ld de,BGCH+24*40
-        ld b,40
-.tb:    ld (hl),0D0h
-        ld a,0D0h
-        ld (de),a
-        inc hl
-        inc de
-        djnz .tb
-        ld hl,BGCH+40
-        ld de,39
-        ld b,23
-.sd:    ld (hl),0D0h
-        add hl,de
-        ld (hl),0D0h
-        inc hl
-        djnz .sd
-        ret
+        ld b,0
+        ld e,70h
+        jp frame_box
 
 set_len:                        ; HL = page length in ticks
         ld (pagelen),hl

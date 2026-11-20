@@ -153,7 +153,7 @@ caption_colours:
         djnz .r
         ret
 
-capcols: db 61h,71h,51h,31h,21h,31h,51h,71h
+capcols: db 60h,70h,50h,30h,20h,30h,50h,70h
 
 ; blank rows 7..10 and 14 (big caption and subtitle) back to the arena
 clear_big:
@@ -181,7 +181,10 @@ edge_flash:
         ret z
         dec a
         ld (edgetm),a
-        ld e,41h                ; back to green at the end
+        ld a,(bordcol)          ; back to the wave's colour at the end
+        ld e,a
+        ld a,(edgetm)
+        or a
         jr z,.go
         and 7
         ret nz
@@ -218,7 +221,7 @@ edge_flash:
         djnz .s
         ret
 
-edgecols: db 61h,71h,51h,21h,31h,61h,71h,51h
+edgecols: db 60h,70h,50h,20h,30h,60h,70h,50h
 
 ; the heartbeat (sound mode ALL, in play): a low double thump that
 ; quickens as the robots thin out

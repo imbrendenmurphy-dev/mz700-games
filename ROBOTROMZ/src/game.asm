@@ -121,11 +121,11 @@ tick_play:
         call play_sfx
         ld hl,s_bigclear
         ld b,7
-        ld e,61h
+        ld e,60h
         call big_centre
         ld hl,s_saved           ; HUMANS SAVED: n
         ld de,15*40+12
-        ld c,71h
+        ld c,70h
         call print_bg
         ld a,(saved)
         call print_dec2
@@ -140,7 +140,7 @@ tick_play:
         call add_score
         ld hl,s_bonus
         ld b,17
-        ld c,61h
+        ld c,60h
         jp print_centre
 
 ; now and then a power-up appears (from wave 2)
@@ -192,7 +192,7 @@ tick_dying:
         ld a,b
         ld b,c
         ld c,a
-        ld a,0E1h+GRAV
+        ld a,0E0h+GRAV
         ld de,0010h
         call burst
 .nb:    ld hl,statetm
@@ -220,7 +220,7 @@ tick_dying:
         call play_sfx
         ld hl,s_biggame
         ld b,7
-        ld e,21h
+        ld e,20h
         jp big_centre
 
 tick_clear:
@@ -518,11 +518,11 @@ start_wave:
         ld (hl),0
         ld hl,capbuf
         ld b,7
-        ld e,61h
+        ld e,60h
         call big_centre
         call wave_subtitle
         ld b,14                 ; (row 12 is where the player stands)
-        ld c,71h
+        ld c,70h
         call print_centre
         ld a,S_INTRO
         ld (state),a
@@ -803,46 +803,75 @@ clear_shots:
         ldir
         ret
 
-; arena: blue playfield inside a green/blue checked frame; HUD row black
-draw_arena:
+; arena: black playfield inside a thin frame; HUD row above
+draw_arena:                     ; black arena in a thin frame (colour per wave)
         ld a,A_ARENA
         call clear_bg
-        ld hl,BGAT              ; HUD row: white on black
-        ld b,40
-.h:     ld (hl),70h
+        ld a,(wave)
+        dec a
+.m6:    cp 6
+        jr c,.c
+        sub 6
+        jr .m6
+.c:     ld hl,wavecols
+        add a,l
+        ld l,a
+        jr nc,.n
+        inc h
+.n:     ld a,(hl)
+        ld (bordcol),a
+        ld e,a
+        ld b,1                  ; under the HUD row
+        jp frame_box
+
+; a thin line round rows B..24, all 40 columns, attribute E (into BG)
+frame_box:
+        ld c,0
+        push de
+        call calc_ofs           ; HL = top-left cell
+        pop de
+        ld bc,BGCH
+        add hl,bc
+        ld (hl),5Ch             ; top: corner, line, corner (box drawing)
+        call .at
         inc hl
-        djnz .h
-        ld hl,BGCH+40           ; top and bottom frame lines
-        ld de,BGCH+24*40
-        ld b,40
-.tb:    ld (hl),0D0h
-        ld a,0D0h
-        ld (de),a
-        set 2,h
-        set 2,d
-        ld (hl),41h
-        ld a,41h
-        ld (de),a
-        res 2,h
-        res 2,d
+        ld b,38
+.t:     ld (hl),78h
+        call .at
         inc hl
-        inc de
-        djnz .tb
-        ld hl,BGCH+2*40         ; sides
-        ld de,39
-        ld b,22
-.sd:    ld (hl),0D0h
-        set 2,h
-        ld (hl),41h
-        res 2,h
-        add hl,de
-        ld (hl),0D0h
-        set 2,h
-        ld (hl),41h
-        res 2,h
+        djnz .t
+        ld (hl),5Dh
+        call .at
         inc hl
-        djnz .sd
+.s:     ld a,h                  ; sides, down to row 23
+        cp high (BGCH+24*40)
+        jr c,.s1
+        ld a,l
+        cp low (BGCH+24*40)
+        jr nc,.bot
+.s1:    ld (hl),79h
+        call .at
+        ld bc,39
+        add hl,bc
+        ld (hl),79h
+        call .at
+        inc hl
+        jr .s
+.bot:   ld (hl),1Ch             ; bottom: corner, line, corner
+        call .at
+        inc hl
+        ld b,38
+.b:     ld (hl),78h
+        call .at
+        inc hl
+        djnz .b
+        ld (hl),1Dh
+.at:    set 2,h                 ; attribute of the cell at HL
+        ld (hl),e
+        res 2,h
         ret
+
+wavecols:   db 20h,30h,10h,40h,60h,50h  ; red, magenta, blue, green, yellow, cyan
 
 ; blank caption rows 10 and 14 back to the arena
 clear_caption:
@@ -985,7 +1014,7 @@ add_score:
         ld a,b
         ld b,c
         ld c,a
-        ld a,0D1h
+        ld a,0D0h
         ld de,0010h
         call burst
         ld hl,sfx_extra
