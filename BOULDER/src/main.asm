@@ -21,8 +21,7 @@ CAVEH           equ 22
 CAVESZ          equ CAVEW*CAVEH     ; 880 cells
 CAVE            equ 0C050h          ; cave cells; VRAM address = CAVE + 1000h (screen row 2)
 SHADOW          equ 0C450h          ; display index on screen (CAVE + 400h)
-DIST            equ 0C850h          ; demo pilot search map (CAVE + 800h)
-QUEUE           equ 0B800h          ; demo pilot search queue (2K)
+QUEUE           equ 0C000h          ; (end of the variables)
 STACKTOP        equ 0CFF0h
 VARBASE         equ (end_of_program+255) & 0FF00h
 
@@ -100,7 +99,6 @@ init_once:
         include "sound.asm"
         include "cave.asm"
         include "player.asm"
-        include "pilot.asm"
         include "render.asm"
         include "game.asm"
         include "screens.asm"

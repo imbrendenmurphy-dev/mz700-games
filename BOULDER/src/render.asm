@@ -157,7 +157,7 @@ cell_put:                           ; A = display index
 
 ; cover one cell: HL = cave address
 cell_cover:
-        ld de,ANIMIDX+E_COVER
+        ld de,LOOKIDX+LK_COVER
         ld a,(de)
         call cell_put
         set 2,h

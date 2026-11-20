@@ -41,6 +41,17 @@ tick_keys       ds 1
 pause_prev      ds 1
 hud_dirty       ds 1
 
+turbo           ds 1                ; test harness: no frame waits, a tick every frame
+tick_dir        ds 1                ; test harness: the keys for this tick
+ticks           ds 2
+cseed           ds 2                ; the cave's random numbers
+shower_rate     ds 1
+shower_haz      ds 1
+shower_left     ds 1
+tps             ds 1                ; ticks per cave second
+sec_ctr         ds 1
+pl_push         ds 1
+pl_push_old     ds 1
 demo            ds 1
 demo_abort      ds 1
 demo_cave       ds 1
@@ -81,7 +92,6 @@ end_time        ds 1
 anim            ds 1
 tick_last       ds 1
 sec_last        ds 1
-ai_due          ds 1
 scan_ptr        ds 2
 scan_rows       ds 1
 
@@ -95,13 +105,10 @@ pl_dead         ds 1
 pl_exit         ds 1
 pl_frozen       ds 1
 
-; demo pilot
-ai_keys         ds 1
-ai_drop         ds 2
-ai_dgood        ds 1
-bfs_head        ds 2
-bfs_tail        ds 2
-bfs_cnt         ds 1
+; demo replay
+demo_ptr        ds 2
+demo_left       ds 1
+demo_kv         ds 1
 
 ; render
 lfsr            ds 2

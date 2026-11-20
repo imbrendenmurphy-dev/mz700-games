@@ -16,13 +16,6 @@ g = Game(None if mode == 'none' else mode)
 # skip the attract pages: run until the demo cave is playing
 while not (g.rb('demo') and g.rb('inbox_time') == 0):
     g.run(10)
-if '--nopilot' in sys.argv:
-    # stop the pilot thinking (the cave still ticks, the player stands still)
-    g.m.mem[0x10000 - 1] = 0
-    g.m.mem[g.end - 1] = g.m.mem[g.end - 1]
-    import run
-    pt = run.S['pilot_think']
-    g.m.mem[pt] = 0xC9            # ret
 t0 = g.rw('demo_ticks')
 d0 = g.rb('drops')
 w0 = g.m.waits

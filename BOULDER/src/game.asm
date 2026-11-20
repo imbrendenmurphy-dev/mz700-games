@@ -2,8 +2,7 @@
 ;  game.asm - game flow: caves, lives, ticks, clock, bonus
 ; =====================================================================
 
-NCAVES          equ 16
-DEMO_TICKS      equ 420             ; about 50 seconds
+DEMO_TICKS      equ 800             ; long enough for every recorded solution
 
 game:
         xor a
@@ -23,7 +22,7 @@ game:
         jr z,.sc
         ld a,(demo_cave)            ; the demo visits a different cave each time
         inc a
-        and 3
+        and 7
         ld (demo_cave),a
         ld e,a
         ld d,0
@@ -85,14 +84,16 @@ cave_play:
         ld a,(fieldcnt)
         ld (tick_last),a
         ld (sec_last),a
+        call demo_start
         xor a
-        ld (ai_due),a
         ld (demo_ticks),a
         ld (demo_ticks+1),a
         ld (timeout),a
         ld (pause_prev),a
         call fe_reset
-.loop:  call wait_frame
+.loop:  ld a,(turbo)                ; test harness: no waiting
+        or a
+        call z,wait_frame
         ld hl,anim
         inc (hl)
         call input_frame
@@ -121,8 +122,13 @@ cave_play:
         or a
         call z,pause
 .keys:
-        ; tick?
-        ld a,(fieldcnt)
+        ; tick?  (every frame in turbo)
+        ld a,(turbo)
+        or a
+        jr z,.tq
+        call game_tick
+        jr .norend
+.tq:    ld a,(fieldcnt)
         ld hl,tick_last
         sub (hl)
         ld hl,speed
@@ -137,23 +143,8 @@ cave_play:
         add a,(hl)
         ld (tick_last),a
 .t:     call game_tick
-        ld a,1
-        ld (ai_due),a
-        jr .after
 .notick:
-        ld a,(ai_due)
-        or a
-        jr z,.after
-        xor a
-        ld (ai_due),a
-        ld a,(demo)
-        or a
-        jr z,.after
-        call pilot_think            ; the cave did not change: no redraw needed
-        call clock
-        jr .norend
-.after: call clock
-        ld a,(flash)
+.after: ld a,(flash)
         or a
         jr z,.nf
         dec a
@@ -246,8 +237,8 @@ cave_play:
         ld (cave_result),a
         ret
 
-demo_caves:
-        db 0,1,5,3                  ; A, B, F, D
+demo_caves:                         ; a tour of the wings: shower, moth, hourglass...
+        db 3,6,10,5,11,14,18,4      ; D, G, K, F, L, O, S, E
 
 msg_show_none:
         ld hl,0
@@ -258,7 +249,14 @@ msg_show_none:
 ; ---------------------------------------------------------------------
 game_tick:
         call tick_input
-        ld (tick_keys),a
+tick_hook:                          ; (the test harness feeds tick_dir here)
+        ld b,a
+        ld a,(turbo)
+        or a
+        ld a,b
+        jr z,.k
+        ld a,(tick_dir)
+.k:     ld (tick_keys),a
         ld a,(inbox_time)
         or a
         jr z,.ib
@@ -267,10 +265,16 @@ game_tick:
 .ib:    ld hl,(demo_ticks)
         inc hl
         ld (demo_ticks),hl
-        jp cave_scan
+        call cave_scan
+        ld hl,ticks
+        inc (hl)
+        jr nz,clock
+        inc hl
+        inc (hl)
+                                    ; fall into the clock
 
 ; ---------------------------------------------------------------------
-; clock: once a second (50 fields) - cave time, magic wall, amoeba
+; clock: every tick; a cave second is tps ticks - time, magic wall, amoeba
 ; ---------------------------------------------------------------------
 clock:
         ld a,(inbox_time)
@@ -280,17 +284,11 @@ clock:
         ld b,a
         ld a,(pl_dead)
         or b
-        jr z,.run
-        ld a,(fieldcnt)             ; stopped: hold the clock
-        ld (sec_last),a
-        ret
-.run:   ld a,(fieldcnt)
-        ld hl,sec_last
-        sub (hl)
-        cp 50
-        ret c
-        ld a,(hl)
-        add a,50
+        ret nz                      ; stopped: hold the clock
+        ld hl,sec_ctr
+        dec (hl)
+        ret nz
+        ld a,(tps)
         ld (hl),a
         ld a,(magic_state)
         cp 1
@@ -377,6 +375,22 @@ cave_intro:
         ld c,17
         ld a,BLUE
         call clear_rows
+        ; which wing of the mountain
+        ld a,(cave_no)
+        srl a
+        srl a
+        add a,a
+        ld e,a
+        ld d,0
+        ld hl,wing_names
+        add hl,de
+        ld a,(hl)
+        inc hl
+        ld h,(hl)
+        ld l,a
+        ld c,1
+        ld a,CYAN*16+BLUE
+        call print_centre
         ; big "CAVE X" in the bold second-bank letters
         ld de,VRAM+6*40+17
         ld hl,txt_cave_big

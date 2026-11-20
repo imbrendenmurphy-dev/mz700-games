@@ -1,4 +1,4 @@
-"""shots.py - README screenshots into docs/."""
+"""shots.py - README screenshots into docs/ (title, guide, a cave card, the demo)."""
 import os
 import shutil
 import sys
@@ -17,19 +17,15 @@ def keep(g, name):
 g = Game()
 g.run(300)
 keep(g, 'title')
-g.run(900)                    # title page lasts 20 s
+g.run(900)                     # the title page lasts 20 s
 g.run(400)
 keep(g, 'guide')
-# a game in cave B, played by the pilot
-g = Game()
-g.run(30)
-g.wb('start_cave', 1)
-g.run(10, ['space'])
+while not g.rb('demo'):        # on to the demo: its cave card, then the replay
+    g.run(10)
 g.run(60)
 keep(g, 'intro')
-while g.rb('inbox_time') != 0:
+while g.rb('inbox_time'):
     g.run(5)
-g.wb('demo', 1)
-g.run(700)
+g.run(int(sys.argv[1]) if len(sys.argv) > 1 else 900)
 keep(g, 'cave')
-print('done')
+print('done, demo cave', chr(65 + g.rb('cave_no')))

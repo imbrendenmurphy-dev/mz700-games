@@ -187,7 +187,7 @@ cave_select_keys:
         jr z,.nl
         sub 4
         jr nc,.set
-        ld a,12
+        ld a,NCAVES-4
         jr .set
 .nl:    bit B_RIGHT,b
         ret z
@@ -482,7 +482,7 @@ guide_page:
         inc c
         jr .e
 .ctl:   ld hl,guide_ctl
-        ld c,19
+        ld c,20
         jr .cl
 .cl2:   inc c
 .cl:    ld a,(hl)
@@ -546,6 +546,8 @@ guide_tab:
         dw gt_magic, gd_magic
         db E_EXITO
         dw gt_exit, gd_exit
+        db E_SHOWER
+        dw gt_spout, gd_spout
         db 0FFh
 
 ; ---------------------------------------------------------------------

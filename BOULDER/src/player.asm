@@ -29,8 +29,7 @@ tick_input:
         ld a,(demo)
         or a
         jr z,.human
-        ld a,(ai_keys)
-        ret
+        jp demo_key
 .human: ld a,(keys)
         ld c,a
         and K_DIRS
@@ -57,10 +56,53 @@ tick_input:
         ret
 
 ; ---------------------------------------------------------------------
+; the demo replays the cave's recorded solution: (keys, count) pairs
+; ---------------------------------------------------------------------
+demo_start:
+        ld a,(cave_no)
+        add a,a
+        ld e,a
+        ld d,0
+        ld hl,DEMOTAB
+        add hl,de
+        ld a,(hl)
+        inc hl
+        ld h,(hl)
+        ld l,a
+        ld (demo_ptr),hl
+        xor a
+        ld (demo_left),a
+        ret
+
+demo_key:
+        ld a,(demo_left)
+        or a
+        jr nz,.have
+        ld hl,(demo_ptr)
+        ld a,(hl)
+        ld (demo_kv),a
+        inc hl
+        ld a,(hl)
+        or a
+        jr z,.end                   ; the solution is over: stand still
+        inc hl
+        ld (demo_ptr),hl
+.have:  dec a
+        ld (demo_left),a
+        ld a,(demo_kv)
+        ret
+.end:   xor a
+        ret
+
+; ---------------------------------------------------------------------
 ; h_player: the player's move.  HL = cell.
 ; ---------------------------------------------------------------------
 h_player:
         ld (pl_addr),hl
+        ld a,(pl_push)              ; pushes count only on consecutive ticks
+        ld (pl_push_old),a
+        xor a
+        ld (pl_push),a
         ld a,(pl_frozen)
         or a
         ret nz
@@ -122,7 +164,7 @@ h_player:
         jr z,.exit
         cp E_BOULDER
         ret nz
-        ; push a boulder sideways (1 in 4 tries)
+        ; push a boulder sideways: it goes on the second tick of pushing
         bit 4,c
         ret nz                      ; not while snapping
         ld a,b
@@ -135,11 +177,13 @@ h_player:
         ld a,(hl)
         or a
         jr nz,.nopush
-        push hl
-        call rand
-        pop hl
-        and 3
-        jr nz,.nopush
+        ld a,(pl_push_old)
+        inc a
+        ld (pl_push),a
+        cp 2
+        jr c,.nopush
+        xor a
+        ld (pl_push),a
         ld a,E_BOULDER
         bit 1,b
         jr z,$+4

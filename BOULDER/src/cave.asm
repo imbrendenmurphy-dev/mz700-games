@@ -37,6 +37,18 @@ cave_load:
         ld (magic_time),a
         ld a,(ix+CH_AMOEBA)
         ld (amoeba_slow),a
+        ld a,(ix+CH_SHRATE)
+        ld (shower_rate),a
+        ld a,(ix+CH_SHHAZ)
+        ld (shower_haz),a
+        ld a,(ix+CH_SHMAX)
+        ld (shower_left),a
+        ld a,(cave_no)              ; the cave's own random sequence
+        ld l,a
+        ld h,a
+        ld de,5A01h
+        add hl,de
+        ld (cseed),hl
         ld b,(ix+CH_TIME)           ; time: less on higher levels
         ld a,(level)
         or a
@@ -59,8 +71,19 @@ cave_load:
         jr c,.sp
         dec a
         ld (speed),a
-.sp:
+.sp:    ld a,(speed)                ; ticks per cave second: 8, 10 or 12
+        ld b,8
+        cp 6
+        jr nc,.tp
+        ld b,10
+        cp 5
+        jr nc,.tp
+        ld b,12
+.tp:    ld a,b
+        ld (tps),a
+        ld (sec_ctr),a
         xor a
+        ld (pl_push),a
         ld (got),a
         ld (exit_open),a
         ld (magic_state),a
@@ -73,7 +96,6 @@ cave_load:
         ld (pl_moved),a
         ld (latch),a
         ld (pref),a
-        ld (ai_keys),a
         ld (flash),a
         ld (end_time),a
         ld a,16
@@ -515,9 +537,7 @@ h_amoeba:
         ld (amoeba_grow),a
         jr .grow
 .n:     djnz .chk
-.grow:  push hl
-        call rand
-        pop hl
+.grow:  call crand
         ld b,a
         ld a,(amoeba_fast)
         or a
@@ -527,7 +547,7 @@ h_amoeba:
         cp b
         ret c
         ret z
-        ld a,(seed+1)
+        ld a,(cseed)
         and 3
         ld e,a
         add a,a
@@ -605,6 +625,60 @@ h_inbox:
 h_none:
         ret
 
+; shower spout: while the shower lasts, drops a diamond (now and then a
+; boulder) into the empty cell below it
+h_shower:
+        ld a,(shower_left)
+        or a
+        ret z
+        ld de,CAVEW
+        add hl,de
+        ld a,(hl)
+        or a
+        ret nz
+        call crand
+        ld b,a
+        ld a,(shower_rate)
+        cp b
+        ret c                       ; emit when crand < rate
+        ret z
+        call crand
+        ld b,a
+        ld a,(shower_haz)
+        cp b
+        ld a,E_DIAMONDF+80h
+        jr c,.put
+        jr z,.put
+        ld a,E_BOULDERF+80h         ; crand < hazard: a rock instead
+.put:   ld (hl),a
+        ld hl,shower_left
+        dec (hl)
+        ret
+
+; crand: the cave's own random numbers (xorshift16, no R register, so
+; the Python model can follow it exactly).  A = new high byte; keeps
+; BC, DE, HL.
+crand:
+        push hl
+        ld hl,(cseed)
+        ld a,h
+        rra
+        ld a,l
+        rra
+        xor h
+        ld h,a
+        ld a,l
+        rra
+        ld a,h
+        rra
+        xor l
+        ld l,a
+        xor h
+        ld h,a
+        ld (cseed),hl
+        pop hl
+        ret
+
 ; ---------------------------------------------------------------------
 ; explode: HL = centre, B = first stage (E_EXP1 or E_DEX1).  Fills the
 ; 3 x 3 block except indestructible cells.
@@ -629,6 +703,8 @@ explode:
         cp E_EXITO
         jr z,.skip
         cp E_INBOX
+        jr z,.skip
+        cp E_SHOWER
         jr z,.skip
         cp E_PLAYER
         jr nz,.np

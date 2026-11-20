@@ -10,7 +10,8 @@ txt_startcave:  db "START IN CAVE ",0
 
 scroll_text:
         db "                                        "
-        db "DEEP UNDER THE MOUNTAIN LIE SIXTEEN CAVES FULL OF DIAMONDS... "
+        db "DEEP UNDER THE MOUNTAIN LIE TWENTY CAVES IN FIVE WINGS - THE SHALLOWS, THE FIREFLY DEEPS, "
+        db "THE MAGIC HALLS, THE GREEN CAVERNS AND THE CORE... EACH WING ENDS IN A JEWEL SHOWER.  "
         db "DIG THROUGH THE EARTH, GATHER ENOUGH GEMS TO OPEN THE EXIT, AND GET OUT BEFORE THE CLOCK RUNS DOWN.    "
         db "BOULDERS FALL WHEN YOU DIG BENEATH THEM AND ROLL OFF ANYTHING ROUND.  "
         db "FIREFLIES EXPLODE AT A TOUCH - DROP A ROCK ON THEM.  "
@@ -38,6 +39,15 @@ gt_magic:       db "MAGIC WALL",0
 gd_magic:       db "ROCKS IN, GEMS OUT",0
 gt_exit:        db "EXIT",0
 gd_exit:        db "FLASHES WHEN OPEN",0
+gt_spout:       db "SPOUT",0
+gd_spout:       db "RAINS GEMS - AND ROCKS",0
+
+wing_names:     dw wing_1,wing_2,wing_3,wing_4,wing_5
+wing_1:         db "WING I   THE SHALLOWS",0
+wing_2:         db "WING II   FIREFLY DEEPS",0
+wing_3:         db "WING III   MAGIC HALLS",0
+wing_4:         db "WING IV   GREEN CAVERNS",0
+wing_5:         db "WING V   THE CORE",0
 
 guide_ctl:
         db 6,"CURSOR / Q A O P ",7,"MOVE AND DIG",0
