@@ -149,9 +149,13 @@ title_screen:
         djnz .nm
         call cave_select_draw
         call dig_init
+        ld hl,(scroll_ptr)          ; the text carries on where it left off last time
+        ld a,h
+        or a
+        jr nz,.sp
         ld hl,scroll_text
         ld (scroll_ptr),hl
-        xor a
+.sp:    xor a
         ld (scroll_tick),a
         call fe_reset
         ld hl,title_fx
@@ -257,11 +261,10 @@ logo_grad:
 
 ; text scroller on the bottom row
 scroller:
-        ld hl,scroll_tick
-        inc (hl)
-        ld a,(hl)
-        and 1
-        ret nz
+        ld hl,scroll_tick           ; one character every 5 fields: 10 a second
+        dec (hl)
+        ret p
+        ld (hl),4
         ld hl,VRAM+SCROLL_ROW*40+1
         ld de,VRAM+SCROLL_ROW*40
         ld bc,39
@@ -278,9 +281,6 @@ scroller:
         ld h,high ATOD
         ld a,(hl)
         ld (VRAM+SCROLL_ROW*40+39),a
-        ld a,(scroll_tick)
-        and 6
-        ret nz
         ld de,VRAM+SCROLL_ROW*40
         ld b,40
         ld a,GREEN*16

@@ -39,12 +39,12 @@ sound chip.
 Like Cryptfall, the caves are planned in wings. Each wing teaches one idea,
 varies it, shows it off in a **picture cave**, and ends in a **jewel shower**: a
 collect-em-up where spouts in the ceiling rain gems, with more falling
-hazards in each later wing. Each cave's card names its wing and gives a
+hazards in each later wing. The first two caves are already dangerous: a careless digger dies within seconds, and the second try goes better. Each cave's card names its wing and gives a
 one-line hint. The caves grow through the first wing, from 48 x 24 to 64 x 32 (one screen is 40 x 22); the showers are one screen tall and scroll only sideways, so the spouts stay in sight.
 
 | Wing | Teach | Vary | Picture | Shower |
 |---|---|---|---|---|
-| I The Shallows | A First Light: dig and gather | B Rolling Stones: rocks roll off round things | C The Mountain | D Jewel Shower: gems only, falling through a giant gem of pegs |
+| I The Shallows | A First Light: gems hang under rock columns; take them from the side | B Rolling Stones: gem heaps under rock, and pillars that roll into your shaft | C The Mountain | D Jewel Shower: gems only, falling through a giant gem of pegs |
 | II Firefly Deeps | E Lanterns: drop a rock on a firefly to blast its vault | F Butterfly Pens: drop rocks through the roof slots | G The Moth: butterflies in its wings | H Sparkfall: gems and rocks, fireflies in the floor |
 | III Magic Halls | I The Magic Wall | J Alchemy Shafts: open the shafts from the gallery | K Hourglass: snap the plug and the stone sand runs through the magic neck | L Rock Rain: a stone storm turned to gems by a magic floor |
 | IV Green Caverns | M The Amoeba: gather before it spreads | N Creeping Walls | O The Tree: fruit in the crown, amoeba at the roots | P Ruby Rain: catch the rain before the amoeba |

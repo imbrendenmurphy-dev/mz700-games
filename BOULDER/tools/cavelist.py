@@ -76,29 +76,64 @@ def pen(c, bx, by):
 
 # ===================================================================== I THE SHALLOWS
 def a_first_light():
-    c = Cave('A', 'FIRST LIGHT', 'DIG THE EARTH AND GATHER THE GEMS', 18, 10, 15, 150, 1,
-             [('DIRT', 90), ('BOULDER', 4), ('DIAMOND', 2), ('SPACE', 4)], w=48, h=24)
-    # hollows with gems lying on their floors
-    for cx, cy, rx in ((8, 5, 4), (22, 4, 5), (36, 6, 5), (13, 11, 5), (30, 12, 5), (42, 15, 3),
-                       (8, 18, 4), (22, 19, 5), (36, 20, 4)):
-        c.box('SPACE', cx - rx, cy - 1, cx + rx, cy)
-        c.line('DIAMOND', cx - rx + 1, cy, cx + rx - 1, cy, 2)
-    c.start(2, 2).exit(46, 21)
+    c = Cave('A', 'FIRST LIGHT', 'NEVER STAND UNDER A ROCK YOU FREED', 17, 10, 15, 150, 1,
+             [('DIRT', 82), ('BOULDER', 14), ('SPACE', 4)], w=48, h=24)
+    # chandeliers: three rocks hanging over a gem - take it from the side
+    for x, y in ((9, 5), (17, 8), (25, 4), (33, 7), (41, 5), (6, 13), (37, 14)):
+        c.stamp(x - 1, y - 3, ['.o.', '.o.', '.o.', '.*.', '...'])
+    # the cellar: a rock-laden earth roof, and a door low on its left
+    c.box('BOULDER', 14, 11, 30, 11)
+    c.box('DIRT', 15, 12, 29, 12)
+    c.rect('BRICK', 14, 12, 30, 16)
+    c.box('SPACE', 15, 13, 29, 15)
+    c.line('DIAMOND', 16, 15, 28, 15, 2)
+    c.put('DIRT', 14, 15).put('DIRT', 13, 15)
+    # the last corridor: a gem under every rock, and no way back
+    c.line('BOULDER', 26, 20, 39, 20)
+    c.line('DIAMOND', 27, 21, 39, 21, 2)
+    c.line('DIRT', 28, 21, 38, 21, 2)
+    c.put('DIRT', 26, 21)
+    # the exit vault, opened only from that corridor
+    c.rect('BRICK', 40, 17, 46, 22)
+    c.box('SPACE', 41, 18, 45, 21)
+    c.put('DIRT', 40, 21)
+    c.put('DIAMOND', 4, 4).put('DIAMOND', 6, 7).put('DIAMOND', 2, 9).put('DIRT', 4, 3).put('DIRT', 6, 6)
+    c.start(2, 2).exit(45, 21)
     return c
 
 
 def b_rolling_stones():
-    c = Cave('B', 'ROLLING STONES', 'ROCKS ROLL OFF ANYTHING ROUND', 25, 10, 15, 150, 2, EARTHY, w=60, h=28)
-    for px, py in ((8, 6), (22, 6), (36, 6), (50, 6), (15, 15), (29, 15), (43, 15), (22, 22), (50, 22)):
-        c.line('BRICK', px - 4, py + 1, px + 4, py + 1)          # shelf
-        for k, wd in enumerate((0, 1, 2)):                       # a pyramid of rocks on it
-            c.line('BOULDER', px - wd, py - 2 + k, px + wd, py - 2 + k)
-        c.line('DIAMOND', px - 3, py + 2, px + 3, py + 2)        # gems under the shelf
-    # push lesson: a rock in a tunnel, gems behind it
-    c.line('SPACE', 3, 25, 14, 25).put('BOULDER', 7, 25).line('DIAMOND', 11, 25, 14, 25)
-    c.start(2, 2).exit(58, 26)
+    c = Cave('B', 'ROLLING STONES', 'ROCKS ROLL OFF GEMS, ROCKS AND BRICK', 36, 10, 15, 150, 2,
+             [('DIRT', 80), ('BOULDER', 12), ('SPACE', 8)], w=60, h=28)
+    # gem heaps in hollows, roofed with rocks: take a corner and the rest rolls
+    for cx, cy in ((10, 7), (30, 6), (50, 7)):
+        c.ellipse('SPACE', cx, cy, 7, 3)
+        c.line('BRICK', cx - 7, cy + 3, cx + 7, cy + 3)
+        c.line('DIAMOND', cx - 3, cy + 2, cx + 3, cy + 2)
+        c.line('BOULDER', cx - 2, cy + 1, cx + 2, cy + 1)
+        c.line('BOULDER', cx - 1, cy, cx + 1, cy)
+        c.put('BOULDER', cx, cy - 1)
+    # pillars of rock and gem on brick pegs: dig down beside one and it rolls into your shaft
+    for k, x in enumerate(range(22, 47, 4)):
+        top = 13 + (k % 2) * 2
+        c.put('BRICK', x, top + 6)
+        for j in range(6):
+            c.put('BOULDER' if j % 2 == 0 else 'DIAMOND', x, top + j)
+        c.line('DIRT', x - 1, top - 1, x - 1, top + 6).line('DIRT', x + 1, top - 1, x + 1, top + 6)
+    # a brick slope with rocks at the top, held by one plug of earth, and gems at its foot
+    for k in range(9):
+        c.put('BRICK', 4 + k, 18 + k).box('SPACE', 5 + k, 18, 13, 17 + k)
+    c.line('SPACE', 5, 18, 13, 18)
+    c.box('BOULDER', 5, 16, 7, 17)
+    c.line('DIRT', 5, 18, 7, 18)
+    c.line('DIAMOND', 14, 26, 17, 26)
+    # the exit up on a brick ledge, under a pile that rolls when you take the gems below it
+    c.box('SPACE', 50, 21, 57, 25)
+    c.line('BRICK', 50, 23, 56, 23)
+    c.line('DIAMOND', 51, 25, 57, 25)
+    c.line('BOULDER', 52, 22, 55, 22).line('BOULDER', 53, 21, 54, 21)
+    c.start(2, 2).exit(57, 22)
     return c
-
 
 def c_mountain():
     c = Cave('C', 'THE MOUNTAIN', 'GEMS SLEEP INSIDE THE MOUNTAIN', 30, 10, 20, 180, 3, AIR, w=64, h=32)
