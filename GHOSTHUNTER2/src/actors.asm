@@ -91,8 +91,28 @@ szzz:   db "ZZZ",0
 swow:   db "WOW!",0
 
 ; ---------------------------------------------------------------------
-; move_actor: IX, A = speed (steps per frame * 256)
+; move_actor: IX, A = speed (steps per frame * 256 at the original VZ
+; pace).  Scaled by the speed setting: SLOW 4/8, NORMAL 5/8, FAST 6/8.
 move_actor:
+        push bc
+        ld b,a
+        srl b
+        srl b
+        srl b                       ; B = s/8
+        srl a
+        ld c,a                      ; C = s/2
+        ld a,(speedsel)
+        or a
+        jr z,.k
+.ad:    push af
+        ld a,c
+        add a,b
+        ld c,a
+        pop af
+        dec a
+        jr nz,.ad
+.k:     ld a,c
+        pop bc
         add a,(ix+A_ACC)
         ld (ix+A_ACC),a
         ret nc

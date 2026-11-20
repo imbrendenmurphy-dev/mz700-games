@@ -90,6 +90,8 @@ start:
         ldir
         ld hl,1234h
         ld (seed),hl
+        ld a,1                      ; NORMAL speed
+        ld (speedsel),a
         ld hl,hitab_init
         ld de,HITAB
         ld bc,30

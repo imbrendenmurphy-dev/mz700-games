@@ -19,7 +19,7 @@ s_bonus:        db "* BONUS ROUND *",0
 s_bb1:          db "GHOST BUFFET!",0
 s_bb2:          db "EAT ALL YOU CAN",0
 s_pb1:          db "PELLET PANIC!",0
-s_pb2:          db "CLEAR IT IN 25 SECONDS",0
+s_pb2:          db "CLEAR IT BEFORE TIME RUNS OUT",0
 
 s_tag:          db "- THE BOO-QUEL -",0
 s_hiscore:      db "HI-SCORE ",0
@@ -27,6 +27,9 @@ tm0:            db "PRESS SPACE TO HUNT!",0
 tm1:            db "ORIGINAL BY DUBOIS & MCNAMARA",0
 tm2:            db "MZ-700 VERSION VIBED BY BPM 2026",0
 tm3:            db "HAPPY HAUNTING!",0
+sp0:            db "SPEED: SLOW    (KEYS 1 2 3)",0
+sp1:            db "SPEED: NORMAL  (KEYS 1 2 3)",0
+sp2:            db "SPEED: FAST    (KEYS 1 2 3)",0
 
 s_meet:         db "M E E T   T H E   G H O S T S",0
 s_meet_b:       db "THEY ALL TURN BLUE AFTER A POWER PILL",0

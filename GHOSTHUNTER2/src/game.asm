@@ -199,7 +199,8 @@ round_banner:
         ret z
         ld hl,s_buffet
         ld (roundtype_lbl),hl
-        ld hl,1000
+        ld hl,buffet_t
+        call speed_word
         ld (roundtim),hl
         ld hl,s_bb1
         ld de,s_bb2
@@ -208,7 +209,8 @@ round_banner:
         jr z,.b
         ld hl,s_panic
         ld (roundtype_lbl),hl
-        ld hl,1250
+        ld hl,panic_t
+        call speed_word
         ld (roundtim),hl
         ld hl,s_pb1
         ld de,s_pb2
@@ -636,6 +638,22 @@ game_logic:
         ret
 
 key2dir: db 2,3,1,0                 ; up, down, left, right
+
+; HL = table of three words (SLOW, NORMAL, FAST) -> HL = entry for speedsel
+speed_word:
+        ld a,(speedsel)
+        add a,a
+        add a,l
+        ld l,a
+        jr nc,$+3
+        inc h
+        ld a,(hl)
+        inc hl
+        ld h,(hl)
+        ld l,a
+        ret
+buffet_t: dw 2000,1600,1333         ; 20 s at the VZ pace, stretched
+panic_t:  dw 2500,2000,1667         ; 25 s at the VZ pace, stretched
 
 tick_timers:
         ld a,(streaktim)
@@ -1840,8 +1858,8 @@ hud_power:
 .h7:    ld a,(roundtype)
         or a
         jr z,.none
-        ld hl,(roundtim)            ; bonus round clock: bar = time / 32
-        ld b,5
+        ld hl,(roundtim)            ; bonus round clock: bar = time / 64
+        ld b,6
 .bd:    srl h
         rr l
         djnz .bd

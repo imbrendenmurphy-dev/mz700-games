@@ -34,6 +34,9 @@ sirenspd        ds 1
 sirenpos        ds 1
 
 key_pause       ds 1
+key_digit       ds 1
+speedsel        ds 1                ; 0 SLOW, 1 NORMAL, 2 FAST
+speedshow       ds 1
 key_quit        ds 1
 key_sound       ds 1
 fe_prev         ds 1

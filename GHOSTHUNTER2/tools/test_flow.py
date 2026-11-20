@@ -58,10 +58,12 @@ def case_power():
     # put a frightened ghost on the player: it must be eaten
     for i in range(1, 5):
         if actor(g, i, A_ST) == ST_FRT:
-            poke_actor(g, i, A_X, actor(g, 0, A_X))
-            poke_actor(g, i, A_Y, actor(g, 0, A_Y))
+            for _ in range(4):           # poke each field: a poke can land after the check
+                if actor(g, i, A_ST) == ST_FRT:
+                    poke_actor(g, i, A_X, actor(g, 0, A_X))
+                    poke_actor(g, i, A_Y, actor(g, 0, A_Y))
+                g.run(1)
             break
-    g.run(3)
     g.shot('flow_eat')
     status(g, 'ate ghost')
     assert any(actor(g, i, A_ST) == ST_EYES for i in range(1, 5)), 'ghost not eaten'

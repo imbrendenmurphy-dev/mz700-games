@@ -223,6 +223,7 @@ title_screen:
         ld a,2
         call sfx
 .nl:    call frame
+        call speed_keys
         call start_pressed
         ret nz
         ld hl,(attr_t)
@@ -404,7 +405,13 @@ title_message:
         ld a,h
         and 3
         ld c,a
-        ld a,(msgidx)
+        ld a,(speedshow)            ; a speed key was pressed: show it
+        or a
+        jr z,.ns
+        dec a
+        ld (speedshow),a
+        ld c,3
+.ns:    ld a,(msgidx)
         cp c
         jr z,.same
         ld a,c
@@ -423,7 +430,12 @@ title_message:
         inc hl
         ld h,(hl)
         ld l,a
-        ld c,24
+        ld a,(msgidx)
+        cp 3
+        jr nz,.pm
+        ld hl,speed_msgs
+        call speed_word
+.pm:    ld c,24
         ld a,YELLOW*16+BLACK
         call print_centre
         ret
@@ -442,6 +454,27 @@ title_message:
         ld b,40
         jp fill_attr
 title_msgs: dw tm0,tm1,tm2,tm3
+speed_msgs: dw sp0,sp1,sp2
+
+; keys 1/2/3 pick the game speed
+speed_keys:
+        ld a,(key_digit)
+        or a
+        ret z
+        ld c,0
+        rla
+        jr c,.set
+        inc c
+        rla
+        jr c,.set
+        inc c
+.set:   ld a,c
+        ld (speedsel),a
+        ld a,150
+        ld (speedshow),a
+        ld a,0FFh
+        ld (msgidx),a
+        ret
 
 ; lightning: the sky (rows 0-16, black background) turns white
 lightning_on:

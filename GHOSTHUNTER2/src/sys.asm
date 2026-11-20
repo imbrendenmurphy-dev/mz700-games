@@ -198,6 +198,13 @@ read_keys:
         cpl
         and 20h
         ld (key_sound),a
+        dec l
+        ld (hl),5                   ; row 5: 1 (bit 7), 2 (bit 6), 3 (bit 5)
+        inc l
+        ld a,(hl)
+        cpl
+        and 0E0h
+        ld (key_digit),a
         ld a,c
         pop hl
         pop bc

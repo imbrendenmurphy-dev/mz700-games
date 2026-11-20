@@ -27,10 +27,16 @@ sound chip.
 | SPACE or CR | start (title, attract pages) |
 | CR | pause in game |
 | S | sound on/off |
+| 1 / 2 / 3 | on the title: game speed SLOW / NORMAL / FAST (NORMAL to start) |
 | BREAK | give up |
 | UP / DOWN, SPACE, CR | initials entry: change letter, next letter, done |
 
 ## What's in it
+
+**Speed.** The VZ300 game moves 6.4 maze cells a second. Here each cell is two
+characters and every move is a whole-character jump, so that pace felt far too
+fast. Movement is scaled to 1/2, 5/8 or 3/4 of the VZ pace (SLOW, NORMAL, FAST),
+and the bonus-round clocks stretch to match.
 
 Everything from the VZ300 game, rebuilt for a character screen:
 
@@ -87,6 +93,7 @@ Needs Python 3 (Pillow only for previews); sjasmplus is in `tools/`.
 py build.py                        generate data, assemble, write build/ and release/
 py tools/test_flow.py              scripted checks: power, items, death, clear, inter, bonus, over
 py tools/test_demo.py 5000 500     watch the attract mode and the demo
+py tools/test_speed.py             the 1/2/3 speed keys and the hero's speed at each setting
 py tools/preview.py                render every maze to build/maze_X.png
 py tools/mazes.py                  maze grids as text (also checks reachability and dead ends)
 py tools/wav.py 40                 render the title music to build/title_music.wav
