@@ -235,7 +235,7 @@ scroller:
         ld hl,scroll_tick
         inc (hl)
         ld a,(hl)
-        and 1
+        and 3                       ; one character every 4 fields
         ret nz
         ld hl,VRAM+SCROLL_ROW*40+1
         ld de,VRAM+SCROLL_ROW*40
