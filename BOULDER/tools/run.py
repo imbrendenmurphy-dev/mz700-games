@@ -82,9 +82,9 @@ class Game:
         return '\n'.join('%2d|%s|' % (r, self.text(r)) for r in range(25))
 
     def cave(self):
-        """the cave as element codes, 22 rows of 40"""
+        """the cave as element codes, cave_h rows of cave_w"""
         base = S['CAVE']
-        return [[self.m.mem[base + y * 40 + x] & 0x1F for x in range(40)] for y in range(22)]
+        return [[self.m.mem[base + y * 64 + x] & 0x1F for x in range(self.rb('cave_w'))] for y in range(self.rb('cave_h'))]
 
 
 def parse_keys(spec):

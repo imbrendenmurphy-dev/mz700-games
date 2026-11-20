@@ -3,7 +3,7 @@
 A cave-digging game for the **Sharp MZ-700** (64K, PAL, stock European
 character ROM, no PCG), loaded from tape or a UniCMT USB cassette emulator.
 
-Deep under the mountain lie twenty caves in five wings. Dig through the
+Deep under the mountain lie twenty caves in five wings, each wing in its own stone and colours, and most caves bigger than the screen: the view stays still until you near its edge, then glides after you. Dig through the
 earth, gather enough diamonds to open the exit, and get out before the clock
 runs down. Boulders fall when you dig beneath them and roll off anything
 round. Fireflies explode at a touch, butterflies burst into diamonds, the
@@ -37,18 +37,17 @@ sound chip.
 ## The caves
 
 Like Cryptfall, the caves are planned in wings. Each wing teaches one idea,
-varies it, shows it off in a **picture cave** (every cave fits the screen,
-so you always see the whole picture), and ends in a **jewel shower**: a
+varies it, shows it off in a **picture cave**, and ends in a **jewel shower**: a
 collect-em-up where spouts in the ceiling rain gems, with more falling
 hazards in each later wing. Each cave's card names its wing and gives a
-one-line hint.
+one-line hint. The caves grow through the first wing, from 48 x 24 to 64 x 32 (one screen is 40 x 22); the showers are one screen tall and scroll only sideways, so the spouts stay in sight.
 
 | Wing | Teach | Vary | Picture | Shower |
 |---|---|---|---|---|
 | I The Shallows | A First Light: dig and gather | B Rolling Stones: rocks roll off round things | C The Mountain | D Jewel Shower: gems only, falling through a giant gem of pegs |
 | II Firefly Deeps | E Lanterns: drop a rock on a firefly to blast its vault | F Butterfly Pens: drop rocks through the roof slots | G The Moth: butterflies in its wings | H Sparkfall: gems and rocks, fireflies in the floor |
 | III Magic Halls | I The Magic Wall | J Alchemy Shafts: open the shafts from the gallery | K Hourglass: snap the plug and the stone sand runs through the magic neck | L Rock Rain: a stone storm turned to gems by a magic floor |
-| IV Green Caverns | M The Amoeba: gather before it spreads | N Creeping Walls | O The Tree: fruit in the crown, amoeba at the roots | P Emerald Rain: catch the rain before the amoeba |
+| IV Green Caverns | M The Amoeba: gather before it spreads | N Creeping Walls | O The Tree: fruit in the crown, amoeba at the roots | P Ruby Rain: catch the rain before the amoeba |
 | V The Core | Q Gauntlet: firefly tunnels | R Twin Vaults: feed the magic roofs | S Treasure Storm: under a crown of pegs | T The Core: everything you have learned |
 
 **Every cave is proven completable.** A solving bot plays each cave on an
@@ -103,8 +102,10 @@ py tools/tune.py [letters]      solve caves, set their clocks, save tools/soluti
 py tools/verify.py [letters]    play the solutions on the Z80 build, compared tick by tick
 py tools/crosscheck.py 0,4 400  random play: Z80 and Python model compared every tick
 py tools/test_game.py           scripted physics checks (all should pass)
-py tools/sheet.py               all caves on one contact sheet (build/caves_sheet.png)
-py tools/perf.py all 800        game speed under a conservative VRAM wait model
+py tools/sheet.py               all caves on one contact sheet, at their true sizes (build/caves_sheet.png)
+py tools/scrollshot.py C R      walk through a cave on the Z80 build and screenshot the scrolling
+py tools/themeshots.py          one in-game screenshot per wing (build/wings.png)
+py tools/perf.py T 500          game speed in a cave (walking right, so it scrolls) under the VRAM wait model
 py tools/wav.py 40              render the title music to build/title_music.wav
 ```
 
@@ -128,10 +129,9 @@ included).
 
 ## How it works
 
-- **One cell per tile.** Each cave is 40 x 22 cells, so a whole cave fits on
-  the text screen with the HUD above and the cave name below, with no
-  scrolling. Tiles are character-ROM glyphs with colour.
-- **Physics** is a top-to-bottom scan once per tick (8 per second). An object
+- **One cell per tile, scrolling window.** A cave is up to 64 x 32 cells and lives in a 2K map with a row stride of 64. The screen shows a 40 x 22 window; it stays put until the player comes within 6 columns or 4 rows of its edge, then glides a cell per frame until the player is well inside. Tiles are character-ROM glyphs with colour.
+- **Themes.** Each wing has its own earth, wall, steel, boulder, gem and amoeba looks. A theme is a whole look table that the cave loader copies into place, so the renderer never changes.
+- **Physics** is a top-to-bottom scan of the whole cave (not just the window) once per tick, 8 to 12 per second; a 64 x 32 cave still runs at full speed. An object
   that moves right or down is written with a "moved" bit so the scan skips
   it. Falling and rolling, explosions, firefly/butterfly wall following,
   amoeba growth, the magic wall and the spouts all work this way.
@@ -143,7 +143,5 @@ included).
 - **Rendering.** Each element maps through a phase table to a display index
   (so diamonds sparkle and fireflies spin), and only cells whose display
   index changed are written to VRAM. Under the VRAM wait model, VRAM waits
-  take less than 2% of the CPU.
-- **Caves** are painted in Python with brushes (boxes, ellipses, stamps,
-  pegs, spouts, rock drops over earth plugs) on a seeded random fill, and
-  stored as 4-bit cells (380 bytes each).
+  take about 3% of the CPU, even while the window scrolls.
+- **Caves** are painted in Python with brushes (boxes, ellipses, stamps, pegs, spouts, rock drops over earth plugs) on a seeded random fill, and stored Huffman-coded: a per-cave code tree plus a bit stream, about 350 bytes for a full 64 x 32 cave, 7K for all twenty.

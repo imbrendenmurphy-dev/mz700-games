@@ -94,6 +94,16 @@ tick_last       ds 1
 sec_last        ds 1
 scan_ptr        ds 2
 scan_rows       ds 1
+cave_w          ds 1                ; cave size (40-64 x 22-32)
+cave_h          ds 1
+cave_wskip      ds 1                ; 64 - w
+unp_rows        ds 1
+unp_cols        ds 1
+view_x          ds 1                ; top-left cave cell on screen
+view_y          ds 1
+view_ptr        ds 2                ; CAVE + view_y * 64 + view_x
+glide_x         ds 1                ; scrolling: -1, 0, +1 cell per frame
+glide_y         ds 1
 
 ; player
 pl_addr         ds 2

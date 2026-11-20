@@ -1,12 +1,16 @@
-"""caves.py - element codes, tile looks and the 16 caves of ROCKFALL.
+"""caves.py - element codes, tile looks and the cave drawing kit of ROCKFALL.
 
-Every cave is 40 x 22 cells with a steel border, drawn by a seeded random
-fill plus drawing operations (lines, boxes, points), the way the classic
-cave games did it.  The build packs the 38 x 20 interior as 4-bit codes.
+A cave is w x h cells (40 x 22, one screen, up to 64 x 32) with a steel
+border, drawn by a seeded random fill plus drawing operations (lines,
+boxes, points), the way the classic cave games did it.  In the game every
+cave lives in a 64 x 32 map (row stride 64); the screen shows a 40 x 22
+window that scrolls when the player nears its edge.  The build stores the
+interior Huffman-coded.
 """
 import random
 
-W, H = 40, 22
+W, H = 40, 22                 # one screen: the smallest cave
+MW, MH = 64, 32               # the map in memory: the largest cave
 
 # ---------------------------------------------------------------- run-time element codes (5 bits)
 ELEMS = ['SPACE', 'DIRT', 'BRICK', 'MAGIC', 'STEEL', 'EXIT', 'EXITO', 'BOULDER', 'BOULDERF',
@@ -35,74 +39,111 @@ def same(c):
 
 
 SPACE_C = cell(0x00, WHITE, BLACK)
-DIRT_C = cell(0xD0, RED, BLACK)
-BRICK_C = cell(0x1F6, RED, WHITE)
-STEEL_C = cell(0x18A, CYAN, BLUE)
-BOULDER_C = cell(0x14F, WHITE)
-DIAM = [cell(0x44, c) for c in (CYAN, CYAN, WHITE, YELLOW, CYAN, CYAN, MAGENTA, WHITE)]
-DIAM[2] = cell(0x6B, WHITE)          # sparkle
 FIRE = [cell(0x1B1 if i % 2 == 0 else 0x1B2, YELLOW if i // 2 % 2 == 0 else RED) for i in range(8)]
 BUTT = [cell(0xCB if i % 2 == 0 else 0xCC, MAGENTA if i // 2 % 2 == 0 else CYAN) for i in range(8)]
-AMOEBA = [cell(0x19F if i % 4 < 2 else 0x1B3, GREEN) for i in range(8)]
-EXITO = [cell(0x18B, WHITE, BLUE) if i % 2 == 0 else cell(0x18B, YELLOW, BLACK) for i in range(8)]
-INBOX = [cell(0x18B, WHITE, BLUE) if i % 2 == 0 else STEEL_C for i in range(8)]
-MAGIC_ON = [cell(0x1F6, c, BLACK) for c in (WHITE, CYAN, BLUE, MAGENTA, RED, YELLOW, GREEN, CYAN)]
 EXP = [cell(0x6B, YELLOW, RED), cell(0x1B3, WHITE, RED), cell(0x1B3, YELLOW), cell(0x19F, RED)]
 DEX = [cell(0x6B, WHITE, MAGENTA), cell(0x1B3, WHITE, MAGENTA), cell(0x1B3, CYAN), cell(0x44, WHITE, BLUE)]
-COVER_C = cell(0x1B2, BLUE, BLACK)
 PL_IDLE = cell(0x144, YELLOW)
 PL_LEFT = [cell(0x143, YELLOW) if i % 2 == 0 else cell(0x144, YELLOW) for i in range(8)]
 PL_RIGHT = [cell(0x145, YELLOW) if i % 2 == 0 else cell(0x144, YELLOW) for i in range(8)]
 PL_TAP = [PL_IDLE] * 4 + [cell(0x144, WHITE)] * 4
 
-LOOK = {
-    'SPACE': same(SPACE_C), 'DIRT': same(DIRT_C), 'BRICK': same(BRICK_C), 'MAGIC': same(BRICK_C),
-    'STEEL': same(STEEL_C), 'EXIT': same(STEEL_C), 'EXITO': EXITO, 'BOULDER': same(BOULDER_C),
-    'BOULDERF': same(BOULDER_C), 'DIAMOND': DIAM, 'DIAMONDF': same(cell(0x44, CYAN)),
-    'AMOEBA': AMOEBA, 'PLAYER': same(PL_IDLE), 'EXPWALL': same(BRICK_C), 'INBOX': INBOX,
-    'SHOWER': [cell(0x1BC, c, BLUE) for c in (CYAN, CYAN, WHITE, WHITE, CYAN, CYAN, YELLOW, YELLOW)],
-}
-for d in range(4):
-    LOOK['FIRE%d' % d] = FIRE
-    LOOK['BUTT%d' % d] = BUTT
-for i in range(4):
-    LOOK['EXP%d' % (i + 1)] = same(EXP[i])
-    LOOK['DEX%d' % (i + 1)] = same(DEX[i])
+# ---------------------------------------------------------------- themes
+# Every wing has its own rock type: earth, wall, steel frame, boulders,
+# gems and amoeba change glyph and colour.  A theme is a whole look table
+# that cave_load copies over ANIMIDX / LOOKIDX, so the renderer is unchanged.
+# gem = (glyph, colour cycle of 8 phases, colour while falling)
+THEMES = [
+    dict(name='RED EARTH',                                       # I  The Shallows
+         dirt=cell(0xD0, RED), brick=cell(0x1F6, RED, WHITE), steel=cell(0x18A, CYAN, BLUE),
+         rock=cell(0x14F, WHITE), gem=(0x44, (CYAN, CYAN, WHITE, YELLOW, CYAN, CYAN, MAGENTA, WHITE), CYAN),
+         amoeba=(GREEN, BLACK), cover=cell(0x1B2, BLUE)),
+    dict(name='BLUE SLATE',                                      # II Firefly Deeps
+         dirt=cell(0x1EF, BLUE), brick=cell(0x176, CYAN, BLUE), steel=cell(0x1B4, WHITE, BLUE),
+         rock=cell(0x14F, WHITE), gem=(0x44, (GREEN, GREEN, WHITE, YELLOW, GREEN, GREEN, CYAN, WHITE), GREEN),
+         amoeba=(GREEN, BLACK), cover=cell(0x1B2, CYAN, BLUE)),
+    dict(name='AMETHYST',                                        # III Magic Halls
+         dirt=cell(0xA6, MAGENTA), brick=cell(0x166, YELLOW, MAGENTA), steel=cell(0x18F, WHITE, MAGENTA),
+         rock=cell(0x14F, CYAN), gem=(0x44, (YELLOW, YELLOW, WHITE, GREEN, YELLOW, YELLOW, CYAN, WHITE), YELLOW),
+         amoeba=(GREEN, BLACK), cover=cell(0x1B2, MAGENTA)),
+    dict(name='MOSS',                                            # IV Green Caverns
+         dirt=cell(0x1EE, GREEN), brick=cell(0x1F6, YELLOW, RED), steel=cell(0x18A, YELLOW, GREEN),
+         rock=cell(0x14F, WHITE), gem=(0x44, (RED, RED, WHITE, MAGENTA, RED, RED, YELLOW, WHITE), RED),
+         amoeba=(YELLOW, GREEN), cover=cell(0x1B2, GREEN)),
+    dict(name='MAGMA',                                           # V  The Core
+         dirt=cell(0x1EF, YELLOW, RED), brick=cell(0x1F6, WHITE, BLACK), steel=cell(0x1FA, YELLOW, RED),
+         rock=cell(0x14F, WHITE), gem=(0x44, (CYAN, CYAN, WHITE, WHITE, CYAN, CYAN, GREEN, WHITE), CYAN),
+         amoeba=(GREEN, BLACK), cover=cell(0x1B2, RED)),
+]
 
-# extra looks patched in at run time
-EXTRA = {
-    'LK_MAGICON': MAGIC_ON, 'LK_BRICK': same(BRICK_C), 'LK_PLIDLE': same(PL_IDLE),
-    'LK_PLLEFT': PL_LEFT, 'LK_PLRIGHT': PL_RIGHT, 'LK_PLTAP': PL_TAP,
-    'LK_STEEL': same(STEEL_C), 'LK_EXITO': EXITO, 'LK_COVER': same(COVER_C),
-}
+
+def theme_looks(t):
+    """(LOOK, EXTRA) for theme t: element looks, and the looks patched in at run time"""
+    th = THEMES[t]
+    steel, brick, rock = th['steel'], th['brick'], th['rock']
+    sbg = steel[1] & 7
+    glyph, cyc, fall = th['gem']
+    diam = [cell(glyph, c) for c in cyc]
+    diam[2] = cell(0x6B, WHITE)                     # sparkle
+    afg, abg = th['amoeba']
+    amoeba = [cell(0x19F if i % 4 < 2 else 0x1B3, afg, abg) for i in range(8)]
+    exito = [cell(0x18B, WHITE, BLUE) if i % 2 == 0 else cell(0x18B, YELLOW, BLACK) for i in range(8)]
+    inbox = [cell(0x18B, WHITE, BLUE) if i % 2 == 0 else steel for i in range(8)]
+    magic_on = [cell(0x1F6, c, BLACK) for c in (WHITE, CYAN, BLUE, MAGENTA, RED, YELLOW, GREEN, CYAN)]
+    look = {
+        'SPACE': same(SPACE_C), 'DIRT': same(th['dirt']), 'BRICK': same(brick), 'MAGIC': same(brick),
+        'STEEL': same(steel), 'EXIT': same(steel), 'EXITO': exito, 'BOULDER': same(rock),
+        'BOULDERF': same(rock), 'DIAMOND': diam, 'DIAMONDF': same(cell(glyph, fall)),
+        'AMOEBA': amoeba, 'PLAYER': same(PL_IDLE), 'EXPWALL': same(brick), 'INBOX': inbox,
+        'SHOWER': [cell(0x1BC, c, sbg if sbg != c else BLACK)
+                   for c in (fall, fall, WHITE, WHITE, fall, fall, YELLOW, YELLOW)],
+    }
+    for d in range(4):
+        look['FIRE%d' % d] = FIRE
+        look['BUTT%d' % d] = BUTT
+    for i in range(4):
+        look['EXP%d' % (i + 1)] = same(EXP[i])
+        look['DEX%d' % (i + 1)] = same(DEX[i])
+    extra = {
+        'LK_MAGICON': magic_on, 'LK_BRICK': same(brick), 'LK_PLIDLE': same(PL_IDLE),
+        'LK_PLLEFT': PL_LEFT, 'LK_PLRIGHT': PL_RIGHT, 'LK_PLTAP': PL_TAP,
+        'LK_STEEL': same(steel), 'LK_EXITO': exito, 'LK_COVER': same(th['cover']),
+    }
+    return look, extra
+
+
+LOOK, EXTRA = theme_looks(0)
 
 
 # ---------------------------------------------------------------- cave drawing
 class Cave:
     def __init__(self, letter, name, hint, need, dval, xval, time, seed, fill,
-                 magic=0, amoeba=0, speed=6, intermission=False):
+                 magic=0, amoeba=0, speed=6, intermission=False, w=W, h=H, theme=None):
+        assert W <= w <= MW and H <= h <= MH, (letter, w, h)
         self.letter, self.name, self.hint = letter, name, hint
         self.need, self.dval, self.xval, self.time = need, dval, xval, time
         self.magic, self.amoeba, self.speed = magic, amoeba, speed
         self.shrate, self.shhaz, self.shmax = 0, 0, 0
-        self.g = [['DIRT'] * W for _ in range(H)]
+        self.w, self.h, self.theme = w, h, theme
+        self.g = [['DIRT'] * w for _ in range(h)]
         rnd = random.Random(seed)
         names = [n for n, _ in fill]
-        weights = [w for _, w in fill]
-        for y in range(1, H - 1):
-            for x in range(1, W - 1):
+        weights = [wt for _, wt in fill]
+        for y in range(1, h - 1):
+            for x in range(1, w - 1):
                 self.g[y][x] = rnd.choices(names, weights)[0]
         self.rnd = rnd
         self.border()
 
     def border(self):
-        for x in range(W):
-            self.g[0][x] = self.g[H - 1][x] = 'STEEL'
-        for y in range(H):
-            self.g[y][0] = self.g[y][W - 1] = 'STEEL'
+        w, h = self.w, self.h
+        for x in range(w):
+            self.g[0][x] = self.g[h - 1][x] = 'STEEL'
+        for y in range(h):
+            self.g[y][0] = self.g[y][w - 1] = 'STEEL'
 
     def put(self, e, x, y):
-        if 0 < x < W - 1 and 0 < y < H - 1:
+        if 0 < x < self.w - 1 and 0 < y < self.h - 1:
             self.g[y][x] = e
         return self
 
@@ -174,7 +215,9 @@ class Cave:
         self.shrate, self.shhaz, self.shmax = rate, hazard, count
         return self
 
-    def scatter(self, e, n, x1=1, y1=1, x2=W - 2, y2=H - 2, onto=('DIRT',)):
+    def scatter(self, e, n, x1=1, y1=1, x2=None, y2=None, onto=('DIRT',)):
+        x2 = self.w - 2 if x2 is None else x2
+        y2 = self.h - 2 if y2 is None else y2
         k = 0
         while k < n:
             x = self.rnd.randint(x1, x2)
@@ -188,7 +231,7 @@ class Cave:
         # a safe pocket: no boulders right above the start
         for yy in range(y - 1, y + 2):
             for xx in range(x - 1, x + 2):
-                if self.g[yy][xx] in ('BOULDER', 'DIAMOND', 'FIRE0', 'BUTT3', 'BUTT0', 'AMOEBA') and 0 < yy < H - 1:
+                if self.g[yy][xx] in ('BOULDER', 'DIAMOND', 'FIRE0', 'BUTT3', 'BUTT0', 'AMOEBA') and 0 < yy < self.h - 1:
                     self.g[yy][xx] = 'DIRT'
         self.put('INBOX', x, y)
         return self
@@ -205,7 +248,7 @@ class Cave:
         push through; returns (reachable diamonds + 9 per reachable butterfly,
         exit reachable?, boulders reachable)"""
         walls = ('BRICK', 'STEEL', 'MAGIC', 'EXPWALL')
-        sx, sy = next((x, y) for y in range(H) for x in range(W) if self.g[y][x] == 'INBOX')
+        sx, sy = next((x, y) for y in range(self.h) for x in range(self.w) if self.g[y][x] == 'INBOX')
         seen = {(sx, sy)}
         todo = [(sx, sy)]
         while todo:
@@ -244,7 +287,9 @@ def caves():
         from solutions import SOLUTIONS             # clocks tuned by tools/tune.py
     except ImportError:
         SOLUTIONS = {}
-    for c in cs:
+    for i, c in enumerate(cs):
+        if getattr(c, 'theme', None) is None:
+            c.theme = i // 4                         # one rock type per wing
         c.border()
         if c.letter in SOLUTIONS and not getattr(c, 'untuned', False):
             c.time = SOLUTIONS[c.letter]['time']
@@ -252,9 +297,60 @@ def caves():
 
 
 def pack(c):
-    """38 x 20 interior, two cells per byte (high nibble first)"""
-    vals = [PACKIDX[c.g[y][x]] for y in range(1, H - 1) for x in range(1, W - 1)]
-    out = []
-    for i in range(0, len(vals), 2):
-        out.append((vals[i] << 4) | vals[i + 1])
+    """the (w-2) x (h-2) interior, Huffman coded: [tree length] [tree]
+    [bits].  Tree node k is 2 bytes at offset 2k (root first); a child is
+    a node offset, or 80h + element code for a leaf.  Bits high first."""
+    import heapq
+    vals = [E[c.g[y][x]] for y in range(1, c.h - 1) for x in range(1, c.w - 1)]
+    freq = {}
+    for v in vals:
+        freq[v] = freq.get(v, 0) + 1
+    heap = [(n, k, ('leaf', v)) for k, (v, n) in enumerate(sorted(freq.items()))]
+    heapq.heapify(heap)
+    k = len(heap)
+    if len(heap) == 1:
+        n, _, leaf = heap[0]
+        heap = [(n, 0, ('node', leaf, leaf))]
+    while len(heap) > 1:
+        n1, _, a = heapq.heappop(heap)
+        n2, _, b = heapq.heappop(heap)
+        heapq.heappush(heap, (n1 + n2, k, ('node', a, b)))
+        k += 1
+    root = heap[0][2]
+    nodes, codes = [], {}
+
+    def lay(t, prefix):
+        """breadth of the tree into the node table; returns the child byte"""
+        if t[0] == 'leaf':
+            codes[t[1]] = prefix
+            return 0x80 | t[1]
+        i = len(nodes)
+        nodes.append(None)
+        nodes[i] = (lay(t[1], prefix + '0'), lay(t[2], prefix + '1'))
+        return 2 * i
+
+    lay(root, '')
+    tree = [b for pair in nodes for b in pair]
+    assert len(tree) < 128
+    bits = ''.join(codes[v] for v in vals)
+    bits += '0' * (-len(bits) % 8)
+    data = [int(bits[i:i + 8], 2) for i in range(0, len(bits), 8)]
+    return [len(tree)] + tree + data
+
+
+def unpack(c, data):
+    """decode pack() output the way the Z80 does (for the build's self-check)"""
+    n = data[0]
+    tree, bits = data[1:1 + n], data[1 + n:]
+    out, node, pos = [], 0, 0
+    total = (c.w - 2) * (c.h - 2)
+    while len(out) < total:
+        b = (bits[pos // 8] >> (7 - pos % 8)) & 1
+        pos += 1
+        v = tree[node + b]
+        if v & 0x80:
+            out.append(v & 0x1F)
+            node = 0
+        else:
+            node = v
     return out

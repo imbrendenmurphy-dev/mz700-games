@@ -1,14 +1,18 @@
 """cavelist.py - the 20 caves of ROCKFALL, in five wings of four.
 
-Each wing teaches one idea, varies it, shows it off in a picture cave (seen
-whole - every cave fits the screen) and ends in a jewel shower, a
-collect-em-up where spouts in the ceiling rain gems (and later rocks):
+Each wing teaches one idea, varies it, shows it off in a picture cave and
+ends in a jewel shower, a collect-em-up where spouts in the ceiling rain
+gems (and later rocks):
 
   I   THE SHALLOWS    A First Light    B Rolling Stones  C The Mountain  D Jewel Shower
   II  FIREFLY DEEPS   E Lanterns       F Butterfly Pens  G The Moth      H Sparkfall
   III MAGIC HALLS     I The Magic Wall J Alchemy Shafts  K Hourglass     L Rock Rain
-  IV  GREEN CAVERNS   M The Amoeba     N Creeping Walls  O The Tree      P Emerald Rain
+  IV  GREEN CAVERNS   M The Amoeba     N Creeping Walls  O The Tree      P Ruby Rain
   V   THE CORE        Q Gauntlet       R Twin Vaults     S Treasure Storm T The Core
+
+Caves are bigger than the screen (up to 64 x 32) and scroll; they grow
+through the first wing.  The showers are one screen tall and scroll only
+sideways, so the spouts are always in sight.
 
 Times are tuned from the solving bot (tools/tune.py); a cave's `script`
 holds moves the bot needs for a contraption (see tools/bot.py).
@@ -43,241 +47,268 @@ def drop(c, x, y, rocks=2):
         c.put('BOULDER', x, y - k)
 
 
+def gem_pegs(c, cx, cy, r, step=1):
+    """a gem outline drawn in brick pegs"""
+    for y in range(cy - r, cy + r + 1, step):
+        dx = (r - abs(y - cy)) * 2
+        c.put('BRICK', cx - dx, y).put('BRICK', cx + dx, y)
+
+
+def lantern(c, bx, by):
+    """a brick vault of three gems, a firefly under it, rocks on plugs above"""
+    c.rect('SPACE', bx, by, bx + 6, by + 4)
+    c.box('BRICK', bx + 1, by + 1, bx + 5, by + 3)
+    c.line('DIAMOND', bx + 2, by + 2, bx + 4, by + 2)
+    c.put('FIRE0', bx + 3, by + 4)
+    drop(c, bx + 1, by - 1)
+    drop(c, bx + 5, by - 1)
+
+
+def pen(c, bx, by):
+    """a brick pen with a butterfly patrolling it, rocks on earth over a roof slot"""
+    c.box('SPACE', bx, by, bx + 5, by + 3)
+    c.rect('BRICK', bx - 1, by - 1, bx + 6, by + 4)
+    c.line('SPACE', bx + 2, by - 1, bx + 3, by - 1)
+    c.line('DIRT', bx, by - 2, bx + 5, by - 2)
+    c.box('BOULDER', bx + 2, by - 4, bx + 3, by - 3)
+    c.put('BUTT0', bx + 5, by)
+
+
 # ===================================================================== I THE SHALLOWS
 def a_first_light():
-    c = Cave('A', 'FIRST LIGHT', 'DIG THE EARTH AND GATHER THE GEMS', 10, 10, 15, 120, 1,
-             [('DIRT', 90), ('BOULDER', 4), ('DIAMOND', 2), ('SPACE', 4)])
+    c = Cave('A', 'FIRST LIGHT', 'DIG THE EARTH AND GATHER THE GEMS', 18, 10, 15, 150, 1,
+             [('DIRT', 90), ('BOULDER', 4), ('DIAMOND', 2), ('SPACE', 4)], w=48, h=24)
     # hollows with gems lying on their floors
-    for cx, cy, rx in ((8, 5, 4), (21, 4, 5), (32, 7, 4), (13, 11, 5), (28, 13, 5), (8, 17, 4), (21, 18, 4)):
+    for cx, cy, rx in ((8, 5, 4), (22, 4, 5), (36, 6, 5), (13, 11, 5), (30, 12, 5), (42, 15, 3),
+                       (8, 18, 4), (22, 19, 5), (36, 20, 4)):
         c.box('SPACE', cx - rx, cy - 1, cx + rx, cy)
         c.line('DIAMOND', cx - rx + 1, cy, cx + rx - 1, cy, 2)
-    c.start(2, 2).exit(37, 19)
+    c.start(2, 2).exit(46, 21)
     return c
 
 
 def b_rolling_stones():
-    c = Cave('B', 'ROLLING STONES', 'ROCKS ROLL OFF ANYTHING ROUND', 15, 10, 15, 130, 2, EARTHY)
-    for px, py in ((7, 6), (19, 6), (31, 6), (13, 14), (25, 14)):
+    c = Cave('B', 'ROLLING STONES', 'ROCKS ROLL OFF ANYTHING ROUND', 25, 10, 15, 150, 2, EARTHY, w=60, h=28)
+    for px, py in ((8, 6), (22, 6), (36, 6), (50, 6), (15, 15), (29, 15), (43, 15), (22, 22), (50, 22)):
         c.line('BRICK', px - 4, py + 1, px + 4, py + 1)          # shelf
-        for k, w in enumerate((0, 1, 2)):                        # a pyramid of rocks on it
-            c.line('BOULDER', px - w, py - 2 + k, px + w, py - 2 + k)
+        for k, wd in enumerate((0, 1, 2)):                       # a pyramid of rocks on it
+            c.line('BOULDER', px - wd, py - 2 + k, px + wd, py - 2 + k)
         c.line('DIAMOND', px - 3, py + 2, px + 3, py + 2)        # gems under the shelf
     # push lesson: a rock in a tunnel, gems behind it
-    c.line('SPACE', 3, 19, 14, 19).put('BOULDER', 7, 19).line('DIAMOND', 12, 19, 14, 19)
-    c.start(2, 2).exit(37, 20)
+    c.line('SPACE', 3, 25, 14, 25).put('BOULDER', 7, 25).line('DIAMOND', 11, 25, 14, 25)
+    c.start(2, 2).exit(58, 26)
     return c
 
 
 def c_mountain():
-    c = Cave('C', 'THE MOUNTAIN', 'GEMS SLEEP INSIDE THE MOUNTAIN', 20, 10, 20, 150, 3, AIR)
-    for y in range(3, 18):
-        hw = int((y - 3) * 1.3)
-        c.mixbox(20 - hw, y, 20 + hw, y, [('DIRT', 86), ('BOULDER', 6), ('DIAMOND', 8)])
-    for y in range(3, 6):                                        # snowcap
-        hw = int((y - 3) * 1.3)
-        c.line('DIAMOND', 20 - hw, y, 20 + hw, y)
-    c.line('DIAMOND', 9, 15, 15, 9).line('DIAMOND', 31, 15, 25, 9)   # seams
-    c.line('DIRT', 20 - 13, 13, 20 + 13, 13)
-    c.mixbox(1, 18, 38, 20, [('DIRT', 90), ('BOULDER', 4), ('DIAMOND', 6)])
-    c.ellipse('BRICK', 33, 4, 2, 1).ellipse('SPACE', 34, 3, 2, 1)   # the moon
+    c = Cave('C', 'THE MOUNTAIN', 'GEMS SLEEP INSIDE THE MOUNTAIN', 30, 10, 20, 180, 3, AIR, w=64, h=32)
+    X = 32
+
+    def hw(y):
+        return int((y - 4) * 1.3)
+    for y in range(4, 26):
+        c.mixbox(X - hw(y), y, X + hw(y), y, [('DIRT', 86), ('BOULDER', 6), ('DIAMOND', 8)])
+    for y in range(4, 8):                                        # snowcap
+        c.line('DIAMOND', X - hw(y), y, X + hw(y), y)
+    c.line('DIAMOND', 17, 22, 26, 13).line('DIAMOND', 47, 22, 38, 13)   # seams
+    c.line('DIRT', X - 20, 19, X + 20, 19)                       # a ledge of plain earth
+    c.mixbox(1, 26, 62, 30, [('DIRT', 90), ('BOULDER', 4), ('DIAMOND', 6)])
+    c.ellipse('BRICK', 53, 6, 4, 3).ellipse('SPACE', 55, 5, 4, 3)   # the moon
     # nothing round on the open slopes, so nothing rolls before you arrive
-    for y in range(3, 18):
-        hw = int((y - 3) * 1.3)
-        for x in (20 - hw, 20 + hw):
-            if c.g[y][x] in ('BOULDER', 'DIAMOND') and y > 5:
+    for y in range(8, 26):
+        for x in (X - hw(y), X + hw(y)):
+            if c.g[y][x] in ('BOULDER', 'DIAMOND'):
                 c.put('DIRT', x, y)
-    c.start(2, 17).exit(37, 17)
+    c.start(2, 25).exit(61, 25)
     return c
 
 
 def d_jewel_shower():
-    c = Cave('D', 'JEWEL SHOWER', 'CATCH THE GEMS - MIND YOUR HEAD', 50, 5, 10, 150, 4, AIR)
-    c.spouts(4, 36, 4)
-    for r in (3, 6):                                             # a giant gem drawn in pegs
-        for y in range(10 - r, 10 + r + 1, 2 if r == 6 else 1):
-            dx = (r - abs(y - 10)) * 2
-            c.put('BRICK', 19 - dx, y).put('BRICK', 20 + dx, y)
-    c.pins('BRICK', 3, 7, 36, 13, 34, 3)
-    c.box('DIRT', 1, 19, 38, 20)
-    for x in range(7, 34, 6):
-        c.line('BRICK', x, 17, x, 18)                            # bins
-    c.box('DIRT', 1, 15, 2, 18)
-    c.put('INBOX', 1, 18).exit(38, 18)
-    c.shower(14, 0, 160)
+    c = Cave('D', 'JEWEL SHOWER', 'CATCH THE GEMS - MIND YOUR HEAD', 75, 5, 10, 180, 4, AIR, w=64, h=24)
+    c.spouts(4, 60, 4)
+    gem_pegs(c, 32, 10, 3)                                       # a giant gem drawn in pegs
+    gem_pegs(c, 32, 10, 6, 2)
+    gem_pegs(c, 11, 9, 3)
+    gem_pegs(c, 52, 9, 3)
+    c.pins('BRICK', 3, 6, 60, 14, 28, 4)
+    c.box('DIRT', 1, 21, 62, 22)
+    for x in range(7, 58, 6):
+        c.line('BRICK', x, 19, x, 20)                            # bins
+    c.box('DIRT', 1, 17, 2, 20)
+    c.put('INBOX', 1, 20).exit(62, 20)
+    c.shower(14, 0, 240)
     return c
 
 
 # ===================================================================== II FIREFLY DEEPS
 def e_lanterns():
-    c = Cave('E', 'LANTERNS', 'CRUSH A FIREFLY TO BLAST ITS VAULT', 18, 15, 20, 160, 5,
-             [('DIRT', 86), ('BOULDER', 6), ('DIAMOND', 3), ('SPACE', 5)])
-    for bx, by in ((4, 4), (16, 4), (28, 4), (4, 13), (16, 13), (28, 13)):
-        c.rect('SPACE', bx, by, bx + 6, by + 4)
-        c.box('BRICK', bx + 1, by + 1, bx + 5, by + 3)
-        c.line('DIAMOND', bx + 2, by + 2, bx + 4, by + 2)        # the vault
-        c.put('FIRE0', bx + 3, by + 4)
-        drop(c, bx + 1, by - 1)
-        drop(c, bx + 5, by - 1)
-    c.start(2, 11).exit(37, 11)
+    c = Cave('E', 'LANTERNS', 'CRUSH A FIREFLY TO BLAST ITS VAULT', 30, 15, 20, 180, 5,
+             [('DIRT', 86), ('BOULDER', 6), ('DIAMOND', 3), ('SPACE', 5)], w=64, h=32)
+    for bx in (6, 28, 50):
+        for by in (4, 14, 24):
+            lantern(c, bx, by)
+    c.start(2, 10).exit(61, 20)
     return c
 
 
 def f_butterfly_pens():
-    c = Cave('F', 'BUTTERFLY PENS', 'A CRUSHED BUTTERFLY MAKES NINE GEMS', 20, 15, 25, 160, 6,
-             [('DIRT', 78), ('BOULDER', 7), ('DIAMOND', 5), ('SPACE', 10)])
-    for bx in (3, 12, 21, 30):
-        for by in (5, 14):
-            c.box('SPACE', bx, by, bx + 5, by + 3)
-            c.rect('BRICK', bx - 1, by - 1, bx + 6, by + 4)
-            c.line('SPACE', bx + 2, by - 1, bx + 3, by - 1)        # a slot in the roof
-            c.line('DIRT', bx, by - 2, bx + 5, by - 2)
-            c.box('BOULDER', bx + 2, by - 4, bx + 3, by - 3)     # rocks on earth above it
-            c.put('BUTT0', bx + 5, by)                           # patrols the walls
-    c.start(20, 10).exit(38, 20)
+    c = Cave('F', 'BUTTERFLY PENS', 'A CRUSHED BUTTERFLY MAKES NINE GEMS', 40, 15, 25, 180, 6,
+             [('DIRT', 78), ('BOULDER', 7), ('DIAMOND', 5), ('SPACE', 10)], w=64, h=32)
+    for bx in (4, 19, 34, 49):
+        for by in (6, 16, 26):
+            pen(c, bx, by)
+    c.start(29, 12).exit(62, 30)
     return c
 
 
 def g_moth():
-    c = Cave('G', 'THE MOTH', 'BUTTERFLIES SLEEP IN ITS WINGS', 25, 10, 20, 170, 7,
-             [('DIRT', 90), ('BOULDER', 4), ('DIAMOND', 3), ('SPACE', 3)])
-    wings = ((11, 8, 7, 4), (28, 8, 7, 4), (13, 16, 5, 2), (26, 16, 5, 2))
+    c = Cave('G', 'THE MOTH', 'BUTTERFLIES SLEEP IN ITS WINGS', 40, 10, 20, 200, 7,
+             [('DIRT', 90), ('BOULDER', 4), ('DIAMOND', 3), ('SPACE', 3)], w=64, h=32)
+    wings = ((17, 11, 11, 6), (46, 11, 11, 6), (21, 24, 8, 3), (42, 24, 8, 3))
     for cx, cy, rx, ry in wings:
         c.ellipse('SPACE', cx, cy, rx, ry)
         c.ellipse('BRICK', cx, cy, rx, ry, ring=True)
-        c.put('DIAMOND', cx - 3, cy).put('DIAMOND', cx + 3, cy)  # eyespots
-    c.box('STEEL', 19, 4, 20, 18)                                # body
-    c.line('BRICK', 18, 3, 16, 1).line('BRICK', 21, 3, 23, 1)    # antennae
+        c.put('DIAMOND', cx - 4, cy).put('DIAMOND', cx + 4, cy)  # eyespots
+    c.box('STEEL', 31, 5, 32, 27)                                # body
+    c.line('BRICK', 30, 4, 26, 1).line('BRICK', 33, 4, 37, 1)    # antennae
     # roof slots over each wing, with rocks on earth above
-    for sx, top in ((8, 5), (14, 5), (25, 5), (31, 5)):
-        c.put('SPACE', sx, top)
-        drop(c, sx, top - 1)
-    for sx, top in ((10, 15), (29, 15)):
+    for sx, top in ((14, 5), (20, 5), (43, 5), (49, 5), (18, 21), (45, 21)):
         c.put('SPACE', sx, top)
         drop(c, sx, top - 1)
     for cx, cy, rx, ry in wings:
         perch(c, cx - rx, cy - ry, cx + rx, cy)
-    c.box('DIRT', 1, 19, 38, 20)                                 # the way round, under the moth
-    c.put('DIAMOND', 6, 20).put('DIAMOND', 33, 20)
-    c.start(2, 11).exit(37, 11)
+    c.box('DIRT', 1, 29, 62, 30)                                 # the way round, under the moth
+    c.put('DIAMOND', 8, 30).put('DIAMOND', 55, 30)
+    c.start(2, 15).exit(61, 15)
     return c
 
 
 def h_sparkfall():
-    c = Cave('H', 'SPARKFALL', 'GEMS AND ROCKS RAIN TOGETHER', 45, 5, 10, 160, 8, AIR)
-    c.spouts(3, 37, 4)
-    c.pins('BRICK', 4, 6, 36, 14, 8, 4)
-    c.box('DIRT', 1, 18, 38, 20)
-    for x0 in (4, 29):                                           # firefly rings in the floor
+    c = Cave('H', 'SPARKFALL', 'GEMS AND ROCKS RAIN TOGETHER', 70, 5, 10, 180, 8, AIR, w=64, h=24)
+    c.spouts(3, 61, 4)
+    c.pins('BRICK', 4, 6, 60, 14, 8, 4)
+    c.box('DIRT', 1, 18, 62, 22)
+    for x0 in (6, 29, 52):                                       # firefly rings in the floor
         c.rect('SPACE', x0, 18, x0 + 5, 20)
         c.line('BRICK', x0 + 1, 19, x0 + 4, 19)
         c.put('FIRE0', x0, 19)
     c.box('DIRT', 1, 14, 2, 17)
-    c.put('INBOX', 1, 17).exit(38, 17)
-    c.shower(16, 45, 170)
+    c.put('INBOX', 1, 17).exit(62, 17)
+    c.shower(16, 45, 250)
     return c
 
 
 # ===================================================================== III MAGIC HALLS
 def i_magic_wall():
-    c = Cave('I', 'THE MAGIC WALL', 'FALLING ROCKS PASS THROUGH AS GEMS', 30, 5, 10, 150, 9,
-             [('DIRT', 60), ('BOULDER', 28), ('DIAMOND', 3), ('SPACE', 9)], magic=60)
-    c.line('MAGIC', 5, 11, 34, 11)
-    c.line('BRICK', 4, 3, 4, 11).line('BRICK', 35, 3, 35, 11)
-    c.box('DIRT', 1, 10, 3, 12).box('DIRT', 36, 10, 38, 12)
-    c.box('SPACE', 5, 12, 34, 13)
-    c.box('DIRT', 5, 14, 34, 20)
-    c.scatter('DIAMOND', 6, 1, 14, 38, 20)
-    c.start(19, 2).exit(37, 20)
+    c = Cave('I', 'THE MAGIC WALL', 'FALLING ROCKS PASS THROUGH AS GEMS', 40, 5, 10, 180, 9,
+             [('DIRT', 60), ('BOULDER', 28), ('DIAMOND', 3), ('SPACE', 9)], magic=60, w=64, h=32)
+    c.line('MAGIC', 5, 16, 58, 16)
+    c.line('BRICK', 4, 3, 4, 16).line('BRICK', 59, 3, 59, 16)
+    c.box('DIRT', 1, 15, 3, 17).box('DIRT', 60, 15, 62, 17)
+    c.box('SPACE', 5, 17, 58, 18)
+    c.box('DIRT', 5, 19, 58, 30)
+    c.scatter('DIAMOND', 10, 1, 19, 62, 30)
+    c.start(31, 2).exit(61, 30)
     return c
 
 
 def j_alchemy_shafts():
-    c = Cave('J', 'ALCHEMY SHAFTS', 'OPEN THE SHAFTS FROM THE GALLERY', 32, 5, 10, 160, 10,
-             [('DIRT', 90), ('BOULDER', 5), ('DIAMOND', 2), ('SPACE', 3)], magic=50)
-    c.line('DIRT', 1, 10, 38, 10)                                # the gallery
-    c.line('MAGIC', 2, 11, 37, 11)
-    c.box('DIRT', 1, 10, 1, 13).put('BRICK', 38, 11)
-    c.box('SPACE', 2, 12, 37, 13)                                # the hall
-    c.mixbox(1, 14, 38, 20, [('DIRT', 92), ('BOULDER', 4), ('DIAMOND', 4)])
-    for sx in (5, 11, 17, 23, 29, 35):
-        c.line('BRICK', sx - 1, 2, sx - 1, 9).line('BRICK', sx + 1, 2, sx + 1, 9)
-        c.line('BOULDER', sx, 2, sx, 9)
-    c.start(2, 2).exit(37, 19)
+    c = Cave('J', 'ALCHEMY SHAFTS', 'OPEN THE SHAFTS FROM THE GALLERY', 50, 5, 10, 180, 10,
+             [('DIRT', 90), ('BOULDER', 5), ('DIAMOND', 2), ('SPACE', 3)], magic=60, w=64, h=32)
+    c.line('DIRT', 1, 14, 62, 14)                                # the gallery
+    c.line('MAGIC', 2, 15, 61, 15)
+    c.box('DIRT', 1, 14, 1, 17).put('BRICK', 62, 15)
+    c.box('SPACE', 2, 16, 61, 17)                                # the hall
+    c.mixbox(1, 18, 62, 30, [('DIRT', 92), ('BOULDER', 4), ('DIAMOND', 4)])
+    for sx in range(5, 60, 6):
+        c.line('BRICK', sx - 1, 2, sx - 1, 13).line('BRICK', sx + 1, 2, sx + 1, 13)
+        c.line('BOULDER', sx, 2, sx, 13)
+    c.start(2, 2).exit(61, 29)
     return c
 
 
 def k_hourglass():
-    c = Cave('K', 'HOURGLASS', 'LET THE SANDS OF STONE RUN THROUGH', 35, 5, 10, 150, 11,
-             [('DIRT', 92), ('BOULDER', 3), ('DIAMOND', 3), ('SPACE', 2)], magic=40)
-    X = 19
-    c.line('BRICK', X - 7, 2, X + 7, 2)                          # lid
-    for y in range(3, 10):                                       # top bulb, full of stone
-        k = 9 - y
+    c = Cave('K', 'HOURGLASS', 'LET THE SANDS OF STONE RUN THROUGH', 50, 5, 10, 180, 11,
+             [('DIRT', 92), ('BOULDER', 3), ('DIAMOND', 3), ('SPACE', 2)], magic=50, w=64, h=32)
+    X = 31
+    c.line('BRICK', X - 12, 2, X + 12, 2)                        # lid
+    for y in range(3, 14):                                       # top bulb, full of stone
+        k = 13 - y
         c.line('BOULDER', X - k, y, X + k, y)
         c.put('BRICK', X - k - 1, y).put('BRICK', X + k + 1, y)
-    c.put('DIRT', X, 10).put('BRICK', X + 1, 10).put('DIRT', X - 1, 10)   # the plug, reached from the left
-    c.put('MAGIC', X, 11).put('BRICK', X - 1, 11).put('BRICK', X + 1, 11)
-    for y in range(12, 20):                                      # bottom bulb, empty
-        k = y - 12
+    c.put('DIRT', X, 14).put('BRICK', X + 1, 14).put('DIRT', X - 1, 14)   # the plug, reached from the left
+    c.put('MAGIC', X, 15).put('BRICK', X - 1, 15).put('BRICK', X + 1, 15)
+    for y in range(16, 28):                                      # bottom bulb, empty
+        k = y - 16
         c.line('SPACE', X - k, y, X + k, y)
         c.put('BRICK', X - k - 1, y).put('BRICK', X + k + 1, y)
-    c.line('BRICK', X - 9, 20, X + 9, 20)
-    c.put('DIRT', X - 8, 19)                                     # a door in the bottom bulb
-    c.start(2, 10).exit(37, 19)
-    c.script = [('go', X - 1, 10), ('snap', 'R')]
+    c.line('BRICK', X - 13, 28, X + 13, 28)
+    for dx in (-12, 12):                                         # doors in the bottom bulb
+        c.put('DIRT', X + dx, 27)
+        xs = range(X + dx - 3, X + dx) if dx < 0 else range(X + dx + 1, X + dx + 4)
+        for y in range(22, 28):                                  # no loose rocks over a door
+            for x in xs:
+                if c.g[y][x] == 'BOULDER':
+                    c.put('DIRT', x, y)
+    c.start(2, 14).exit(61, 29)
+    c.script = [('go', X - 1, 14), ('snap', 'R')]
     return c
 
 
 def l_rock_rain():
-    c = Cave('L', 'ROCK RAIN', 'MAGIC TURNS THE STONE RAIN TO GEMS', 45, 5, 10, 160, 12, AIR, magic=120)
-    c.spouts(3, 36, 3)
-    c.pins('BRICK', 4, 5, 36, 8, 8, 3)
-    c.line('MAGIC', 1, 11, 38, 11)
-    c.box('DIRT', 1, 17, 38, 20)
-    c.put('INBOX', 2, 16).exit(37, 16)
-    c.shower(20, 190, 130)
+    c = Cave('L', 'ROCK RAIN', 'MAGIC TURNS THE STONE RAIN TO GEMS', 60, 5, 10, 180, 12, AIR,
+             magic=150, w=64, h=24)
+    c.spouts(3, 60, 3)
+    c.pins('BRICK', 4, 5, 60, 8, 8, 3)
+    c.line('MAGIC', 1, 11, 62, 11)
+    c.box('DIRT', 1, 17, 62, 22)
+    c.put('INBOX', 2, 16).exit(61, 16)
+    c.shower(20, 190, 180)
     return c
 
 
 # ===================================================================== IV GREEN CAVERNS
 def m_amoeba():
-    c = Cave('M', 'THE AMOEBA', 'THE AMOEBA SPREADS - GATHER QUICKLY', 25, 10, 20, 150, 13,
-             [('DIRT', 84), ('BOULDER', 6), ('DIAMOND', 6), ('SPACE', 4)], amoeba=25)
-    c.box('SPACE', 16, 16, 24, 18)
-    c.put('AMOEBA', 18, 17).put('AMOEBA', 22, 17)
-    c.line('DIAMOND', 3, 4, 12, 8).line('DIAMOND', 36, 4, 27, 8)
-    c.start(2, 2).exit(37, 2)
+    c = Cave('M', 'THE AMOEBA', 'THE AMOEBA SPREADS - GATHER QUICKLY', 35, 10, 20, 180, 13,
+             [('DIRT', 84), ('BOULDER', 6), ('DIAMOND', 6), ('SPACE', 4)], amoeba=30, w=56, h=28)
+    c.box('SPACE', 23, 22, 32, 24)
+    c.put('AMOEBA', 25, 23).put('AMOEBA', 30, 23)
+    c.line('DIAMOND', 3, 4, 16, 10).line('DIAMOND', 52, 4, 39, 10)
+    c.line('DIAMOND', 4, 22, 14, 17).line('DIAMOND', 51, 22, 41, 17)
+    c.start(2, 2).exit(53, 2)
     return c
 
 
 def n_creeping_walls():
-    c = Cave('N', 'CREEPING WALLS', 'WALLS GROW INTO ANY GAP BESIDE THEM', 25, 15, 25, 150, 14,
-             [('DIRT', 84), ('BOULDER', 7), ('DIAMOND', 5), ('SPACE', 4)])
-    for y in (5, 10, 15):
-        c.line('EXPWALL', 6, y, 33, y)
-        c.line('DIAMOND', 8, y + 2, 31, y + 2, 3)
-    c.start(2, 2).exit(37, 19)
+    c = Cave('N', 'CREEPING WALLS', 'WALLS GROW INTO ANY GAP BESIDE THEM', 40, 15, 25, 180, 14,
+             [('DIRT', 84), ('BOULDER', 7), ('DIAMOND', 5), ('SPACE', 4)], w=64, h=32)
+    for y in (6, 12, 18, 24):
+        c.line('EXPWALL', 8, y, 55, y)
+        c.line('DIAMOND', 10, y + 2, 53, y + 2, 3)
+    c.start(2, 2).exit(61, 29)
     return c
 
 
 def o_tree():
-    c = Cave('O', 'THE TREE', 'PICK THE FRUIT BEFORE THE ROOTS SPREAD', 30, 10, 20, 170, 15, AIR, amoeba=40)
-    c.ellipse('DIRT', 19.5, 6, 14, 4)                            # the crown
-    c.mixbox(8, 4, 31, 8, [('DIRT', 60), ('DIAMOND', 28), ('BOULDER', 12)])
-    c.ellipse('DIRT', 19.5, 6, 14, 4, ring=True)
-    c.box('BRICK', 18, 10, 21, 17)                               # trunk
-    c.line('BRICK', 17, 10, 13, 8).line('BRICK', 22, 10, 26, 8)  # boughs
-    c.mixbox(1, 17, 38, 20, [('DIRT', 90), ('DIAMOND', 6), ('BOULDER', 4)])
-    c.box('BRICK', 18, 17, 21, 17)
-    c.put('AMOEBA', 12, 19).put('AMOEBA', 27, 19)                # the roots
-    c.start(2, 16).exit(37, 16)
+    c = Cave('O', 'THE TREE', 'PICK THE FRUIT BEFORE THE ROOTS SPREAD', 50, 10, 20, 200, 15, AIR,
+             amoeba=40, w=64, h=32)
+    c.ellipse('DIRT', 31.5, 9, 22, 7)                            # the crown
+    c.mixbox(13, 5, 50, 13, [('DIRT', 60), ('DIAMOND', 28), ('BOULDER', 12)])
+    c.ellipse('DIRT', 31.5, 9, 22, 7, ring=True)
+    c.box('BRICK', 29, 17, 34, 27)                               # trunk
+    c.line('BRICK', 28, 17, 21, 13).line('BRICK', 35, 17, 42, 13)   # boughs
+    c.mixbox(1, 27, 62, 30, [('DIRT', 90), ('DIAMOND', 6), ('BOULDER', 4)])
+    c.box('BRICK', 29, 27, 34, 27)
+    c.put('AMOEBA', 20, 29).put('AMOEBA', 43, 29)                # the roots
+    c.start(2, 26).exit(61, 26)
     return c
 
 
-def p_emerald_rain():
-    c = Cave('P', 'EMERALD RAIN', 'GATHER THE RAIN BEFORE THE AMOEBA DOES', 40, 5, 10, 160, 16, AIR, amoeba=20)
-    c.spouts(4, 36, 4)
-    for cx in (12, 27):                                          # two leaves, veined
+def p_ruby_rain():
+    c = Cave('P', 'RUBY RAIN', 'GATHER THE RAIN BEFORE THE AMOEBA DOES', 60, 5, 10, 180, 16, AIR,
+             amoeba=20, w=64, h=24)
+    c.spouts(4, 60, 4)
+    for cx in (12, 32, 52):                                      # three leaves, veined
         for y in range(4, 13):
             for x in range(cx - 8, cx + 9):
                 inside = ((x - cx) / 7.5) ** 2 + ((y - 8) / 3.5) ** 2 <= 1
@@ -285,84 +316,79 @@ def p_emerald_rain():
                 if edge and (x + y) % 2 == 0:
                     c.put('BRICK', x, y)
         dotted(c, 'BRICK', cx - 5, 8, cx + 5, 8)
-    c.box('DIRT', 1, 16, 38, 20)
-    c.put('AMOEBA', 10, 17).put('AMOEBA', 29, 17)
-    c.box('DIRT', 1, 12, 2, 15)
-    c.put('INBOX', 1, 15).exit(38, 15)
-    c.shower(14, 20, 150)
+    c.box('DIRT', 1, 17, 62, 22)
+    c.put('AMOEBA', 16, 18).put('AMOEBA', 47, 18)
+    c.box('DIRT', 1, 13, 2, 16)
+    c.put('INBOX', 1, 16).exit(62, 16)
+    c.shower(14, 20, 220)
     return c
 
 
 # ===================================================================== V THE CORE
 def q_gauntlet():
-    c = Cave('Q', 'GAUNTLET', 'FIREFLIES GUARD THE TUNNELS', 30, 15, 25, 170, 17,
-             [('DIRT', 80), ('BOULDER', 10), ('DIAMOND', 7), ('SPACE', 3)], speed=5)
-    for i, y in enumerate((4, 8, 12, 16)):
-        c.line('BRICK', 1, y, 38, y)
-        gap = 35 if i % 2 == 0 else 2
+    c = Cave('Q', 'GAUNTLET', 'FIREFLIES GUARD THE TUNNELS', 45, 15, 25, 200, 17,
+             [('DIRT', 80), ('BOULDER', 10), ('DIAMOND', 7), ('SPACE', 3)], speed=5, w=64, h=32)
+    c.mixbox(1, 1, 62, 3, [('DIRT', 88), ('DIAMOND', 8), ('SPACE', 4)])   # the way in: no loose rocks
+    for i, y in enumerate((4, 8, 12, 16, 20, 24)):
+        c.line('BRICK', 1, y, 62, y)
+        gap = 59 if i % 2 == 0 else 2
         c.line('DIRT', gap, y, gap + 2, y)
-        c.line('SPACE', 3, y + 1, 36, y + 1)
-        c.put('FIRE0', 10 + i * 6, y + 1)
-        for dx in (8, 26):                                       # rocks over a plug in the roof
+        c.line('SPACE', 3, y + 1, 60, y + 1)
+        c.put('FIRE0', 10 + i * 8, y + 1)
+        for dx in (14, 44):                                      # rocks over a plug in the roof
             drop(c, dx - i * 2, y)
-    c.start(2, 2).exit(37, 20)
+    c.start(2, 2).exit(61, 30)
     return c
 
 
 def r_twin_vaults():
-    c = Cave('R', 'TWIN VAULTS', 'FEED THE VAULTS THEIR STONES', 35, 10, 20, 170, 18,
-             [('DIRT', 64), ('BOULDER', 22), ('DIAMOND', 4), ('SPACE', 10)], magic=40)
-    for x0 in (3, 23):
-        c.rect('STEEL', x0, 13, x0 + 13, 20).box('DIAMOND', x0 + 1, 18, x0 + 12, 19)
-        c.box('SPACE', x0 + 1, 14, x0 + 12, 17)
-        c.line('MAGIC', x0 + 3, 13, x0 + 10, 13)
-        c.put('BUTT3', x0 + 6, 15)
-    c.put('DIRT', 3, 17).put('DIRT', 36, 17)
-    c.start(19, 2).exit(19, 20)
+    c = Cave('R', 'TWIN VAULTS', 'FEED THE VAULTS THEIR STONES', 50, 10, 20, 200, 18,
+             [('DIRT', 64), ('BOULDER', 22), ('DIAMOND', 4), ('SPACE', 10)], magic=40, w=64, h=32)
+    for x0 in (6, 38):
+        c.rect('STEEL', x0, 21, x0 + 19, 30).box('DIAMOND', x0 + 1, 28, x0 + 18, 29)
+        c.box('SPACE', x0 + 1, 22, x0 + 18, 27)
+        c.line('MAGIC', x0 + 3, 21, x0 + 16, 21)
+        c.put('BUTT3', x0 + 9, 24)
+    c.put('DIRT', 6, 26).put('DIRT', 57, 26)
+    c.start(31, 2).exit(31, 30)
     return c
 
 
 def s_treasure_storm():
-    c = Cave('S', 'TREASURE STORM', 'THE LAST RAIN - GEMS, ROCKS AND WINGS', 60, 5, 10, 180, 19, AIR,
-             magic=60, speed=5)
-    c.spouts(3, 37, 3)
-    crown = [(7, 6), (12, 11), (15, 8), (19, 4), (23, 8), (26, 11), (31, 6)]
+    c = Cave('S', 'TREASURE STORM', 'THE LAST RAIN - GEMS, ROCKS AND WINGS', 90, 5, 10, 200, 19, AIR,
+             magic=60, speed=5, w=64, h=26)
+    c.spouts(3, 61, 3)
+    crown = [(11, 7), (19, 13), (24, 9), (31, 4), (38, 9), (43, 13), (51, 7)]
     for (x1, y1), (x2, y2) in zip(crown, crown[1:]):             # a crown drawn in pegs
         dotted(c, 'BRICK', x1, y1, x2, y2)
-    dotted(c, 'BRICK', 7, 13, 31, 13)
+    dotted(c, 'BRICK', 11, 16, 51, 16)
     for x, y in crown[::2]:
         c.put('BRICK', x, y)
-    c.put('BUTT3', 10, 9).put('BUTT3', 28, 9)
-    c.line('MAGIC', 26, 16, 37, 16)
-    c.box('DIRT', 1, 18, 38, 20)
-    c.box('DIRT', 1, 14, 2, 17)
-    c.put('INBOX', 1, 17).exit(38, 17)
-    c.shower(18, 70, 200)
+    c.put('BUTT3', 16, 11).put('BUTT3', 46, 11)
+    c.line('MAGIC', 44, 19, 61, 19)
+    c.box('DIRT', 1, 21, 62, 24)
+    c.box('DIRT', 1, 17, 2, 20)
+    c.put('INBOX', 1, 20).exit(62, 20)
+    c.shower(18, 70, 250)
     return c
 
 
 def t_core():
-    c = Cave('T', 'THE CORE', 'EVERYTHING YOU HAVE LEARNED', 50, 20, 30, 200, 20,
-             [('DIRT', 72), ('BOULDER', 15), ('DIAMOND', 7), ('SPACE', 6)], magic=40, speed=5)
-    c.rect('STEEL', 14, 8, 25, 14).box('DIAMOND', 15, 12, 24, 13).box('SPACE', 15, 9, 24, 11)
-    c.line('MAGIC', 17, 8, 22, 8)
-    c.put('DIRT', 25, 13)
-    for bx, by in ((3, 3), (29, 3)):                             # firefly lanterns
-        c.rect('SPACE', bx, by, bx + 6, by + 4)
-        c.box('BRICK', bx + 1, by + 1, bx + 5, by + 3)
-        c.line('DIAMOND', bx + 2, by + 2, bx + 4, by + 2)
-        c.put('FIRE0', bx + 3, by + 4)
-        drop(c, bx + 1, by - 1)
-        drop(c, bx + 5, by - 1)
-    c.box('SPACE', 4, 16, 9, 18).rect('BRICK', 3, 15, 10, 19).line('SPACE', 6, 15, 7, 15)
-    c.line('DIRT', 4, 14, 9, 14).box('BOULDER', 6, 12, 7, 13).put('BUTT0', 9, 16)
-    c.line('EXPWALL', 12, 18, 27, 18)
-    c.start(19, 2).exit(38, 20)
+    c = Cave('T', 'THE CORE', 'EVERYTHING YOU HAVE LEARNED', 70, 20, 30, 220, 20,
+             [('DIRT', 72), ('BOULDER', 15), ('DIAMOND', 7), ('SPACE', 6)], magic=40, speed=5, w=64, h=32)
+    c.rect('STEEL', 24, 12, 39, 20).box('DIAMOND', 25, 18, 38, 19).box('SPACE', 25, 13, 38, 17)
+    c.line('MAGIC', 27, 12, 36, 12)
+    c.put('DIRT', 39, 19)
+    for bx, by in ((4, 3), (53, 3), (4, 22)):                    # firefly lanterns
+        lantern(c, bx, by)
+    pen(c, 50, 24)
+    c.line('EXPWALL', 16, 28, 47, 28)
+    c.start(31, 2).exit(62, 30)
     return c
 
 
 CAVES = [a_first_light, b_rolling_stones, c_mountain, d_jewel_shower,
          e_lanterns, f_butterfly_pens, g_moth, h_sparkfall,
          i_magic_wall, j_alchemy_shafts, k_hourglass, l_rock_rain,
-         m_amoeba, n_creeping_walls, o_tree, p_emerald_rain,
+         m_amoeba, n_creeping_walls, o_tree, p_ruby_rain,
          q_gauntlet, r_twin_vaults, s_treasure_storm, t_core]

@@ -51,21 +51,21 @@ class Pair:
     def tick(self, keys):
         """one tick on both; returns a list of differences"""
         self.z.wb('tick_dir', keys)
-        self.until_hook(400)
+        self.until_hook(4000)           # long after an exit: time bonus, cover, next cave card
         self.p.tick(keys)
         self.n += 1
         return self.diff()
 
     def z_cave(self):
         b = S['CAVE']
-        return list(self.z.m.mem[b:b + 880])
+        return list(self.z.m.mem[b:b + 2048])
 
     def diff(self):
         out = []
         zc = self.z_cave()
         for i, (a, b) in enumerate(zip(zc, self.p.g)):
             if a != b:
-                out.append('cell %d,%d: z80 %02X model %02X' % (i % 40, i // 40, a, b))
+                out.append('cell %d,%d: z80 %02X model %02X' % (i % 64, i // 64, a, b))
                 if len(out) > 8:
                     break
         z = self.z

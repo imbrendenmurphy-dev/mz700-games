@@ -36,11 +36,11 @@ def setup(g, rows, need=None):
     """rows: list of strings drawn from the top-left inside the border; rest is steel"""
     base = S['CAVE']
     m = g.m.mem
-    for i in range(880):
+    for i in range(2048):
         m[base + i] = E['STEEL']
     for y, row in enumerate(rows):
         for x, ch in enumerate(row):
-            a = base + (y + 1) * 40 + x + 1
+            a = base + (y + 1) * 64 + x + 1
             m[a] = E[CODE[ch]]
             if ch == 'P':
                 g.wb('pl_addr', a & 0xFF)
@@ -57,7 +57,7 @@ def setup(g, rows, need=None):
 
 
 def at(g, x, y):
-    v = g.m.mem[S['CAVE'] + (y + 1) * 40 + x + 1] & 0x1F
+    v = g.m.mem[S['CAVE'] + (y + 1) * 64 + x + 1] & 0x1F
     return caves.ELEMS[v]
 
 

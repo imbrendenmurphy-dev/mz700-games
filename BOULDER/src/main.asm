@@ -16,12 +16,15 @@ CTRL            equ 0E007h          ; 8253 control
 SNDGATE         equ 0E008h          ; sound gate
 
 ; ---------------------------------------------------------------- memory
-CAVEW           equ 40
-CAVEH           equ 22
-CAVESZ          equ CAVEW*CAVEH     ; 880 cells
-CAVE            equ 0C050h          ; cave cells; VRAM address = CAVE + 1000h (screen row 2)
-SHADOW          equ 0C450h          ; display index on screen (CAVE + 400h)
-QUEUE           equ 0C000h          ; (end of the variables)
+CAVEW           equ 64              ; map row stride: caves are up to 64 x 32
+CAVEH           equ 32
+CAVESZ          equ CAVEW*CAVEH     ; 2048 cells
+CAVE            equ 0B800h          ; the map (2K aligned: x = low 6 bits)
+VIEWW           equ 40              ; the window on screen rows 2-23
+VIEWH           equ 22
+VIEWSZ          equ VIEWW*VIEWH
+SHADOW          equ 0C050h          ; display index on screen; VRAM address = SHADOW + 1000h
+QUEUE           equ CAVE            ; (end of the variables)
 STACKTOP        equ 0CFF0h
 VARBASE         equ (end_of_program+255) & 0FF00h
 

@@ -1,7 +1,8 @@
 ; =====================================================================
 ;  cave.asm - cave loading and the physics scan
 ;
-;  The cave is 40 x 22 cells, one byte each: bits 0-4 = element (E_*),
+;  The cave is w x h cells (40 x 22 up to 64 x 32) in a map with a row
+;  stride of 64 (CAVEW), one byte each: bits 0-4 = element (E_*),
 ;  bit 7 = "already moved this tick".  The scan runs top to bottom, left
 ;  to right.  An object that moves right or down (into a cell the scan has
 ;  not reached yet) is written with bit 7 set, and the scan clears the bit
@@ -43,6 +44,8 @@ cave_load:
         ld (shower_haz),a
         ld a,(ix+CH_SHMAX)
         ld (shower_left),a
+        ld a,(ix+CH_THEME)          ; the wing's rock type and colours
+        call set_theme
         ld a,(cave_no)              ; the cave's own random sequence
         ld l,a
         ld h,a
@@ -106,7 +109,17 @@ cave_load:
         inc a
         ld (amoeba_fast),a          ; no slow phase
 .am:
-        ; whole cave = steel, then unpack the 38 x 20 interior
+        ; size
+        ld a,(ix+CH_W)
+        ld (cave_w),a
+        neg
+        add a,CAVEW
+        ld (cave_wskip),a           ; from the end of one row to the next
+        ld a,(ix+CH_H)
+        ld (cave_h),a
+        ; whole map = steel, then decode the (w-2) x (h-2) interior: a
+        ; Huffman tree (node = 2 bytes, child = node offset, or 80h + element
+        ; for a leaf) and then the bit stream, high bit first
         ld hl,CAVE
         ld de,CAVE+1
         ld bc,CAVESZ-1
@@ -114,25 +127,49 @@ cave_load:
         ldir
         ld de,CH_DATA
         add ix,de
+        ld a,(ix+0)                 ; tree length
+        inc ix
         push ix
         pop hl
+        ld e,a
+        ld d,0
+        add hl,de                   ; HL = bit stream
         ld de,CAVE+CAVEW+1
-        ld c,CAVEH-2
-.row:   ld b,(CAVEW-2)/2
-.byte:  ld a,(hl)
+        ld a,(cave_h)
+        sub 2
+        ld (unp_rows),a
+        ld b,1                      ; B = bits left in C (load on first use)
+.row:   ld a,(cave_w)
+        sub 2
+        ld (unp_cols),a
+.cell:  xor a                       ; from the root
+.walk:  dec b
+        jr nz,.hb
+        ld c,(hl)
         inc hl
-        push af
-        rrca
-        rrca
-        rrca
-        rrca
-        call .put
-        pop af
-        call .put
-        djnz .byte
+        ld b,8
+.hb:    sla c
+        adc a,0                     ; child 0 or 1
+        ld (.rd+2),a
+.rd:    ld a,(ix+0)
+        or a
+        jp p,.walk                  ; an inner node
+        and 1Fh
+        ld (de),a
         inc de
-        inc de
-        dec c
+        ld a,(unp_cols)
+        dec a
+        ld (unp_cols),a
+        jr nz,.cell
+        ld a,(cave_wskip)           ; skip the right and left border
+        add a,2
+        add a,e
+        ld e,a
+        jr nc,$+3
+        inc d
+        ld a,(unp_rows)
+        dec a
+        ld (unp_rows),a
         jr nz,.row
         ; find the inbox and the exit
         ld hl,CAVE
@@ -151,20 +188,7 @@ cave_load:
         jr nz,.find
         ld a,1
         ld (hud_dirty),a
-        ret
-
-.put:   push hl
-        and 0Fh
-        ld hl,PACKMAP
-        add a,l
-        ld l,a
-        jr nc,$+3
-        inc h
-        ld a,(hl)
-        ld (de),a
-        inc de
-        pop hl
-        ret
+        jp view_init
 
 ; ---------------------------------------------------------------------
 ; cave_scan: one tick of physics over rows 1..20
@@ -175,15 +199,16 @@ cave_scan:
         xor a
         ld (amoeba_grow),a
         ld hl,CAVE+CAVEW
-        ld a,CAVEH-2
+        ld a,(cave_h)
+        sub 2
         ld (scan_rows),a
-.row:   ld b,CAVEW
+.row:   ld a,(cave_w)
+        ld b,a
 .cell:  ld a,(hl)
-        or a
-        jr z,.next                  ; space
-        jp m,.flag
         cp E_BOULDER
-        jr c,.next                  ; dirt, walls, exits: nothing to do
+        jr c,.next                  ; space, dirt, walls, exits: nothing to do
+        or a
+        jp m,.flag
         push bc
         ld (scan_ptr),hl
         add a,a
@@ -199,6 +224,11 @@ cave_scan:
         pop bc
 .next:  inc hl
         djnz .cell
+        ld a,(cave_wskip)           ; on to the next row of the map
+        add a,l
+        ld l,a
+        jr nc,$+3
+        inc h
         call poll
         ld a,(scan_rows)
         dec a

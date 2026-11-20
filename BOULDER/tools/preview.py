@@ -9,20 +9,23 @@ import mzfont as F  # noqa: E402
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-def render(c, phase=0):
-    ch = [0] * 1000
-    at = [0x70] * 1000
-    txt = F.text_codes('CAVE %s  %s' % (c.letter, c.name))
-    for i, v in enumerate(txt):
-        ch[24 * 40 + i] = v
-    for y in range(caves.H):
-        for x in range(caves.W):
+def render(c, phase=0, scale=2):
+    """the whole cave (any size) with its name underneath"""
+    cw, chh = max(c.w, 40), c.h + 3
+    ch = [0] * (cw * chh)
+    at = [0x70] * (cw * chh)
+    txt = F.text_codes('CAVE %s  %s  %dX%d' % (c.letter, c.name, c.w, c.h))
+    for i, v in enumerate(txt[:cw]):
+        ch[(chh - 1) * cw + i] = v
+    looks = caves.theme_looks(getattr(c, 'theme', 0) or 0)[0]
+    for y in range(c.h):
+        for x in range(c.w):
             e = c.g[y][x]
-            look = caves.LOOK['PLAYER'] if e == 'INBOX' else caves.LOOK[e]
+            look = looks['PLAYER'] if e == 'INBOX' else looks[e]
             g, a = look[phase]
-            ch[(y + 2) * 40 + x] = g
-            at[(y + 2) * 40 + x] = a
-    return F.render_cells(ch, at, 40, 25, scale=2)
+            ch[(y + 1) * cw + x] = g
+            at[(y + 1) * cw + x] = a
+    return F.render_cells(ch, at, cw, chh, scale=scale)
 
 
 if __name__ == '__main__':

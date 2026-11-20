@@ -10,7 +10,7 @@ model with the real program in the simulator after every tick.
 import caves as C
 
 E = C.E
-W = C.W
+W = C.MW                             # map row stride (64), as in the Z80 program
 K_UP, K_DOWN, K_LEFT, K_RIGHT, K_FIRE = 1, 2, 4, 8, 16
 OFF = (-1, -W, 1, W)                 # dir 0 left, 1 up, 2 right, 3 down
 SPACE, DIRT, BRICK, MAGIC, STEEL = E['SPACE'], E['DIRT'], E['BRICK'], E['MAGIC'], E['STEEL']
@@ -27,10 +27,12 @@ class Game:
         c = cave or C.caves()[index]
         self.cave = c
         self.index = index
-        self.g = [STEEL] * (W * C.H)
-        for y in range(1, C.H - 1):
-            for x in range(1, W - 1):
+        self.w, self.h = c.w, c.h
+        self.g = [STEEL] * (W * C.MH)
+        for y in range(1, c.h - 1):
+            for x in range(1, c.w - 1):
                 self.g[y * W + x] = E[c.g[y][x]]
+        self.scan_cells = [y * W + x for y in range(1, c.h - 1) for x in range(c.w)]
         self.pl_addr = self.g.index(INBOX)
         self.exit_addr = self.g.index(EXIT)
         self.need, self.dval, self.xval = c.need, c.dval, c.xval
@@ -109,7 +111,7 @@ class Game:
         g = self.g
         self.amoeba_cnt = 0
         self.amoeba_grow = 0
-        for i in range(W, W * (C.H - 1)):
+        for i in self.scan_cells:
             v = g[i]
             if v == 0:
                 continue

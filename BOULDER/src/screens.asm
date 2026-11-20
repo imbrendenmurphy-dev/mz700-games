@@ -401,7 +401,7 @@ patch_reset:
         ld (flash),a
         ld (magic_state),a
         ld (pl_moved),a
-        ret
+        jp set_theme                ; front-end pages use the first wing's looks
 
 ; patch the player look for every phase (front-end animation)
 patch_looks_pl:

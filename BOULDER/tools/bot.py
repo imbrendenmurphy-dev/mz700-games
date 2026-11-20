@@ -20,7 +20,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import caves as C  # noqa: E402
 import engine as EN  # noqa: E402
 
-W = C.W
+W = EN.W                      # map row stride
 DIRKEY = {-1: EN.K_LEFT, 1: EN.K_RIGHT, -W: EN.K_UP, W: EN.K_DOWN}
 NAMEKEY = {'L': EN.K_LEFT, 'R': EN.K_RIGHT, 'U': EN.K_UP, 'D': EN.K_DOWN}
 CREATURES = set(range(EN.FIRE0, EN.AMOEBA))
@@ -310,9 +310,9 @@ SHOWCH = {EN.SPACE: ' ', EN.DIRT: '.', EN.BRICK: '#', EN.MAGIC: 'M', EN.STEEL: '
 
 def show(g):
     rows = []
-    for y in range(C.H):
+    for y in range(g.h):
         r = ''
-        for x in range(W):
+        for x in range(g.w):
             m = g.g[y * W + x] & 31
             r += SHOWCH.get(m, 'F' if EN.FIRE0 <= m < EN.BUTT0 else 'B' if m < EN.AMOEBA else '!')
         rows.append(r)
