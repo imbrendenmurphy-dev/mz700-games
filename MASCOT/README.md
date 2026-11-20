@@ -26,7 +26,8 @@ of the 8253 sound chip.
 | SPACE / Z | jump (hold to jump higher) |
 | X / M | tongue: eat enemies, grab gems |
 | C / N | change colour (from World 2) |
-| UP / DOWN | climb vines; DOWN on a plank drops through it |
+| UP / DOWN | climb vines |
+| DOWN | duck: the tongue then skims the ground (on a plank: drop through) |
 | CR | pause |
 | BREAK | quit to the title |
 

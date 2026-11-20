@@ -388,7 +388,7 @@ HOWTO:
         db 8,4,70h,  "X / M ............... TONGUE",0
         db 9,4,70h,  "C / N ....... CHANGE COLOUR",0
         db 10,4,70h, "UP / DOWN ..... CLIMB VINES",0
-        db 11,4,50h, "  DOWN ON A PLANK: DROP DOWN",0
+        db 11,4,50h, "  DOWN: DUCK  (ON A PLANK: DROP)",0
         db 12,4,70h, "CR PAUSE        BREAK QUIT",0
         db 15,8,60h, "GEM ...... 10 POINTS",0
         db 16,8,60h, "APPLE .... ONE HEART",0

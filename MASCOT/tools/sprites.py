@@ -41,6 +41,9 @@ F('K_CLIMB2', '.      1A5:G   189:W/K   1BF:G\n.      043:G   043:G     .\n.    
 F('K_HURT', '.      1A5:G   18B:W/K   07A:G/M\n' + BODY + '\n.      146:G   148:G     .', -1, -2)
 F('K_WIN', '.      1A5:G   0E3:K/W   1BF:G\n' + BODY + '\n.      1BE:G   1BE:G     .', -1, -2)
 F('K_DEAD', '.      1A5:G   165:K/W   07A:G/M\n' + BODY + '\n.      146:G   148:G     .', -1, -2)
+# ducking: head down level with the feet, so the tongue skims the ground
+F('K_DUCK', '.      .       .         .\n.      1A5:G   043:G     .\n165:G  043:G   189:W/K   1BF:G', -1, -2)
+F('K_DUCKT', '.      .       .         .\n.      1A5:G   043:G     .\n165:G  043:G   189:W/K   07A:G/M', -1, -2)
 # tongue pieces (1 cell): shaft and tip, drawn level with the snout
 F('TONGUE', '03E:M', 0, 0, mirror=False)
 F('TONGUE_TIP', '13E:M', 0, 0, mirror=False)

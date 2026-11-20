@@ -1,4 +1,4 @@
-; =====================================================================
+﻿; =====================================================================
 ;  pilot.asm - the attract-mode demo player
 ;
 ;  Runs right; jumps (holding the button for a full jump) when there is a
@@ -7,7 +7,14 @@
 ; =====================================================================
 
 pilot_keys:
-        ld c,K_RIGHT
+        ld a,(pilot_duck)           ; crouched, licking along the ground
+        or a
+        jr z,.up
+        dec a
+        ld (pilot_duck),a
+        ld a,K_DOWN
+        ret
+.up:    ld c,K_RIGHT
         ld a,(pilot_hold)
         or a
         jr z,.free
@@ -50,8 +57,35 @@ pilot_keys:
         inc b
         dec e
         jr nz,.scan
-        pop bc
+        ; nothing at head height: something low on the ground?
+        ld a,(hgnd)
+        or a
+        jr z,.none
+        ld a,(ky)
+        ld c,a
+        ld a,(kx)
+        add a,3
+        ld b,a
+        ld e,4
+.low:   push de
+        call obj_at_point
+        pop de
+        jr c,.flow
+        inc b
+        dec e
+        jr nz,.low
+.none:  pop bc
         jr .done
+.flow:  pop bc
+        ld a,(ix+O_FL)
+        and OF_EAT
+        jr z,.done
+        ld c,K_DOWN|K_TONGUE
+        ld a,12
+        ld (pilot_t),a
+        ld (pilot_duck),a
+        ld a,c
+        ret
 .found: pop bc
         ld a,(ix+O_FL)
         and OF_EAT
