@@ -47,6 +47,8 @@ HA_CLIMB2       equ 11
 HA_HURT         equ 12
 HA_WIN          equ 13
 HA_DEAD         equ 14
+HA_DUCK         equ 15
+HA_DUCKT        equ 16
 
 HFRAMES:
         dw FR_K_STAND_R, FR_K_STAND_L, FR_K_BLINK_R, FR_K_BLINK_L
@@ -56,7 +58,8 @@ HFRAMES:
         dw FR_K_SQUASH_R, FR_K_SQUASH_L, FR_K_TONGUE_R, FR_K_TONGUE_L
         dw FR_K_CLIMB1_R, FR_K_CLIMB1_L, FR_K_CLIMB2_R, FR_K_CLIMB2_L
         dw FR_K_HURT_R, FR_K_HURT_L, FR_K_WIN_R, FR_K_WIN_L
-        dw FR_K_DEAD_R, FR_K_DEAD_L
+        dw FR_K_DEAD_R, FR_K_DEAD_L, FR_K_DUCK_R, FR_K_DUCK_L
+        dw FR_K_DUCKT_R, FR_K_DUCKT_L
 RUNSEQ: db HA_RUN1, HA_RUN2, HA_RUN3, HA_RUN2
 
 ; Kiko's three colours: red, green, blue (index 0-2)
@@ -147,7 +150,8 @@ hero_update:
         ld (hkeys),a
         ld (hpress),a
         ld (hjbuf),a
-.ctl:   ld a,(hpress)
+.ctl:   call duck_check
+        ld a,(hpress)
         and K_SWAP
         call nz,try_swap
         ld a,(hpress)
@@ -177,6 +181,44 @@ hero_update:
 .post:  call hero_touch
         jp hero_anim
 
+; DOWN on solid ground (or a moving platform) = duck; DOWN on a plank
+; still drops through it.  The duck lasts while a low tongue is out.
+duck_check:
+        ld a,(htngst)               ; keep the pose for a low tongue
+        or a
+        jr z,.chk
+        ld a,(htngdy)
+        or a
+        ret z
+.chk:   xor a
+        ld (hduck),a
+        ld a,(hstate)
+        or a
+        ret nz
+        ld a,(hgnd)
+        or a
+        ret z
+        ld a,(hkeys)
+        and K_DOWN
+        ret z
+        ld a,(hdrop)
+        or a
+        ret nz
+        ld a,(ky)
+        inc a
+        ld c,a
+        ld a,(kx)
+        ld b,a
+        ld d,2
+        call tflags_row
+        and F_SOLID
+        jr nz,.yes
+        call plat_under
+        ret nc
+.yes:   ld a,1
+        ld (hduck),a
+        ret
+
 ; HL -> byte: decrement unless zero
 dec_nz:
         ld a,(hl)
@@ -191,12 +233,26 @@ dec_nz:
 hero_walk:
         ld a,(hkeys)
         and K_LEFT|K_RIGHT
+        ld b,a
+        ld a,(hduck)                ; ducking: turn on the spot, no running
+        or a
+        ld a,b
+        jr z,.run
         cp K_RIGHT
+        jr nz,$+6
+        xor a
+        ld (hdir),a
+        cp K_LEFT
+        jr nz,.fric
+        ld a,1
+        ld (hdir),a
+        jr .fric
+.run:   cp K_RIGHT
         jr z,.right
         cp K_LEFT
         jr z,.left
         ; no input: friction toward 0
-        ld a,(hgnd)
+.fric:  ld a,(hgnd)
         or a
         ld c,FRIC_G
         jr nz,$+4
@@ -822,6 +878,12 @@ tongue_start:
         ret z
         ld a,1
         ld (htngst),a
+        ld a,(hduck)                ; ducking: the tongue skims the ground
+        or a
+        ld a,2
+        jr z,$+3
+        xor a
+        ld (htngdy),a
         xor a
         ld (htngl),a
         ld (htngt),a
@@ -860,7 +922,8 @@ tongue_update:
 ; B,C = tongue tip cell (from kx, ky, hdir, htngl)
 tongue_tip_pos:
         ld a,(ky)
-        sub 2
+        ld hl,htngdy
+        sub (hl)
         ld c,a
         ld a,(hdir)
         or a
@@ -1159,6 +1222,16 @@ hero_anim:
         ld b,a
         jr .set
 .notclimb:
+        ld a,(hduck)
+        or a
+        jr z,.noduck
+        ld a,(htngst)
+        or a
+        ld b,HA_DUCK
+        jr z,.set
+        ld b,HA_DUCKT
+        jr .set
+.noduck:
         ld a,(htngst)
         or a
         ld b,HA_TONGUE
@@ -1270,7 +1343,10 @@ hero_draw:
         ld hl,FR_TONGUE_TIP
         ld e,a
         ld a,(ky)
-        sub 2
+        push hl
+        ld hl,htngdy
+        sub (hl)
+        pop hl
         ld c,a
         ld a,(hdir)
         or a

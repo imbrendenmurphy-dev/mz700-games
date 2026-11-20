@@ -131,6 +131,8 @@ touch_hurt:     ds 1
 swap_ghost:     ds 1
 swap_new:       ds 1
 tng_i:          ds 1
+hduck:          ds 1
+htngdy:         ds 1
 ; objects
 ow_ledge:       ds 1
 ov_top:         ds 1
@@ -144,6 +146,7 @@ pilot_hold:     ds 1
 pilot_lastx:    ds 1
 pilot_stuck:    ds 1
 pilot_t:        ds 1
+pilot_duck:     ds 1
 ; front end
 fe_left:        ds 1
 fe_clock:       ds 1
