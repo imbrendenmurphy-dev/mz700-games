@@ -11,6 +11,7 @@ ROM, no PCG), loadable from tape or a UniCMT USB cassette emulator.
 | [Kiko and the Colour Thief](MASCOT/) | 1.0: mascot platformer, 4 worlds / 12 levels / 4 bosses, colour-swap mechanic, title music, attract mode with AI demo, ending (`release/KIKO.MZT`) |
 | [Rockfall](BOULDER/) | 1.0: cave-digging game, 16 caves, falling boulders, fireflies, butterflies, amoeba, magic wall, title music, attract mode with AI demo (`release/ROCKFALL.MZT`) |
 | [Skink and the Sun Mosaic](REPTON/) | 1.0: Repton 2-style adventure, 14 linked caverns that remember everything, scrolling 2x2-character tiles, eggs, beasts, spirits, mould, switches, tape saves, verified solution (`release/SKINK.MZT`) |
+| [Circus 2](CIRCUS2/) | 1.0: conversion of the VZ300 seesaw-and-balloons game, 9 acts + encore, 2 bonus rounds, 7 power-ups, monkey and ring of fire, circus march, attract mode with AI demo, high-score entry (`release/CIRCUS2.MZT`) |
 
 Each game folder has its source, a Python build script (no extra packages
 needed) and a ready-to-load `.MZF` in `release/`.
