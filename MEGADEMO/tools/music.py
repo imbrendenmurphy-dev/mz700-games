@@ -240,6 +240,9 @@ def song():
     tunnel = (bars_from(PROG_B, drums=DRUMS_HATS, bass='walk', arp=True) +
               lead_bars(PROG_B, MEL_D, drums=DRUMS_FULL, bass='walk'))
     S.append(('tunnel', tunnel))
+    kefrens = (bars_from(PROG_C, drums=DRUMS_FOUR, bass='walk', arp=True, arp_oct=5) +
+               lead_bars(PROG_C, MEL_C, drums=DRUMS_FULL, bass='pulse'))
+    S.append(('kefrens', kefrens))
     dots = (lead_bars(PROG_A, MEL_A, drums=DRUMS_FOUR, bass='octave') +
             lead_bars(PROG_B, MEL_A2, drums=DRUMS_FULL, bass='octave') +
             lead_bars(PROG_C, MEL_C, drums=DRUMS_FULL, bass='pulse'))

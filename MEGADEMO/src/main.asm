@@ -78,6 +78,11 @@ demo_loop:
         ld a,(mus_pos)
         cp (hl)
         jr nz,.frame
+        ld a,2                  ; a part may have run with interrupts off:
+        ld (0E006h),a           ; re-arm counter 2 (drops a stale tick)
+        xor a
+        ld (0E006h),a
+        ei
         inc hl
         ld a,(hl)
         inc hl
@@ -110,6 +115,8 @@ script: dw intro_init,  intro_frame
         dw roto_init,   roto_frame
         db BAR_TUNNEL, 0
         dw tunnel_init, tunnel_frame
+        db BAR_KEFRENS, 0
+        dw kefrens_init, kefrens_frame
         db BAR_DOTS, 0
         dw dots_init,   dots_frame
         db BAR_GREETS, 0
@@ -127,6 +134,7 @@ script_ptr: dw 0
         include "fx_plasma.asm"
         include "fx_roto.asm"
         include "fx_tunnel.asm"
+        include "fx_kefrens.asm"
         include "fx_dots.asm"
         include "fx_greets.asm"
         include "fx_end.asm"

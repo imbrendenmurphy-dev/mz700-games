@@ -432,6 +432,7 @@ def gen():
 
     # ---- dots
     sh, proj, n = shapes()
+    w('kf_caption:'); w(db(disp(centre('KEFRENS BARS WITHOUT A RASTER INTERRUPT')) + [0xFF]))
     w('rz_cap1:'); w(db(disp(centre('- ROTOZOOMER -')) + [0xFF]))
     w('rz_cap2:'); w(db(disp(centre('40 X 50 PIXELS FROM 1000 ATTRIBUTE BYTES')) + [0xFF]))
     w('dot_shapes:'); w(db(sh, 12))
@@ -443,6 +444,10 @@ def gen():
             v = i if i < 64 else i - 128
             pt.append(int(round(v * f / 128.0)) & 0xFF)
     L.insert(L.index('ROTEX:'), 'PROJT:' + NL + db(pt))
+    kpos = [int(round(11.5 + 11.5 * math.sin(i * 2 * math.pi / 256))) for i in range(256)]
+    kpos2 = [int(round(11.5 + 11.5 * math.sin(i * 2 * math.pi / 128))) for i in range(256)]
+    assert max(kpos) + max(kpos2) <= 46
+    L.insert(L.index('ROTEX:'), 'KPOS:' + NL + db(kpos) + NL + db(kpos2))
     srow = []
     for a in range(256):
         sv = int(round(127 * math.sin(a * 2 * math.pi / 256)))
