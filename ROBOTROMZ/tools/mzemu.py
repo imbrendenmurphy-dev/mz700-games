@@ -40,6 +40,8 @@ class MZ:
         s.vram_writes = []      # (t, addr) log when enabled
         s.log_writes = False
         s.snd = None            # list -> log (t, addr, value) of 8253 / gate writes
+        s.c1_load = 0           # counter 1: counts HSYNC from 65536 (mode 2)
+        s.c1_latch = []
         s.cpu = Z80(s.rd, s.wr, lambda p: 0xFF, s.outp)
         s.cpu.pc = exe
         s.cpu.t = 3000          # arbitrary phase
@@ -86,7 +88,12 @@ class MZ:
             if a < 0xE010:
                 if a == 0xE000:
                     s.row = v & 0x0F
-                elif s.snd is not None and 0xE004 <= a <= 0xE008:
+                elif a == 0xE005:
+                    s.c1_load = s.now()     # (re)load: count from 65536
+                elif a == 0xE007 and v == 0x40:
+                    n = s.c1_now()
+                    s.c1_latch = [n & 0xFF, n >> 8]
+                if s.snd is not None and 0xE004 <= a <= 0xE008:
                     s.snd.append((s.now(), a, v))
                 return
         s.mem[a] = v
@@ -106,10 +113,19 @@ class MZ:
         if a == 0xE002:
             v = (0x80 if line < VIS_LINES else 0) | 0x50
             return v ^ 0x80 if s.inv_vblk else v
+        if a == 0xE005:
+            if not s.c1_latch:
+                n = s.c1_now()
+                s.c1_latch = [n & 0xFF, n >> 8]
+            return s.c1_latch.pop(0)
         if a == 0xE008:
             hb = x >= 128
             return (0 if hb else 0x80) | 0x7E
         return 0xFF
+
+    def c1_now(s):
+        lines = int((s.now() - s.c1_load) * 5 // LINE_MC)
+        return (65536 - lines) & 0xFFFF
 
     # ------------------------------------------------ running
     def step(s):

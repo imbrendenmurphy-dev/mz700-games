@@ -4,6 +4,7 @@
 polx:       db 0
 drops:      dw 0
 slack:      dw 0
+duectr:     dw 0        ; counter 1 when this tick was due
 seed:       dw 0ACE1h
 framecnt:   db 0
 

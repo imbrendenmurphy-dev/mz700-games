@@ -51,7 +51,37 @@ detect_vblank:
 ; wait for the start of the next vertical blank
 ; (a tick always starts at the start of a vertical blank, so if we are
 ;  still inside one it is the same one: wait for the next)
+; Ticks are paced on 8253 counter 1, which counts scan lines (312 a field).
+; A tick that runs late (past the next vertical blank) does not wait for
+; the one after: the next tick starts at once to catch up, so the game
+; keeps its 50 ticks a second through the busy moments.  More than three
+; fields behind, it gives up and waits for the next blank.
 wait_vblank:
+        call read_ctr1          ; HL = counter now (it counts down)
+        ex de,hl
+        ld hl,(duectr)
+        or a
+        sbc hl,de               ; HL = lines since this tick was due
+        ld bc,312
+        or a
+        sbc hl,bc
+        jr c,sync_vblank        ; on time: wait for the vertical blank
+        ld bc,2*312
+        sbc hl,bc
+        jr nc,sync_vblank       ; hopelessly late: start afresh
+        ld hl,(duectr)          ; catch up: due one field after the last
+        ld bc,-312
+        add hl,bc
+        ld (duectr),hl
+        ld hl,0
+        ld (slack),hl
+        ld hl,(drops)           ; (count the catch-ups)
+        inc hl
+        ld (drops),hl
+        ret
+
+; wait for the start of the next vertical blank, and note the time
+sync_vblank:
         ld hl,PPIC
         ld a,(polx)
         ld c,a
@@ -69,8 +99,7 @@ wait_vblank:
         xor c
         rla
         jr c,.w1
-        ld (slack),de           ; idle time, 33 T per count
-        ret
+        jp stamp_due
 
 ; the same, re-rolling the noise divisor all the time we wait
 ; (each noise_out is ~250 T: counted as 8 loops in the idle figure)
@@ -87,14 +116,29 @@ wait_noisy:
         jr nc,.nd
         call .roll
         jr .n1
-.nd:    ld (slack),de
-        ret
+.nd:    jp stamp_due
 .roll:  call noise_out
         ld a,e
         add a,8
         ld e,a
         ret nc
         inc d
+        ret
+
+stamp_due:
+        ld (slack),de           ; idle time, 33 T per count
+        call read_ctr1
+        ld (duectr),hl          ; this tick is due now
+        ret
+
+; HL = 8253 counter 1 (latched)
+read_ctr1:
+        ld a,40h
+        ld (CTRL),a
+        ld a,(CTR1)
+        ld l,a
+        ld a,(CTR1)
+        ld h,a
         ret
 
 ; ---------------------------------------------------------------------
@@ -534,7 +578,7 @@ refresh_all:
         ld de,SAT
         ld bc,1000
         ldir
-        call wait_vblank
+        call sync_vblank
         ld hl,SAT
         ld de,CRAM
         ld bc,1000

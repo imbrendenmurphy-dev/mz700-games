@@ -115,7 +115,7 @@ def main():
         slack = m.mem[sym['slack']] | m.mem[sym['slack'] + 1] << 8
         busy = (m.cpu.t - start - slack * 33) / LT
         st = m.mem[sym['state']]
-        stats.append((t, busy, st, m.mem[sym['wave']], m.mem[sym['alive']], m.mem[sym['lives']]))
+        stats.append((t, busy, st, m.cpu.t, m.mem[sym['wave']], m.mem[sym['alive']], m.mem[sym['lives']]))
         if t in shots or (not shots and t % 250 == 0):
             m.screen(2).save(os.path.join(OUT, '%s_%04d.png' % (name, t)))
     el = time.time() - t0
@@ -124,8 +124,12 @@ def main():
     print(' tick  lines  state wave alive lives')
     for s in stats:
         if s[0] % 100 == 0:
-            print('%5d  %5.0f  %4d %4d %5d %5d' % s)
+            print('%5d  %5.0f  %4d %4d %5d %5d' % (s[:3] + s[4:]))
     play = [s[1] for s in stats if s[2] == 1]
+    pt = [s[3] for s in stats if s[2] == 1]
+    if len(pt) > 1:
+        print('PLAY speed: %.1f game ticks a second (50 = full speed)' %
+              ((len(pt) - 1) / ((pt[-1] - pt[0]) / 3546875.0)))
     if play:
         print('PLAY ticks %d: busy avg %.0f max %.0f lines (312 per field), over: %d' %
               (len(play), sum(play) / len(play), max(play), sum(1 for b in play if b > 312)))

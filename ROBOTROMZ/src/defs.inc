@@ -9,6 +9,7 @@ KROW    equ 0E000h      ; 8255 port A: keyboard row strobe (F0h + row)
 KCOL    equ 0E001h      ; 8255 port B: keyboard columns, active low
 PPIC    equ 0E002h      ; 8255 port C: bit 7 = /VBLK
 CTR0    equ 0E004h      ; 8253 counter 0: sound tone
+CTR1    equ 0E005h      ; 8253 counter 1: counts scan lines (tick pacing)
 CTRL    equ 0E007h      ; 8253 control word
 SNDGATE equ 0E008h      ; bit 0 = sound on
 

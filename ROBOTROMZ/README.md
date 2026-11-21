@@ -10,6 +10,8 @@ whose colour changes from wave to wave. It's inspired by the Robotron style
 of game but contains nothing from it. Original code, music and sound effects,
 ViBED by BPM 2026.
 
+![ROBOGEDDON 2085](showcase/robogeddon.gif)
+
 ![title](docs/title.png) ![wave 5](docs/wave5.png)
 ![the robots](docs/robots.png) ![wave clear](docs/fireworks.png)
 ![wave caption](docs/caption.png) ![how to play](docs/howto.png)
@@ -18,7 +20,7 @@ ViBED by BPM 2026.
 
 - **Real MZ-700 / UniCMT:** copy `release/ROBOGEDN.MZT` to the USB stick
   (`release/ROBOGEDN.MZF` is the same file under the other common extension)
-  and load it like a tape (`L` from the monitor). It loads at 1200h-4A45h and
+  and load it like a tape (`L` from the monitor). It loads at 1200h-4B53h and
   starts by itself.
 - **MZ700WIN:** File > Open `release/ROBOGEDN.MZT`.
 
@@ -148,19 +150,22 @@ The table lasts until you switch off.
 
 ### Speed
 
-In the test model (which assumes video RAM wait states on every line, which
-is pessimistic), ordinary waves run at a steady 50 fps with all the particles.
-The big waves (11 on, 50-70 robots, humans and hatchlings) average 75-85% of
-a field per tick and drop the odd frame in their busiest seconds: 2-13% of
-ticks, depending on the wave. At most 5 homing missiles are in the air at
-once.
+The game runs 50 ticks a second, one per PAL field. Ticks are paced on 8253
+counter 1, which counts scan lines: a tick that runs past the next vertical
+blank doesn't wait for the one after; the next tick starts at once and
+catches up (more than three fields behind, it gives up and resyncs). In the
+test model (which assumes video RAM wait states on every line, which is
+pessimistic) ordinary waves use about 40% of each field; the big waves
+(11 on, 50-70 robots, humans and hatchlings) average 80-95% and now hold
+49-50 ticks a second where they used to sag to 41-48. At most 5 homing
+missiles are in the air at once. `play.py` prints the measured game speed.
 
 ### Memory map
 
 | Address | Use |
 |---|---|
 | 1000h-11FFh | stack (monitor work area; the game never returns to the monitor) |
-| 1200h-4A45h | code and data |
+| 1200h-4B53h | code and data |
 | 8000h-87FFh | object layer (chars, attributes) |
 | 8800h-8BFFh | redraw flags |
 | 8C00h-8DFFh | particles (32 x 16 bytes) |
@@ -210,19 +215,17 @@ included).
 | `tools/build.py` | logo and caption-font generator, assembler run, MZT/MZF wrapper |
 | `tools/mzemu.py`, `tools/z80.py` | MZ-700 test model (with VRAM wait states) and Z80 |
 | `tools/sndwav.py` | renders the title tune, every effect and a game to WAV |
+| `tools/showcase.py` | showcase stills and GIF from the real build |
 
 ## Status
 
-Version 0.3: complete and playable in the test model, **not yet tried on
-real hardware**. Things to check on a real machine:
+Version 1.0. **Tested on a real European MZ-700**, loaded from a UniCMT:
+moving and firing diagonally at once (four keys held) works, DEL works, and
+the sound is right.
 
-- **Keyboard ghosting.** Holding four keys at once (move diagonally while
-  firing diagonally) may give phantom key presses if the MZ-700 matrix has no
-  diodes. If moving and firing interfere, say which keys, and the fire keys
-  can be moved to a different part of the matrix.
-
-- **The DEL key** for rubbing out initials is assumed to be row 7, bit 6 of
-  the keyboard matrix. If it doesn't work, RETURN still finishes the entry.
+`showcase/` has the blurb with the tech specs and RAM table
+([showcase/BLURB.md](showcase/BLURB.md)), gameplay and attract stills, and a
+showcase GIF, all made by `py tools/showcase.py` from the real build.
 
 Everything in the VZ version is now in, apart from keeping the high scores
 when you switch off (the VZ saves them in its SRAM card; the MZ-700 has

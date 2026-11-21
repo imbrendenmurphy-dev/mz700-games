@@ -15,6 +15,11 @@
 init_hw:
         ld a,36h                ; counter 0: LSB/MSB, mode 3 (square wave)
         ld (CTRL),a
+        ld a,74h                ; counter 1: LSB/MSB, mode 2, count 65536:
+        ld (CTRL),a             ; it counts scan lines, for tick pacing
+        xor a
+        ld (CTR1),a
+        ld (CTR1),a
         xor a
         ld (SNDGATE),a
         ret
