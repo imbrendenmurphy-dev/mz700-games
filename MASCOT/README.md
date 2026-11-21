@@ -31,6 +31,28 @@ of the 8253 sound chip.
 | CR | pause |
 | BREAK | quit to the title |
 
+### Joystick (optional)
+
+A Sharp **MZ-1X03** joystick in port 1 can be used. Press **J** on the title
+pages to open the joystick page, then press **J** again to turn the joystick
+on (SPACE goes back). The setting lasts until you reset the machine. The keys
+keep working alongside it.
+
+| Joystick | Action |
+|---|---|
+| stick | run, climb, duck |
+| fire 1 | jump (also starts the game from the title) |
+| fire 2 | tongue |
+| UP + fire 2 | change colour |
+
+The joystick page also has a live test:
+- The words LEFT / RIGHT / UP / DOWN / F1 / F2 light up for what the game sees.
+- The raw readings are shown: the length of each stick pulse in scan lines,
+  and the button lines during the picture.
+
+If the stick doesn't behave, a photo of that page shows what the hardware is
+doing.
+
 ## The game
 
 - **4 worlds, 12 levels, 40 flip-screen rooms:** Sunny Meadows, Ember
@@ -71,6 +93,7 @@ py build.py preview         also draw every room and level map to build/rooms/
 py tools/reach.py           solver: every level finishable, every pickup reachable
 py tools/test_boss.py       beat all four bosses in the simulator
 py tools/test_flow.py       final boss -> tally -> ending -> high-score entry
+py tools/test_joy.py        joystick page and play with the simulated MZ-1X03
 py tools/perf.py 0 1500     frame drops under the conservative VRAM wait model
 py tools/run.py N shots --keys "f:key+key,..."   scripted run with screenshots
 py tools/wav.py 40 out.wav  record the title music
@@ -86,6 +109,7 @@ py tools/wav.py 40 out.wav  record the title music
 | `src/pilot.asm` | the demo AI |
 | `src/game.asm` | level flow, HUD, pause |
 | `src/screens.asm` | front end |
+| `src/joy.asm` | MZ-1X03 joystick reading and the joystick page |
 | `src/sound.asm` | one-voice tracker (from OVERRIDE) |
 | `tools/levels.py` | all level maps (ASCII) |
 | `tools/tiles.py`, `sprites.py`, `screens.py`, `music.py` | tiles, sprite cell art, pictures, songs |
@@ -112,9 +136,9 @@ py tools/wav.py 40 out.wav  record the title music
 
 ## Testing status
 
-- Everything here was tested **only in the Python Z80/MZ-700 simulator**
-  (`tools/mzsim.py`). It has **not** been run on real hardware or in a
-  third-party emulator yet.
+- The game has been played on a real MZ-700 (the title pages and World 1).
+  Everything else was tested only in the Python Z80/MZ-700 simulator
+  (`tools/mzsim.py`).
 - What was tested in the simulator:
   - The attract loop and the demo pilot finishing 1-1.
   - All four bosses beaten (test harness).
@@ -127,4 +151,21 @@ py tools/wav.py 40 out.wav  record the title music
   - Hand play-testing of difficulty, particularly the colour-switch jumps in
     Worlds 2–4 and the inkblots.
   - Further art polish (W3 ground texture, small-enemy sprites) is possible.
-- There is no joystick support: the stock MZ-700 has none.
+- **Joystick: not yet tried on a real MZ-1X03.**
+  - No hardware documentation for the stick was available. The reading
+    follows the two emulators that model it, the MiSTer SharpMZ core and
+    MZRaku. Both put the stick and buttons on E008h bits 1-4.
+  - Timing as modelled:
+    - At the start of vertical blank each axis line goes low for a time set
+      by the stick: about 0 lines held left/up, 16-19 centred, 32-37 held
+      right/down.
+    - While the picture is shown, the same lines carry the fire buttons.
+  - The game samples each axis twice in the blanking (lines 4-10 and 21-26)
+    and the buttons during the picture.
+  - Safety: nothing counts until a line has given a normal reading, so an
+    empty port or a stuck line does nothing.
+  - `tools/test_joy.py` passes with both emulators' timings, and with an
+    empty port and with stuck lines. The joystick costs no extra dropped
+    frames in `perf.py`.
+  - If the real stick differs (for example the pulses come at the other end
+    of the blanking), the numbers on the joystick page will show it.

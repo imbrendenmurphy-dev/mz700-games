@@ -156,4 +156,19 @@ title_music:    ds 1
 scroll_ptr:     ds 2
 hs_pos:         ds 1
 hiscores:       ds 8*6
+; joystick
+joy_on:         ds 1                ; bit 0 in use, bit 1 test page
+joy_s1:         ds 1
+joy_s2:         ds 1
+joy_btn:        ds 1
+joy_braw:       ds 1
+joy_got:        ds 1
+joy_seen:       ds 1
+joy_seen_k:     ds 1
+joy_w:          ds 4
+j_prev:         ds 1
+vb_ctr:         ds 2
+vb_ok:          ds 1
+fe_jok:         ds 1
+fe_joy:         ds 1
 vars_end:

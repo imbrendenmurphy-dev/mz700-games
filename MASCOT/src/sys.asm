@@ -46,6 +46,9 @@ detect_vblank:
 ; field and runs the sound tick.  Keeps every register except AF.
 ; ---------------------------------------------------------------------
 poll:
+        ld a,(joy_on)
+        or a
+        call nz,joy_service
         ld a,(KEYPC)
         and 80h
 pollcmp:
@@ -63,6 +66,31 @@ vblev:  cp 0                        ; VBLANK level (set by detect_vblank)
         push hl
         ld hl,fieldcnt
         inc (hl)
+        call read_ctr1              ; the joystick times from here
+        push hl
+        ex de,hl
+        ld hl,(vb_ctr)
+        or a
+        sbc hl,de                   ; lines since the last one: on time
+.vm:    ld de,-310                  ; if a whole number of fields (312
+        add hl,de                   ; lines each, +-2)
+        jr nc,.vbad
+        ld a,h
+        or a
+        jr nz,.vmore
+        ld a,l
+        cp 5
+        ld a,0FFh
+        jr c,.vst
+.vmore: dec hl
+        dec hl
+        jr .vm
+.vbad:  xor a
+.vst:   ld (vb_ok),a
+        pop hl
+        ld (vb_ctr),hl
+        xor a
+        ld (joy_got),a
         call snd_tick
         pop hl
         pop de
@@ -181,7 +209,10 @@ read_keys:
         or c
         ld c,a
         jr .l
-.e:     ld a,c
+.e:     ld a,(joy_on)
+        and 1
+        call nz,joy_bits
+        ld a,c
         and K_PAUSE
         ld (key_pause),a
         ld a,8                      ; row 8 bit 7: BREAK

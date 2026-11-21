@@ -79,6 +79,8 @@ start:
         call detect_vblank
         call init_once
 attract:
+        ld a,1
+        ld (fe_jok),a               ; J opens the joystick page
         call title_screen           ; NZ = start a game
         jr nz,.play
         call story_page
@@ -87,6 +89,8 @@ attract:
         jr nz,.play
         call hiscore_page
         jr nz,.play
+        xor a
+        ld (fe_jok),a
         ld a,1
         ld (demo),a
         call game
@@ -98,9 +102,17 @@ attract:
         jr attract
 .play:
         xor a
+        ld (fe_jok),a
+        ld a,(fe_joy)
+        or a
+        jr nz,.joy
         ld (demo),a
         call game
         call hiscore_entry
+        jr attract
+.joy:   xor a
+        ld (fe_joy),a
+        call joy_screen
         jr attract
 
 clear_vars:
@@ -118,6 +130,7 @@ init_once:
         ret
 
         include "sys.asm"
+        include "joy.asm"
         include "sound.asm"
         include "render.asm"
         include "room.asm"

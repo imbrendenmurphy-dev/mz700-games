@@ -24,7 +24,7 @@ KEYS = {
     'cr': (0, 0), 'left': (7, 2), 'right': (7, 3), 'down': (7, 4), 'up': (7, 5),
     'space': (6, 4), 'z': (1, 6), 'x': (2, 0), 'break': (8, 7), 'shift': (8, 0),
     'c': (4, 5), 'm': (3, 3), 'n': (3, 2), 'o': (3, 1), 'p': (3, 0), 'q': (2, 7),
-    '1': (5, 7), '2': (5, 6), '3': (5, 5), 'a': (4, 7), 's': (2, 5),
+    'j': (3, 6), '1': (5, 7), '2': (5, 6), '3': (5, 5), 'a': (4, 7), 's': (2, 5),
 }
 
 
@@ -49,6 +49,12 @@ class MZ700:
         self.gate = 0
         self.sound_log = []          # (t, gate, divisor)
         self.waits = 0
+        # MZ-1X03 joystick in port 1: None = nothing plugged in, else a dict
+        # x, y in -1/0/1 (left/up .. right/down), f1, f2 booleans.
+        # joy_model: 'mister' (68 + 28*pos T from VBLANK start), 'mzraku'
+        # (33*pos T) or 'stuck0' (every line held low).
+        self.joy = None
+        self.joy_model = 'mister'
         self.font = None
         if font_path and os.path.exists(font_path):
             # MZ-700 CG-ROM dumps store the leftmost pixel in bit 0; flip to MSB-left
@@ -110,6 +116,8 @@ class MZ700:
         if a == 0xE002:
             # bit7 = /VBLK (0 during vertical blanking), bit6 = cursor blink
             return 0x7F if self.line() >= VISIBLE_LINES else 0xFF
+        if a == 0xE008:
+            return self.e008()
         if a == 0xE005:
             if self.ctr1_latch is None:
                 self.ctr1_latch = [self.ctr1_now() & 0xFF, self.ctr1_now() >> 8]
@@ -118,6 +126,29 @@ class MZ700:
                 self.ctr1_latch = None
             return v
         return 0xFF
+
+    def e008(self):
+        v = 0xFF
+        j = self.joy
+        if j is None:
+            return v
+        if self.joy_model == 'stuck0':
+            return v & ~0x1E
+        ft = self.cpu.t % FIELD_T
+        start = VISIBLE_LINES * LINE_T
+        if ft >= start:
+            since = ft - start
+            for bit, d in ((1, j.get('x', 0)), (2, j.get('y', 0))):
+                pos = (0, 128, 255)[d + 1]
+                t = 68 + 28 * pos if self.joy_model == 'mister' else 33 * pos
+                if since < t:
+                    v &= ~(1 << bit)
+        else:
+            if j.get('f1'):
+                v &= ~0x02
+            if j.get('f2'):
+                v &= ~0x04
+        return v & 0xFF
 
     def ctr1_now(self):
         elapsed = int((self.cpu.t - self.ctr1_load_t) / LINE_T)

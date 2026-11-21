@@ -190,6 +190,7 @@ frame_step:
         ld (frame_result),a
         call wait_frame
         call flush
+        call joy_catch
         call hud_update
         ld hl,hint_t
         ld a,(hl)
@@ -203,7 +204,10 @@ frame_step:
         or a
         jr z,.human
         call anykey
+        jr nz,.abort
+        call joy_fire
         jr z,.nokey
+.abort:
         ld a,1
         ld (demo_abort),a
         jr .quit

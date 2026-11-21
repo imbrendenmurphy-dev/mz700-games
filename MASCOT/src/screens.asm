@@ -10,7 +10,12 @@ fe_wait:
         ld (fe_left),a
         call fe_reset
 .l:     call wait_field
-        ld hl,fe_clock
+        ld a,(fe_jok)
+        or a
+        jr z,.noj
+        call j_pressed
+        jr nz,.joy
+.noj:   ld hl,fe_clock
         inc (hl)
         ld hl,(fe_hook)
         ld a,h
@@ -30,6 +35,10 @@ fe_wait:
         or 1
         ret
 .hook:  jp (hl)
+.joy:   ld a,1                      ; to the joystick page
+        ld (fe_joy),a
+        or a
+        ret
 
 ; rainbow bar along row A
 rainbow_row:
@@ -96,6 +105,14 @@ title_screen:
         ld hl,txt_press
         ld c,17
         ld a,60h
+        call print_centre
+        ld hl,txt_jkey
+        ld a,(joy_on)
+        or a
+        jr z,$+5
+        ld hl,txt_jon
+        ld c,19
+        ld a,50h
         call print_centre
         ld hl,txt_credit
         ld c,21
@@ -242,6 +259,8 @@ title_more:
 txt_sub:        db "AND THE COLOUR THIEF",0
 txt_hi:         db "HI-SCORE",0
 txt_press:      db "PRESS SPACE TO PLAY",0
+txt_jkey:       db "J: JOYSTICK",0
+txt_jon:        db "JOYSTICK ON  (J: SET UP)",0
 txt_credit:     db "V",89h,"BED BY BPM",0
 txt_year:       db "SHARP MZ-700  2026",0
 txt_scroll:
@@ -394,6 +413,7 @@ HOWTO:
         db 10,4,70h, "UP / DOWN ..... CLIMB VINES",0
         db 11,4,50h, "  DOWN: DUCK  (ON A PLANK: DROP)",0
         db 12,4,70h, "CR PAUSE        BREAK QUIT",0
+        db 13,4,50h, "J ON THE TITLE: JOYSTICK",0
         db 15,8,60h, "GEM ...... 10 POINTS",0
         db 16,8,60h, "APPLE .... ONE HEART",0
         db 17,8,60h, "SMILE .... EXTRA LIFE",0

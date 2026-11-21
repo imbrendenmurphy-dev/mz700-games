@@ -46,6 +46,9 @@ list_add:
 ; flush (call at the start of VBLANK)
 ; ---------------------------------------------------------------------
 flush:
+        ld a,(joy_on)               ; first stick sample, ~8 lines in
+        or a
+        call nz,joy_service
         ld hl,(lista)
         ld de,(lista_end)
         call flush_list
@@ -64,6 +67,7 @@ flush:
 
 ; HL = list start, DE = list end
 flush_list:
+        ld b,6
 .l:     ld a,l
         cp e
         jr nz,.go
@@ -98,6 +102,11 @@ flush_list:
         ld (hl),a
 .n:     pop hl
         pop de
+        djnz .l
+        ld b,6                      ; every 6 cells: joystick sample due?
+        ld a,(joy_on)
+        or a
+        call nz,joy_service
         jr .l
 
 ; ---------------------------------------------------------------------
