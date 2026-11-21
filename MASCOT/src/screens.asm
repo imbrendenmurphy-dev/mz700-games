@@ -183,7 +183,11 @@ title_more:
         jr nc,.open
         ld a,43h
         ld c,40h
-.open:  call putc
+.open:  push af                      ; both eyes
+        call putc
+        pop af
+        dec de
+        call putc
         ; "PRESS SPACE" flashes
         ld a,(fe_clock)
         and 16

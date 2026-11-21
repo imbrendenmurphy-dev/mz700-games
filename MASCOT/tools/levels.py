@@ -69,10 +69,10 @@ level('1-1', 'SUNNY START', 'W1', 'SONG_MEADOW', 'A B C D', {
 """,
 'C': r"""
 
+
+    c               c
           o o
-    c   =======     c
-           |
-           |                 o o o o
+        =======              o o o o
            |
            |      o       =========
            |

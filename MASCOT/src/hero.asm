@@ -827,7 +827,7 @@ hero_climb:
         ret nz
         xor a                       ; top of the vine: hop off
         ld (hstate),a
-        ld hl,-80
+        ld hl,-110
         ld (hvy),hl
         ret
 .down:  ld a,4
