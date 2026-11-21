@@ -74,10 +74,13 @@ T_NONE          equ 0
 T_STATION       equ 1
 T_DART          equ 2
 T_MANTIS        equ 3
-T_HAULER        equ 4
-T_WARDEN        equ 5
-T_SEEKER        equ 6
-T_DEBRIS        equ 7
+T_RAPTOR        equ 4
+T_HAULER        equ 5
+T_WARDEN        equ 6
+T_ROCK          equ 7
+T_SEEKER        equ 8
+T_CANISTER      equ 9
+T_DEBRIS        equ 10
 
 ; input bits (read_flight)
 K_LEFT          equ 01h
@@ -114,15 +117,33 @@ start:
         ld hl,5A3Ch
         ld (seed),hl
 .attract:
-        call title_screen
-        call wait_release
+        call title_screen           ; NZ: start, Z: timed out
+        jr nz,.play
+        call demo
+        jr nz,.attract
+        call gallery
+        jr nz,.attract
+        call handbook
+        jr .attract
+.play:  call wait_release
         call new_game
+        ld a,(load_req)             ; L on the title: load a pilot first
+        or a
+        jr z,.launch
+        xor a
+        ld (load_req),a
+        call menu_load
+        ld a,(tape_ok)
+        or a
+        jr z,.attract
+        jr .docked
 .launch:
         call flight                 ; A: 0 destroyed, 1 docked, 2 jumped
         or a
         jr z,.dead
         cp 2
         jr z,.jump
+.docked:
         call docked_screen
         xor a
         ld (arrive),a
@@ -152,6 +173,8 @@ new_game:
         ld (has_twin),a
         ld (has_pod),a
         ld (has_booster),a
+        ld (has_scoop),a
+        ld (has_autodock),a
         inc a
         ld (seekers),a
         ld a,HOLDMAX
@@ -172,6 +195,8 @@ new_game:
         include "screens.asm"
         include "trade.asm"
         include "combat.asm"
+        include "attract.asm"
+        include "qol.asm"
 
 ; ---------------------------------------------------------------- data
         include "../build/gen_tables.inc"

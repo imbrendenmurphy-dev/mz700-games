@@ -302,11 +302,16 @@ award_kill:
         inc (hl)
         jr nz,$+3
         dec (hl)
-        ld de,150                       ; Dart 15.0, Mantis 25.0
-        ld a,(ix+O_TYPE)
-        cp T_MANTIS
-        jr nz,$+5
-        ld de,250
+        ld a,(ix+O_TYPE)                ; bounty by type
+        sub T_DART
+        add a,a
+        ld e,a
+        ld d,0
+        ld hl,BOUNTY
+        add hl,de
+        ld e,(hl)
+        inc hl
+        ld d,(hl)
         call cr_add
         ld hl,txt_kill
         jp message
@@ -418,6 +423,8 @@ legal_level:
         inc a
         ret
 
+BOUNTY: dw 150,250,600                 ; Dart, Mantis, Raptor (tenths)
+
 LEGAL_NAMES:
         db "CLEAN  ",0
         db "SUSPECT",0
@@ -461,7 +468,7 @@ txt_copshot:    db "YOU FIRED ON THE POLICE!",0
 ; ---------------------------------------------------------------------
 ; equipment shop (from the docked menu)
 ; ---------------------------------------------------------------------
-NEQUIP          equ 5
+NEQUIP          equ 7
 
 equip_screen:
         ld a,WHITE<<4
@@ -693,10 +700,12 @@ EQ_NAMES:
         db "TWIN LASER",0
         db "CARGO POD +15",0
         db "SHIELD BOOSTER",0
+        db "CARGO SCOOP",0
+        db "AUTO-DOCK",0
 EQ_COST:
-        dw SEEKER_COST,600,1500,800,1200
+        dw SEEKER_COST,600,1500,800,1200,900,2500
 EQ_TECH:
-        db 2,4,7,3,9
+        db 2,4,7,3,9,3,6
 
 txt_equip:      db "EQUIPMENT",0
 txt_ehead:      db "ITEM              PRICE    STATUS",0

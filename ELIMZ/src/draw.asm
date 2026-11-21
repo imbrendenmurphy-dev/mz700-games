@@ -26,11 +26,23 @@ plot:
         add a,a
         add a,a
 .t:     or (hl)
+        and 0Fh
+plotcol:
+        or 70h                      ; colour << 4 (self-modified by set_col)
         ld (hl),a
         ld a,l                      ; mark the row used (spare byte 63)
         or 3Fh
         ld l,a
         ld (hl),a
+        ret
+
+; A = colour (0..7) for the following plots
+set_col:
+        rlca
+        rlca
+        rlca
+        rlca
+        ld (plotcol+1),a
         ret
 
 ; plot with a bounds check: HL = x, DE = y (signed words).  Keeps BC.
@@ -88,6 +100,12 @@ present:
         jr .next
 .chg:   ld (hl),a
         res 3,h
+        set 3,d                     ; attribute: the dot colour on black
+        push af
+        and 70h
+        ld (de),a
+        pop af
+        res 3,d
         or 0F0h
         ld (de),a
         inc l

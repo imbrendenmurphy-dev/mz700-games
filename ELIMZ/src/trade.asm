@@ -534,6 +534,10 @@ docked_screen:
         jr z,.refuel
         cp 'E'
         jr z,.equip
+        cp 'S'
+        jr z,.save
+        cp 'L'
+        jr z,.load
         call read_flight
         and K_FIRE
         jr z,.keys
@@ -545,6 +549,11 @@ docked_screen:
 .chart: call chart_screen
         jp .menu
 .equip: call equip_screen
+        jp .menu
+.save:  call menu_save
+        jp .menu
+.load:  call menu_load
+        call gen_market
         jp .menu
 .refuel:
         ld a,(fuel)
@@ -573,7 +582,7 @@ menu_text:
         db 17,"M  MARKET",0
         db 18,"C  GALAXY CHART - CHOOSE A TARGET",0
         db 19,"F  REFUEL (0.2 CR PER 0.1 LY)",0
-        db 20,"E  EQUIPMENT",0
+        db 20,"E  EQUIPMENT   S/L  SAVE/LOAD PILOT",0
         db 21,"SPACE  LAUNCH   (H IN FLIGHT: JUMP)",0
         db 0FFh
 
@@ -912,6 +921,8 @@ chart_screen:
         call wait_release
         call fe_reset
 .loop:  call wait_frame
+        ld a,CYAN
+        call set_col
         ld hl,SYS_CX                    ; every star
 .st:    ld b,(hl)
         inc h
@@ -947,7 +958,13 @@ chart_screen:
         cp 2
         jr nc,$+4
         ld a,2
+        push af
+        ld a,GREEN
+        call set_col
+        pop af
         call circle
+        ld a,YELLOW
+        call set_col
         ld a,(ch_x)                     ; cursor
         ld b,a
         ld a,(ch_y)
@@ -1158,6 +1175,11 @@ hyper_jump:
         ld (cur_sys),a
         ld hl,legal                     ; the law forgets, slowly
         srl (hl)
+        call rand                       ; one jump in six: an ambush
+        cp 43
+        ld a,0
+        adc a,a
+        ld (ambush),a
         ld a,WHITE<<4
         call cls
         ld hl,SFX_JUMP
@@ -1172,6 +1194,9 @@ hyper_jump:
         ld (ccx),hl
         ld hl,CY
         ld (ccy),hl
+        ld a,b
+        and 7
+        call set_col
         ld a,37                         ; rings rush outwards
         sub b
         ld c,a

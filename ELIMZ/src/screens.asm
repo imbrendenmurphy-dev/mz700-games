@@ -42,10 +42,14 @@ title_screen:
         call fe_reset
         ld a,1
         ld (state),a                    ; no crosshair
+        ld hl,330                       ; then the attract sequence
+        ld (att_t),hl
 .loop:  call wait_frame
         ld ix,objects
         ld a,6
         call roll_to_side
+        ld a,CYAN
+        call set_col
         ld a,5
         call pitch_up
         call draw_obj
@@ -54,10 +58,27 @@ title_screen:
         ld hl,title_t
         dec (hl)
         call z,.next
-        call read_flight
+        call getkey                     ; L: load a saved pilot
+        cp 'L'
+        jr nz,.nl
+        ld a,1
+        ld (load_req),a
+        jr .start
+.nl:    call read_flight
         and K_FIRE
-        jr z,.loop
-        jp mus_stop
+        jr nz,.start
+        ld hl,(att_t)
+        dec hl
+        ld (att_t),hl
+        ld a,h
+        or l
+        jr nz,.loop
+        call mus_stop
+        xor a                           ; Z: time for the demo
+        ret
+.start: call mus_stop
+        or 1
+        ret
 .next:  ld a,(title_ship)
         inc a
         cp T_SEEKER
@@ -87,7 +108,7 @@ title_text:
         db SEP_ROW+1,WHITE<<4,"AN ORIGINAL SPACE TRADER FOR THE MZ-700",0
         db SEP_ROW+2,CYAN<<4,"CURSORS PITCH/ROLL  SPACE FIRE",0
         db SEP_ROW+3,CYAN<<4,"A/Z SPEED  H HYPERSPACE  DOCK: FLY IN",0
-        db SEP_ROW+4,GREEN<<4,"PRESS SPACE TO LAUNCH",0
+        db SEP_ROW+4,GREEN<<4,"SPACE: LAUNCH   L: LOAD PILOT",0
         db SEP_ROW+5,BLUE<<4,"MUSIC: J. STRAUSS II - BLUE DANUBE",0
         db 0FFh
 
@@ -113,7 +134,7 @@ stamp_title:
 .bit:   bit 2,a
         jr z,.z
         ex de,hl
-        ld (hl),0Fh
+        ld (hl),0Fh+(YELLOW<<4)
         ex de,hl
 .z:     inc de
         add a,a

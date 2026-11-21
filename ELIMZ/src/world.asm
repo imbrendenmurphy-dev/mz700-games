@@ -36,10 +36,27 @@ flight:
         ld a,(arrive)
         or a
         call z,customs
+        ld a,(ambush)
+        or a
+        call nz,do_ambush
 .loop:  ld a,(turbo)
         or a
         call z,wait_frame
-        call read_flight
+        ld a,(autoplay)
+        or a
+        jr z,.human
+        call anykey                     ; demo: any key ends it
+        jr nz,.abort
+        ld hl,(demo_t)
+        dec hl
+        ld (demo_t),hl
+        ld a,h
+        or l
+        jr z,.timeup
+        ld a,(state)
+        or a
+        call z,pilot
+.human: call read_flight
         ld (keys),a
         ld hl,frame
         inc (hl)
@@ -68,6 +85,11 @@ flight:
         ret
 .jumped:
         ld a,2
+        ret
+.abort: ld a,3
+        ret
+.timeup:
+        ld a,4
         ret
 
 world_init:
@@ -116,13 +138,18 @@ world_init:
         ld (energy),a
         xor a
         ld (heat),a
+        ld (autodock),a
         ld (hyper_t),a
         ld (hkey),a
         ld (laser_on),a
         ld (lcd),a
         ld (state),a
         ld (msg_t),a
+        ld a,(autoplay)                 ; the demo wants action at once
+        or a
         ld a,200
+        jr z,$+4
+        ld a,25
         ld (spawn_t),a
         ld hl,dust
         ld b,NDUST
@@ -285,7 +312,29 @@ read_flight:
         ld a,(hl)
         dec l
         cpl
-        and 48h                         ; J (bit 6), M (bit 3)
+        and 49h                         ; J (bit 6), M (bit 3), P (bit 0)
+        ld b,a
+        ld (hl),2
+        inc l
+        ld a,(hl)
+        dec l
+        cpl
+        and 20h                         ; S -> bit 1
+        rrca
+        rrca
+        rrca
+        rrca
+        or b
+        ld b,a
+        ld (hl),4
+        inc l
+        ld a,(hl)
+        dec l
+        cpl
+        and 10h                         ; D -> bit 2
+        rrca
+        rrca
+        or b
         ld (mkey),a
         ld (hl),8
         inc l
@@ -300,6 +349,9 @@ read_flight:
 ; controls: steering, speed, lasers
 ; ---------------------------------------------------------------------
 controls:
+        ld a,(autodock)
+        or a
+        call nz,dock_pilot
         ld a,(hkey)
         or a
         call nz,hyper_start
@@ -314,8 +366,12 @@ controls:
         bit 3,a
         call nz,fire_seeker
         pop af
+        push af
         bit 6,a
         call nz,use_jammer
+        pop af
+        and 07h
+        call nz,extra_keys
         ld a,(keys)
         bit 1,a                         ; roll right: world turns anticlockwise
         jr z,.nr
@@ -741,7 +797,13 @@ obj_step:
         cp T_SEEKER
         ret nz                          ; it went off
         jr obj_move
-.nsk:   cp T_WARDEN
+.nsk:   cp T_CANISTER
+        jp z,canister_step
+        cp T_ROCK
+        jr nz,.nrk
+        call tumble
+        jr .mvc
+.nrk:   cp T_WARDEN
         jr nz,.nw
         bit 1,(ix+O_FLAG)               ; police: only when hostile
         call nz,ai_pirate
@@ -930,7 +992,9 @@ ai_pirate:
         jr z,.nosk
         ld a,(ix+O_TYPE)
         cp T_MANTIS
-        jr nz,.nosk
+        jr c,.nosk
+        cp T_HAULER
+        jr nc,.nosk
         ld hl,(ai_dn)
         bit 7,h
         jr nz,.nosk
@@ -1011,7 +1075,7 @@ laser_hit:
         ld a,(ix+O_TYPE)
         cp T_DART
         jr c,.n
-        cp T_DEBRIS
+        cp T_CANISTER
         jr nc,.n
         call obj_screen                 ; C if in front: psx/psy, A = radius px
         jr nc,.n
@@ -1078,32 +1142,27 @@ laser_hit:
         jr z,.dead
 .one:   dec (ix+O_HP)
         ret nz
-.dead:  ; destroyed: bounty for pirates
-        ld a,(ix+O_TYPE)
-        cp T_SEEKER
-        jp z,explode
-        cp T_WARDEN
-        jp z,explode
+.dead:  ld a,(ix+O_TYPE)
         cp T_HAULER
-        push af
-        call explode
-        pop af
+        jr c,.pir
         jr z,.trader
-        ld hl,kills
-        inc (hl)
-        ld de,150                       ; 15.0 credits, Mantis 25.0
-        ld a,(ix+O_SPD)
-        cp 13
-        jr nc,$+5
-        ld de,250
-        call cr_add
-        ld hl,txt_kill
-        jp message
+        cp T_ROCK
+        jp nz,explode                   ; police, seekers, canisters
+        ld a,1                          ; asteroid: a canister of ore
+        call drop_canister
+        ld hl,txt_rock
+        call message
+        jp explode
+.pir:   call award_kill
+        call drop_maybe
+        jp explode
 .trader:
         ld a,32
         call legal_add
         ld hl,txt_trader
-        jp message
+        call message
+        call drop_maybe
+        jp explode
 
 ; obj_screen: IX -> psx, psy of its centre; A = radius in dots (min 1).
 ; NC if behind the near plane.
@@ -1207,6 +1266,14 @@ spawn:
         ld (ix+O_CD),60
         ld (ix+O_EV),a
         ld (ix+O_AIM),a
+        call rand                       ; drifting asteroids
+        cp 36
+        jr nc,.norock
+        ld (ix+O_TYPE),T_ROCK
+        ld (ix+O_SPD),2
+        ld (ix+O_HP),3
+        jp ori_cross
+.norock:
         call gov_a                      ; police patrol orderly systems
         cp 3
         jr c,.nocop
@@ -1225,9 +1292,24 @@ spawn:
         call rand
         cp b
         jr c,.trader
-        cp 170
+        cp 160
         jr c,.mantis
-        ld (ix+O_TYPE),T_DART
+        cp 215
+        jr c,.dart
+        call gov_a                      ; warlords haunt lawless space
+        cp 2
+        jr nc,.dart
+        ld (ix+O_TYPE),T_RAPTOR
+        ld (ix+O_SPD),12
+        ld (ix+O_HP),9
+        ld (ix+O_AIM),2
+        call ori_toward
+        ld hl,SFX_ALARM
+        ld a,6
+        call sfx
+        ld hl,txt_raptor
+        jp message
+.dart:  ld (ix+O_TYPE),T_DART
         ld (ix+O_SPD),14
         ld (ix+O_HP),2
         jr .pir
@@ -1250,6 +1332,16 @@ regen:
         ld a,(state)
         or a
         ret nz
+        ld a,(energy)                   ; low energy: a warning chirp
+        cp 16
+        jr nc,.ok
+        ld a,(frame)
+        and 31
+        jr nz,.ok
+        ld hl,SFX_WARN
+        ld a,4
+        call sfx
+.ok:
         ld a,(frame)
         and 7
         ret nz
@@ -1421,6 +1513,8 @@ txt_count:      db "HYPERSPACE COUNTDOWN...",0
 txt_dead:       db "SHIP DESTROYED",0
 txt_kill:       db "PIRATE DESTROYED - BOUNTY PAID",0
 txt_trader:     db "TRADER DESTROYED - YOU ARE WANTED",0
+txt_rock:       db "ASTEROID BROKEN UP",0
+txt_raptor:     db "WARNING: RAPTOR WARLORD INBOUND",0
 txt_contact:    db "CONTACT: PIRATE INBOUND",0
 txt_bump:       db "COLLISION - USE THE PORT!",0
 
@@ -1429,6 +1523,8 @@ txt_bump:       db "COLLISION - USE THE PORT!",0
 ; ---------------------------------------------------------------------
 render:
         call draw_planet
+        ld a,WHITE
+        call set_col
         ld hl,dust
         ld b,NDUST
 .d:     push bc
@@ -1472,15 +1568,26 @@ render:
         jr nz,.sh
         call draw_debris
         jr .n
-.sh:    call draw_obj
+.sh:    ld e,a
+        ld d,0
+        ld hl,TYPE_COL-1
+        add hl,de
+        ld a,(hl)
+        call set_col
+        call draw_obj
 .n:     ld de,OBJSZ
         add ix,de
         pop bc
         djnz .o
         ld a,(state)
         or a
+        jr z,.cross
+        cp 2
         ret nz
-        ; crosshair
+        jp death_fx
+.cross: ; crosshair
+        ld a,CYAN
+        call set_col
         ld bc,(CX-4)*256+CY
         call plot
         ld b,CX-3
@@ -1500,6 +1607,8 @@ render:
         ld a,(laser_on)
         or a
         ret z
+        ld a,RED
+        call set_col
         ld hl,10
         ld (lx0),hl
         ld hl,VH-1
@@ -1519,7 +1628,13 @@ render:
         ld (ly1),hl
         jp line16
 
+; colour of each object type (T_STATION..)
+TYPE_COL:
+        db WHITE,RED,MAGENTA,RED,YELLOW,CYAN,YELLOW,WHITE,GREEN,YELLOW
+
 draw_planet:
+        ld a,GREEN
+        call set_col
         ld hl,(planet+4)
         ld de,-2000
         add hl,de
@@ -1578,7 +1693,28 @@ draw_debris:
         jr c,.ok
 .big:   ld a,60
 .ok:    ld (deb_r),a
-        ld iy,DEBRIS
+        ld a,(ix+O_TMR)                 ; fireball: a yellow ring at first,
+        cp 5                            ; then red / yellow sparks
+        jr nc,.spark
+        ld a,YELLOW
+        call set_col
+        ld a,(deb_r)
+        cp 2
+        jr c,.pp
+        ld hl,(psx)
+        ld (ccx),hl
+        ld hl,(psy)
+        ld (ccy),hl
+        call circle
+        ld a,WHITE
+        call set_col
+        jr .pp
+.spark: and 2
+        ld a,RED
+        jr z,$+4
+        ld a,YELLOW
+        call set_col
+.pp:    ld iy,DEBRIS
         ld b,16
 .p:     push bc
         ld a,(deb_r)
@@ -1635,7 +1771,8 @@ obj_model:
         ret
 
 MODEL_TAB:
-        dw MDL_STATION,MDL_DART,MDL_MANTIS,MDL_HAULER,MDL_WARDEN,MDL_SEEKER,MDL_DART
+        dw MDL_STATION,MDL_DART,MDL_MANTIS,MDL_RAPTOR,MDL_HAULER,MDL_WARDEN,MDL_ROCK,MDL_SEEKER
+        dw MDL_CANISTER,MDL_DART
 
 ; ---------------------------------------------------------------------
 ; draw_obj: transform and draw IX's wireframe
@@ -2094,3 +2231,177 @@ strcpy:
         inc hl
         inc de
         jr strcpy
+
+; ---------------------------------------------------------------------
+; asteroids and canisters tumble (on alternate frames)
+; ---------------------------------------------------------------------
+tumble:
+        ld a,(frame)
+        and 1
+        ret nz
+        ld a,5
+        call pitch_up
+        ld a,6
+        jp roll_to_side
+
+; ---------------------------------------------------------------------
+; cargo canisters: drop, tumble, scoop
+; ---------------------------------------------------------------------
+; half the time, a canister of something at IX's position
+drop_maybe:
+        call rand
+        rla
+        ret c
+        ld b,NGOODS
+        call rand_below
+; A = good: a canister at IX's position
+drop_canister:
+        push af
+        call find_free
+        pop bc
+        ret nc
+        push ix
+        pop hl
+        inc hl
+        inc hl
+        push iy
+        pop de
+        inc de
+        inc de
+        push bc
+        ld bc,6
+        ldir
+        pop bc
+        push ix
+        push iy
+        pop ix
+        ld (ix+O_AIM),b
+        call ori_forward
+        ld (ix+O_TYPE),T_CANISTER
+        ld (ix+O_SPD),0
+        ld (ix+O_HP),1
+        ld (ix+O_TMR),0
+        ld (ix+O_FLAG),0
+        pop ix
+        ret
+
+canister_step:
+        call tumble
+        call obj_dist
+        ld de,110
+        or a
+        sbc hl,de
+        ret nc
+        ld a,(has_scoop)
+        or a
+        jr z,.smash
+        call hold_used
+        ld hl,holdmax
+        cp (hl)
+        jr nc,.full
+        ld a,(ix+O_AIM)
+        ld e,a
+        ld d,0
+        ld hl,cargo
+        add hl,de
+        inc (hl)
+        ld (ix+O_TYPE),T_NONE
+        ld hl,txt_scooped
+        ld de,msgbuf
+        call strcpy
+        ld a,(ix+O_AIM)                 ; + the name of the good
+        ld l,a
+        ld h,0
+        add hl,hl
+        add hl,hl
+        ld b,h
+        ld c,l
+        add hl,hl
+        add hl,bc                       ; x12
+        ld bc,GOOD_NAMES
+        add hl,bc
+        call strcpy
+        ld hl,SFX_SCOOP
+        ld a,5
+        call sfx
+        ld hl,msgbuf
+        jp message
+.full:  ld (ix+O_TYPE),T_NONE
+        ld hl,txt_holdfull
+        jp message
+.smash: ld a,(energy)
+        sub 4
+        jr nc,$+3
+        xor a
+        ld (energy),a
+        ld hl,txt_noscoop
+        call message
+        jp explode
+
+txt_scooped:    db "SCOOPED: ",0
+txt_holdfull:   db "HOLD FULL - CANISTER LOST",0
+txt_noscoop:    db "CANISTER SMASHED - FIT A SCOOP",0
+
+; ---------------------------------------------------------------------
+; death_fx: our own ship blowing apart (state 2, state_t 40 -> 1)
+; ---------------------------------------------------------------------
+death_fx:
+        ld a,(state_t)
+        neg
+        add a,42                        ; t = 2 .. 41
+        ld (dfx_t),a
+        ld hl,CX
+        ld (ccx),hl
+        ld hl,CY
+        ld (ccy),hl
+        and 3
+        ld e,a
+        ld d,0
+        ld hl,DFX_COL
+        add hl,de
+        ld a,(hl)
+        call set_col
+        ld a,(dfx_t)
+        add a,a
+        call circle
+        ld a,(dfx_t)
+        cp 7
+        jr c,.sp
+        ld a,RED
+        call set_col
+        ld a,(dfx_t)
+        add a,a
+        sub 10
+        call circle
+.sp:    ld a,WHITE                      ; flying wreckage
+        call set_col
+        ld a,(dfx_t)
+        srl a
+        inc a
+        ld (deb_r),a
+        ld iy,DEBRIS
+        ld b,16
+.p:     push bc
+        ld a,(deb_r)
+        ld c,a
+        ld b,(iy+0)
+        call mul8s
+        ld de,CX
+        add hl,de
+        push hl
+        ld a,(deb_r)
+        ld c,a
+        ld b,(iy+1)
+        call mul8s
+        ld de,CY
+        add hl,de
+        ex de,hl
+        pop hl
+        call plot_clip
+        inc iy
+        inc iy
+        pop bc
+        djnz .p
+        ret
+
+DFX_COL: db YELLOW,RED,WHITE,RED
