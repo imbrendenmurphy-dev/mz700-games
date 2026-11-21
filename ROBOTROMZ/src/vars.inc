@@ -5,6 +5,13 @@ polx:       db 0
 drops:      dw 0
 slack:      dw 0
 duectr:     dw 0        ; counter 1 when this tick was due
+synced:     db 0        ; 1 = this tick started at a vertical blank
+ctlmode:    db 0        ; 0 keyboard, 1 twin joysticks, 2 one joystick
+joys1:      db 0FFh     ; joystick sample at line 10
+joymv:      db 0        ; stick A direction (K_ bits)
+joyfr:      db 0        ; stick B direction
+joyfire:    db 0        ; fire buttons (E008 bits 1-4, 1 = pressed)
+facing:     db 0        ; one-stick mode: the way you last moved
 seed:       dw 0ACE1h
 framecnt:   db 0
 

@@ -42,6 +42,7 @@ class MZ:
         s.snd = None            # list -> log (t, addr, value) of 8253 / gate writes
         s.c1_load = 0           # counter 1: counts HSYNC from 65536 (mode 2)
         s.c1_latch = []
+        s.joy = True            # two MZ-1X03 joysticks plugged in
         s.cpu = Z80(s.rd, s.wr, lambda p: 0xFF, s.outp)
         s.cpu.pc = exe
         s.cpu.t = 3000          # arbitrary phase
@@ -106,6 +107,8 @@ class MZ:
         if a == 0xE001:
             v = 0xFF
             for k in s.held:
+                if k not in KEYS:
+                    continue            # (joystick names)
                 r, b = KEYS[k]
                 if r == s.row:
                     v &= ~(1 << b)
@@ -120,8 +123,32 @@ class MZ:
             return s.c1_latch.pop(0)
         if a == 0xE008:
             hb = x >= 128
-            return (0 if hb else 0x80) | 0x7E
+            return (0 if hb else 0x80) | 0x60 | s.joy_bits(line, x)
         return 0xFF
+
+    def joy_bits(s, line, x):
+        """E008 bits 1-4 with two MZ-1X03 sticks plugged in (as modelled by
+        mz800emu / MiSTer): fire buttons in the display (low = pressed); from
+        the start of vertical blank each bit is low for 68 + 28 x position T
+        (0 left/up, 128 centre, 255 right/down).  Hold 'ja_left' ... 'jb_fire2'.
+        Nothing plugged in (s.joy False): bits read 1."""
+        if not s.joy:
+            return 0x1E
+        h = s.held
+        v = 0
+        if line < VIS_LINES:
+            for bit, k in ((1, 'ja_fire'), (2, 'ja_fire2'), (3, 'jb_fire'), (4, 'jb_fire2')):
+                if k not in h:
+                    v |= 1 << bit
+            return v
+        t = (line - VIS_LINES) * LINE_MC / 5.0 + x
+        for bit, st, neg, pos in ((1, 'ja', 'left', 'right'), (2, 'ja', 'up', 'down'),
+                                  (3, 'jb', 'left', 'right'), (4, 'jb', 'up', 'down')):
+            n, p_ = (st + '_' + neg) in h, (st + '_' + pos) in h
+            position = 0 if n and not p_ else 255 if p_ and not n else 128
+            if t >= 68 + 28 * position:
+                v |= 1 << bit
+        return v
 
     def c1_now(s):
         lines = int((s.now() - s.c1_load) * 5 // LINE_MC)

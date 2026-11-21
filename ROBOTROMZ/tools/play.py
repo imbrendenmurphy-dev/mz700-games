@@ -77,6 +77,8 @@ def patch(m, sym):
         i = m.mem.find(pat, sym['new_game'])
         assert 0 <= i - sym['new_game'] < 40
         m.mem[i + 1] = int(os.environ['WAVE'])
+    if os.environ.get('CTL'):          # control mode: 0 keys, 1 twin sticks, 2 one stick
+        m.mem[sym['ctlmode']] = int(os.environ['CTL'])
     if os.environ.get('GOD'):
         m.mem[sym['player_die']] = 0xC9
     if os.environ.get('DEMO'):          # go straight to the demo page

@@ -20,7 +20,7 @@ ViBED by BPM 2026.
 
 - **Real MZ-700 / UniCMT:** copy `release/ROBOGEDN.MZT` to the USB stick
   (`release/ROBOGEDN.MZF` is the same file under the other common extension)
-  and load it like a tape (`L` from the monitor). It loads at 1200h-4BAFh and
+  and load it like a tape (`L` from the monitor). It loads at 1200h-4D2Bh and
   starts by itself.
 - **MZ700WIN:** File > Open `release/ROBOGEDN.MZT`.
 
@@ -30,13 +30,37 @@ ViBED by BPM 2026.
 |---|---|
 | **W A S D** | move (8 directions) |
 | **I J K L** or the **cursor keys** | fire (8 directions, hold two for diagonals) |
-| SPACE | start (from any attract page, or to take over from the demo) |
+| 1 / 2 / 3 (title) | controls: keyboard / twin joysticks / one joystick |
+| SPACE (or a joystick fire button) | start (from any attract page, or to take over from the demo) |
 | RETURN | pause (Q quits to the title while paused) |
 | M | sound: ALL (effects + heartbeat) → FX ONLY → OFF (title or in play) |
 | T (title) | trainer mode: infinite lives, no high score (a red T in the HUD) |
 | A-Z, DEL, RETURN | type your initials for the high-score table |
 
 You can move one way and shoot another, which is the whole point of the game.
+
+### Joysticks
+
+The MZ-700 has two joystick ports on the back for Sharp's MZ-1X03 analogue
+joysticks, and the game supports both at once:
+
+- **2: Twin joysticks** (the arcade way). Stick A (port JA) moves you,
+  stick B (port JB) fires in its 8 directions. If they're the wrong way
+  round, swap the plugs.
+- **3: One joystick.** Stick A moves you; hold a fire button to shoot the way
+  you're facing, strafing (you keep facing that way while the button is
+  held).
+- The keyboard works in every mode, and any fire button starts a game.
+
+How it's read: E008h bits 1-4 are JA1, JA2, JB1 and JB2 (each stick's X and
+Y). During the picture they're the fire buttons; from the start of vertical
+blank each goes low for a time that grows with the stick's position
+(68 + 28 x position T-states, as modelled by mz800emu and the MiSTer
+SharpMZ core). The game needs only 8 directions, so it samples the bits at
+lines 10 and 22 of the vertical blank (timed on counter 1): already high at
+line 10 means left/up, still low at line 22 means right/down. One sample
+comes before the screen flush and one after, so it costs almost nothing.
+**Not yet tried with real MZ-1X03 joysticks or an adapter.**
 
 ## The game
 
@@ -166,7 +190,7 @@ missiles are in the air at once. `play.py` prints the measured game speed.
 | Address | Use |
 |---|---|
 | 1000h-11FFh | stack (monitor work area; the game never returns to the monitor) |
-| 1200h-4BAFh | code and data |
+| 1200h-4D2Bh | code and data |
 | 8000h-87FFh | object layer (chars, attributes) |
 | 8800h-8BFFh | redraw flags |
 | 8C00h-8DFFh | particles (32 x 16 bytes) |

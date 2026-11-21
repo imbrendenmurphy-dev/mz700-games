@@ -73,6 +73,8 @@ wait_vblank:
         ld bc,-312
         add hl,bc
         ld (duectr),hl
+        xor a                   ; (not at a vertical blank: no joystick timing)
+        ld (synced),a
         ld hl,0
         ld (slack),hl
         ld hl,(drops)           ; (count the catch-ups)
@@ -94,6 +96,7 @@ sync_vblank:
         xor c
         rla
         jr nc,.w0
+        call joy_fire           ; in the display: the fire buttons
 .w1:    inc de
         ld a,(hl)
         xor c
@@ -107,9 +110,10 @@ wait_noisy:
 .n0:    ld a,(hl)               ; until the display starts
         xor c
         rla
-        jr c,.n1
+        jr c,.nf
         call .roll
         jr .n0
+.nf:    call joy_fire           ; in the display: the fire buttons
 .n1:    ld a,(hl)               ; until vertical blank
         xor c
         rla
@@ -127,6 +131,8 @@ wait_noisy:
 
 stamp_due:
         ld (slack),de           ; idle time, 33 T per count
+        ld a,1
+        ld (synced),a
         call read_ctr1
         ld (duectr),hl          ; this tick is due now
         ret

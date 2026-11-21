@@ -48,7 +48,29 @@ front_end:
         ld a,(page)
         or a
         call z,show_trainer
-.nt:    call animate_page
+.nt:    ld a,(kprev+5)          ; 1 / 2 / 3: control mode
+        cpl
+        ld b,a
+        ld a,(kbuf+5)
+        and b
+        ld c,0
+        bit 7,a                 ; 1: keyboard
+        jr nz,.cm
+        inc c
+        bit 6,a                 ; 2: twin joysticks
+        jr nz,.cm
+        inc c
+        bit 5,a                 ; 3: one joystick
+        jr z,.nc
+.cm:    ld a,c
+        ld (ctlmode),a
+        ld hl,sfx_type
+        ld a,1
+        call play_sfx
+        ld a,(page)
+        or a
+        call z,show_controls
+.nc:    call animate_page
         call update_particles
         ld hl,framecnt
         inc (hl)
@@ -58,7 +80,7 @@ front_end:
         ld de,(pagelen)
         or a
         sbc hl,de
-        jr c,.loop
+        jp c,.loop
         ld a,(page)             ; next page
         inc a
         cp NPAGES
@@ -173,6 +195,7 @@ draw_title:
         call print_bcd6
         call show_sound
         call show_trainer
+        call show_controls
         call refresh_all
         ld hl,sfx_title
         ld a,1
@@ -189,6 +212,19 @@ show_sound:
         ld hl,s_snd_off
 .on:    ld de,17*40+18
         ld c,70h
+        jp print_bg
+
+show_controls:
+        ld a,(ctlmode)
+        ld hl,s_ctl_keys
+        or a
+        jr z,.c
+        ld hl,s_ctl_twin
+        dec a
+        jr z,.c
+        ld hl,s_ctl_one
+.c:     ld de,15*40+18
+        ld c,60h
         jp print_bg
 
 show_trainer:
@@ -831,9 +867,9 @@ title_recs:
         db 13,6,70h
         db "MOVE        W A S D",0
         db 14,6,70h
-        db "FIRE        I J K L",0
+        db "FIRE        I J K L OR CURSORS",0
         db 15,6,70h
-        db "            OR CURSOR KEYS",0
+        db "CONTROL 1-3",0
         db 16,6,70h
         db "PAUSE       RETURN",0
         db 17,6,70h
@@ -922,6 +958,9 @@ name_recs:
 s_snd_all:  db "ALL    ",0
 s_snd_fx:   db "FX ONLY",0
 s_snd_off:  db "OFF    ",0
+s_ctl_keys: db "KEYBOARD      ",0
+s_ctl_twin: db "TWIN JOYSTICKS",0
+s_ctl_one:  db "ONE JOYSTICK  ",0
 s_on:       db "ON ",0
 s_off:      db "OFF",0
 

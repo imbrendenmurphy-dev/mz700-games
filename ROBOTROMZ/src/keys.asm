@@ -99,13 +99,14 @@ read_keys:
         bit 4,a
         jr z,.s5
         set 4,c
-.s5:    ld a,(skeys)
+.s5:    call joy_specials       ; a joystick fire button = SPACE
+        ld a,(skeys)
         cpl
         and c
         ld (sedge),a            ; newly pressed
         ld a,c
         ld (skeys),a
-        ret
+        jp joy_merge            ; add the joysticks
 
 ; A = the letter key pressed this tick (ASCII), 8 for DEL, or 0
 get_letter:

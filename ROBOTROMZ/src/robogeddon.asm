@@ -48,7 +48,9 @@ attract:
 
 main_loop:
         call wait_vblank
+        call joy_sample1        ; joystick positions: line 10 ...
         call flush
+        call joy_sample2        ; ... and line 22 of the vertical blank
         call snd_tick
         call read_keys
         call demo_ctl
@@ -69,6 +71,7 @@ jp_hl:  jp (hl)
         include "particles.asm"
         include "demo.asm"
         include "fx.asm"
+        include "joy.asm"
         include "front.asm"
         include "data.asm"
 

@@ -11,7 +11,8 @@ between them and the scrap heap.
 
 **Move with one hand and blast with the other.** W A S D moves you in eight
 directions; I J K L or the cursor keys fire in eight more, so you can run
-one way and shoot another. ROBOGEDDON is frantic arcade-style arena action
+one way and shoot another. Or plug two MZ-1X03 joysticks into the MZ-700's
+twin ports and play it the true twin-stick way. ROBOGEDDON is frantic arcade-style arena action
 in the spirit of the early-80s classics. You carve paths through swarms of
 droids while you dive across the arena to pull the last humans to safety.
 Every wave materialises line by line under a giant rainbow caption, and
@@ -61,6 +62,8 @@ first ten waves ease you in; waves 21-40 are new mixes, ending with
   that quickens as the robots thin out.
 - Particles everywhere: debris, crusher sparks, rescue sparkles, a
   two-stage death, the Shield's ring of sparks, fireworks.
+- Three control modes: keyboard, twin joysticks (one moves, one fires)
+  and one joystick (hold fire to shoot ahead and strafe).
 - Trainer mode (T on the title) for practice, a pause key, and three sound
   modes (all, effects only, off).
 - Tested on a real European MZ-700 loaded from a UniCMT: diagonal moving
@@ -79,16 +82,16 @@ first ten waves ease you in; waves 21-40 are new mixes, ending with
 | Collisions | The object layer's owner map is also the collision map: a shot or the player looks at one byte |
 | Objects | Up to 80 robots, humans and effects, 16 enemy bullets, 12 player shots and 32 particles at once |
 | Sound | One voice on 8253 counter 0: an engine of pitch sweeps, warbles and three bands of noise. Noise is re-rolled continuously while the CPU waits for vertical blank, on its own random generator |
-| Input | The keyboard matrix is scanned every tick; any mix of the 8 movement and 8 firing directions works together |
+| Input | The keyboard matrix is scanned every tick; any mix of the 8 movement and 8 firing directions works together. Both MZ-1X03 joystick ports are read every tick: E008h bits 1-4 are sampled twice in vertical blank (lines 10 and 22, timed on counter 1) to turn the sticks' analogue pulse widths into 8 directions, and in the picture for the fire buttons |
 | Media | `ROBOGEDN.MZF` for a real machine through a UniCMT or tape; `ROBOGEDN.MZT` for emulators (identical) |
-| File | 14,768 bytes (plus the 128-byte tape header), loads at 1200h and starts by itself; nothing more is loaded |
+| File | 15,148 bytes (plus the 128-byte tape header), loads at 1200h and starts by itself; nothing more is loaded |
 | Language | Z80 assembly (sjasmplus), about 6,300 lines; build, test and showcase tools in Python (an MZ-700 model with video-memory wait states, a renderer invariant checker, a WAV renderer for the sound) |
 
 ### RAM used
 
 | Area | Address | Bytes |
 |---|---|---|
-| Program, graphics, waves, sound, text, variables | 1200h-4BAFh | 14,768 |
+| Program, graphics, waves, sound, text, variables | 1200h-4D2Bh | 15,148 |
 | Object layer (characters, attributes) | 8000h-87FFh | 2,048 |
 | Redraw flags | 8800h-8BFFh | 1,024 |
 | Particles (32 x 16) | 8C00h-8DFFh | 512 |
@@ -99,9 +102,9 @@ first ten waves ease you in; waves 21-40 are new mixes, ending with
 | Background, work screen, video RAM shadow (characters, attributes) | B000h-C7FFh | 6,144 |
 | Owner / collision map, bullet map | C800h-CFFFh | 2,048 |
 | Stack (in the monitor's work area, below 1200h) | 1000h-11FFh | (512) |
-| **Total** | | **31,408 (30.7 KB)** |
+| **Total** | | **31,788 (31.0 KB)** |
 
-That leaves 17,232 bytes (16.8 KB) of the MZ-700's 47.5 KB of user RAM
-(1200h-CFFFh) free: 4BB0h-7FFFh, 8E00h-8FFFh, 9A00h-9FFFh, A700h-A7FFh and
+That leaves 16,852 bytes (16.5 KB) of the MZ-700's 47.5 KB of user RAM
+(1200h-CFFFh) free: 4D2Ch-7FFFh, 8E00h-8FFFh, 9A00h-9FFFh, A700h-A7FFh and
 AA00h-AFFFh. Video and colour RAM (D000h-DFFFh) and the monitor ROM are
 not counted.
