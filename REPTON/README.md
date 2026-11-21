@@ -16,6 +16,9 @@ opens and the game is won. Three crowns are hidden for the curious.
 
 ViBED by BPM.
 
+The blurb, specifications, RAM use, stills and an animated GIF are in
+[showcase/](showcase/BLURB.md).
+
 ![Title](docs/title.png) ![Hub](docs/play.png)
 ![Status](docs/status.png) ![Guide](docs/guide.png)
 ![Ending](docs/ending.png)
@@ -27,19 +30,18 @@ ViBED by BPM.
   by itself. The whole game is resident in RAM - nothing else is loaded.
 - **Emulator (e.g. MZ700WIN):** open `release/SKINK.MZT` (the same file).
 
-No extra hardware is needed. Saving uses the cassette (see below).
+No extra hardware is needed.
 
 ## Controls
 
 | Key | Action |
 |---|---|
 | Cursor keys or Q / A / O / P | move, dig, push a rock or egg sideways |
-| SPACE | world status screen (and save to tape from there) |
+| SPACE | world status screen with a hint for this cavern |
 | R | restart this cavern as it was at the start of the game (asks Y/N) |
 | CR | pause |
 | BREAK | give up (asks Y/N) |
 | SPACE on the title | new game |
-| L on the title | load a saved game from tape |
 
 ## The rules
 
@@ -73,15 +75,11 @@ screen lists every cavern you have visited with what is left in it, shows
 the mosaic so far, the totals, play time, deaths and a hint for the cavern
 you are in.
 
-## Saving
+## No saving
 
-On the status screen press **S**, then RECORD and PLAY. The file is an
-ordinary MZF data file called `SKINK SAVE` (11008 bytes: the game state and
-every cavern). To continue, press **L** on the title screen and play the
-tape. Saving and loading use the monitor ROM's own tape routines
-(`WRINF/WRDAT/RDINF/RDDAT`), so they should work with a cassette recorder
-and with a UniCMT. *This has only been tested in the simulator with the
-routines stubbed; it has not been tried on a real machine.*
+A game is meant to be played in one sitting, so there is no save. Nothing
+can be lost along the way: a death only resets the cavern you are in, and
+R resets it to the start without undoing your switches.
 
 ## Attract mode
 
@@ -144,8 +142,9 @@ py build.py                     generate data, check the solution, assemble, wri
 py tools/solve.py               play the solution on the Python model (per-cavern report)
 py tools/verify.py [--check]    play the solution on the Z80 build in the simulator
 py tools/crosscheck.py 1500 3   random walk: Z80 and Python model compared every tick
-py tools/test_frontend.py       status screen, tape save, give up, load from tape
+py tools/test_frontend.py       title, status screen, give up, records
 py tools/perf.py all 600        speed under a conservative VRAM wait model
+py tools/showcase.py            stills and an animated GIF in showcase/
 py tools/preview.py [KEYS]      render caverns to build/region_K.png
 py tools/run.py FIELDS [shots] --keys "field:key,..."   run with scripted keys
 ```
@@ -159,7 +158,6 @@ py tools/run.py FIELDS [shots] --keys "field:key,..."   run with scripted keys
 | `src/render.asm` | scrolling 2 x 2 tile view, HUD, dissolves |
 | `src/game.asm` | play loop, transporters, switches, death, reset, keys |
 | `src/status.asm` | world status screen |
-| `src/tape.asm` | save / load through the monitor ROM |
 | `src/screens.asm` | title, story, guide, records, name entry, ending |
 | `src/sound.asm`, `src/sys.asm` | sound player, VBLANK sync, keyboard, helpers |
 | `tools/tiles.py` | element codes, 2 x 2 tile looks, colour themes |
@@ -181,14 +179,16 @@ py tools/run.py FIELDS [shots] --keys "field:key,..."   run with scripted keys
   only tiles whose look changed are written, so runs of earth, wall and
   space that line up after a scroll cost nothing.
 - **Persistence.** All fourteen caverns live unpacked in RAM (768 bytes
-  each, 8F00h-C5FFh); the packed maps (3.4 KB) are only used for a new
+  each, 8F00h-B8FFh); the packed maps (3.4 KB) are only used for a new
   game or a reset. The current cavern is processed in place.
 - **Physics** is a top-to-bottom scan per tick (8.3 a second): anything
   that moves right or down is marked so the scan skips it. The rules are
   deterministic (no random numbers), which is what lets the recorded
   solution be replayed exactly.
-- **Timing.** The program syncs to VBLANK; sound and music run from the
-  same field poll on the 8253 square-wave voice.
+- **Timing.** Frames are paced with 8253 counter 1, which counts scan
+  lines, and start on a VBLANK; so a long frame never loses an extra field
+  waiting for the next VBLANK edge. Sound and music run from the same
+  field poll on the 8253 square-wave voice.
 
 ## Testing done, and what is not tested
 
@@ -199,5 +199,4 @@ py tools/run.py FIELDS [shots] --keys "field:key,..."   run with scripted keys
 - Speed under a conservative VRAM wait model: full speed (8.25 of 8.33
   ticks per second while scrolling), about 3% of the CPU lost to waits.
 - **Not tested on real hardware.** The simulator does not model the real
-  machine exactly (in particular the tape routines are stubbed). The tape
-  save and load are the parts most likely to need adjustment.
+  machine exactly, so timing and sound on a real MZ-700 may differ a little.

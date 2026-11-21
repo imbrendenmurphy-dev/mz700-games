@@ -39,7 +39,8 @@ while c.t < end and not g.rb('won'):
     c.step()
 print('ticks %d, won %d, deaths %d, gems left %d, pieces left %d, monsters left %d' % (
     len(log), g.rb('won'), g.rw('deaths'), g.rw('gems_left'), g.rb('pieces_left'), g.rb('mons_left')))
-if g.rb('won'):
+won = g.rb('won')
+if won:
     g.wb('turbo', 0)
     g.run(200)
     g.shot('ending')
@@ -50,4 +51,4 @@ if g.rb('won'):
     g.run(100)
     from run import S
     print('top record:', bytes(g.m.mem[S['RECORDS']:S['RECORDS'] + 8]))
-sys.exit(0 if g.rb('won') else 1)
+sys.exit(0 if won else 1)

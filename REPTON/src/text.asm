@@ -16,9 +16,9 @@ txt_unknown:    db "? ? ?",0
 ; ---------------------------------------------------------------- title
 title_lines:
         db 9,CYAN*16,"AND THE SUN MOSAIC",0
-        db 16,WHITE*16,"SPACE TO PLAY   L TO LOAD A SAVED GAME",0
+        db 16,WHITE*16,"PRESS SPACE TO PLAY",0
         db 20,MAGENTA*16,"ViBED by BPM",0
-        db 21,BLUE*16,"FOR THE SHARP MZ-700",0
+        db 22,BLUE*16,"FOR THE SHARP MZ-700",0
         db 0FFh
 txt_best:       db "BEST  ",0
 
@@ -27,7 +27,7 @@ scroll_text:
         db "DEEP BELOW THE SUNLIT HOLLOW LIES A REALM OF FOURTEEN CAVERNS ... "
         db "GATHER EVERY GEM, EVERY PIECE OF THE SHATTERED SUN MOSAIC, AND RID THE DARK OF EVERY "
         db "GLOOM BEAST ... THEN WALK THROUGH THE SUN GATE ... "
-        db "CURSOR KEYS OR Q A O P TO MOVE ... SPACE FOR THE WORLD STATUS AND SAVING ... "
+        db "CURSOR KEYS OR Q A O P TO MOVE ... SPACE FOR THE WORLD STATUS AND A HINT ... "
         db "R RESTARTS A CAVERN ... CR PAUSES ... BREAK GIVES UP ... "
         db "ViBED by BPM ... ",0
 
@@ -100,7 +100,7 @@ g_n15:  db "SUN GATE",0
 g_d15:  db "THE WAY HOME",0
 guide_ctl:
         db 19,WHITE*16,"CURSOR KEYS OR Q A O P  MOVE AND DIG",0
-        db 20,WHITE*16,"SPACE  WORLD STATUS, HINTS, SAVE",0
+        db 20,WHITE*16,"SPACE  WORLD STATUS AND HINTS",0
         db 21,WHITE*16,"R  RESTART THIS CAVERN   CR  PAUSE",0
         db 22,WHITE*16,"BREAK  GIVE UP",0
         db 0FFh
@@ -114,7 +114,7 @@ txt_name_help:  db "UP DOWN LEFT RIGHT  -  SPACE WHEN DONE",0
 ; ---------------------------------------------------------------- status
 txt_status_h:   db "THE WORLD BELOW",0
 txt_status_cols: db "  CAVERN        GEM PC BST",0
-txt_status_keys: db "S SAVE TO TAPE   ANY OTHER KEY TO PLAY",0
+txt_status_keys: db "PRESS ANY KEY TO PLAY ON",0
 txt_alldone:    db " ALL IS GATHERED - GO TO THE SUN GATE! ",0
 txt_gems:       db "GEMS   ",0
 txt_pieces:     db "PIECES ",0
@@ -122,19 +122,6 @@ txt_mons:       db "BEASTS ",0
 txt_crowns:     db "CROWNS ",0
 txt_time:       db "TIME ",0
 txt_deaths:     db "DEATHS ",0
-
-; ---------------------------------------------------------------- tape
-txt_save_h:     db "SAVE THE GAME TO TAPE",0
-txt_load_h:     db "LOAD A SAVED GAME",0
-txt_rec_play:   db "PRESS RECORD AND PLAY",0
-txt_play:       db "PRESS PLAY",0
-txt_saved:      db "SAVED - WELL DONE",0
-txt_loaded:     db "LOADED - BACK TO THE CAVERNS",0
-txt_tape_err:   db "TAPE ERROR OR BREAK",0
-tape_lines:
-        db 11,WHITE*16,"THE FILE IS CALLED SKINK SAVE",0
-        db 12,WHITE*16,"BREAK STOPS THE TAPE",0
-        db 0FFh
 
 ; ---------------------------------------------------------------- ending
 txt_end_h:      db "THE SUN RISES AGAIN",0

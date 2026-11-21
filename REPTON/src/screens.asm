@@ -10,7 +10,7 @@ PARADE_ROW      equ 12
 ; page helpers
 ; ---------------------------------------------------------------------
 ; page_wait: wait up to A half-seconds, calling (page_fx) every field.
-; Returns Z on time-out, else NZ with A = 1 (SPACE / CR) or 2 (L).
+; Returns Z on time-out, else NZ (SPACE / CR).
 page_wait:
         ld (page_len),a
         ld b,a
@@ -25,8 +25,6 @@ page_wait:
         call read_keys
         pop bc
         ld a,(key_extra)
-        bit 3,a
-        jr nz,.load
         and 1
         jr nz,.go
         ld a,(key_pause)
@@ -40,18 +38,6 @@ page_wait:
         ret
 .go:    ld a,1
         or a
-        ret
-.load:  ld a,(page_allow_load)
-        or a
-        jr z,.l2
-        ld a,2
-        or a
-        ret
-.l2:    dec c
-        jr nz,.l
-        ld c,25
-        djnz .l
-        xor a
         ret
 
 jp_hl:  jp (hl)
@@ -146,17 +132,10 @@ title_screen:
         ld (scroll_ptr),hl
         xor a
         ld (scroll_tick),a
-        ld a,1
-        ld (page_allow_load),a
         ld hl,title_fx
         ld (page_fx),hl
         ld a,40                     ; 20 seconds
-        call page_wait
-        push af
-        xor a
-        ld (page_allow_load),a
-        pop af
-        ret
+        jp page_wait
 
 title_fx:
         ld hl,logo_phase
