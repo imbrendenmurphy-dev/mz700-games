@@ -24,6 +24,8 @@ page_wait:
         call jp_hl
         call read_keys
         pop bc
+        and K_FIRE
+        jr nz,.go
         ld a,(key_extra)
         and 1
         jr nz,.go
@@ -128,6 +130,9 @@ title_screen:
         ld hl,title_lines
         call print_lines
         call best_line
+        call joy_line
+        ld a,8
+        ld (j_prev),a               ; a J still held doesn't toggle
         ld hl,scroll_text
         ld (scroll_ptr),hl
         xor a
@@ -137,8 +142,38 @@ title_screen:
         ld a,40                     ; 20 seconds
         jp page_wait
 
+; joy_line: "J  JOYSTICK OFF / ON" on the title
+joy_line:
+        ld hl,txt_joy_off
+        ld a,(joy_on)
+        or a
+        jr z,$+5
+        ld hl,txt_joy_on
+        ld c,17
+        ld a,CYAN*16
+        jp print_centre
+
 title_fx:
-        ld hl,logo_phase
+        ld a,(key_extra)            ; J switches the joystick on / off
+        and 8
+        ld hl,j_prev
+        ld b,(hl)
+        ld (hl),a
+        jr z,.nj
+        ld a,b
+        or a
+        jr nz,.nj
+        ld a,(joy_on)
+        xor 1
+        ld (joy_on),a
+        xor a
+        ld (joy_bits),a
+        ld (joy_fire),a
+        ld hl,SFX_SWITCH
+        ld a,3
+        call sfx
+        call joy_line
+.nj:    ld hl,logo_phase
         inc (hl)
         ld a,(hl)
         and 3
@@ -151,7 +186,7 @@ title_fx:
         ld a,WHITE*16
         jr z,$+4
         ld a,YELLOW*16
-        ld de,VRAM+16*40
+        ld de,VRAM+15*40
         ld b,40
         jp fill_attr
 
@@ -237,11 +272,11 @@ scroller:
         ld a,GREEN*16
         jp fill_attr
 
-; "BEST: NAM  100%  0:12:34" on row 18
+; "BEST: NAM  100%  0:12:34" on row 19
 best_line:
         ld hl,txt_best
         ld b,10
-        ld c,18
+        ld c,19
         ld a,CYAN*16
         call print_at
         ld hl,RECORDS
@@ -647,6 +682,8 @@ name_entry:
         jr c,.d
         call fe_keys
         ld b,a
+        bit B_FIRE,b
+        jr nz,.done
         ld a,(key_extra)
         and 1
         jr nz,.done
@@ -688,7 +725,7 @@ name_entry:
         jr z,.l
         dec a
         ld (rec_i),a
-        jr .l
+        jp .l
 .done:  ld hl,SFX_GEM
         ld a,2
         call sfx

@@ -138,8 +138,11 @@ play:
         or a
         jr z,.human
         call anykey
+        jr nz,.abort
+        ld a,(keys)                 ; or the joystick's fire button
+        and K_FIRE
         jr z,.tick
-        ld a,1
+.abort: ld a,1
         ld (demo_abort),a
         jp sfx_stop
 .human: call extra_keys

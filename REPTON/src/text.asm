@@ -16,11 +16,12 @@ txt_unknown:    db "? ? ?",0
 ; ---------------------------------------------------------------- title
 title_lines:
         db 9,CYAN*16,"AND THE SUN MOSAIC",0
-        db 16,WHITE*16,"PRESS SPACE TO PLAY",0
-        db 20,MAGENTA*16,"ViBED by BPM",0
-        db 22,BLUE*16,"FOR THE SHARP MZ-700",0
+        db 15,WHITE*16,"PRESS SPACE TO PLAY",0
+        db 21,MAGENTA*16,"ViBED by BPM  FOR THE SHARP MZ-700",0
         db 0FFh
 txt_best:       db "BEST  ",0
+txt_joy_off:    db "J  JOYSTICK OFF",0
+txt_joy_on:     db "J  JOYSTICK ON ",0
 
 scroll_text:
         db "                                        "
@@ -28,7 +29,7 @@ scroll_text:
         db "GATHER EVERY GEM, EVERY PIECE OF THE SHATTERED SUN MOSAIC, AND RID THE DARK OF EVERY "
         db "GLOOM BEAST ... THEN WALK THROUGH THE SUN GATE ... "
         db "CURSOR KEYS OR Q A O P TO MOVE ... SPACE FOR THE WORLD STATUS AND A HINT ... "
-        db "R RESTARTS A CAVERN ... CR PAUSES ... BREAK GIVES UP ... "
+        db "R RESTARTS A CAVERN ... CR PAUSES ... BREAK GIVES UP ... J SWITCHES THE MZ-1X03 JOYSTICK ON OR OFF ... "
         db "ViBED by BPM ... ",0
 
 ; ---------------------------------------------------------------- story
@@ -102,7 +103,7 @@ guide_ctl:
         db 19,WHITE*16,"CURSOR KEYS OR Q A O P  MOVE AND DIG",0
         db 20,WHITE*16,"SPACE  WORLD STATUS AND HINTS",0
         db 21,WHITE*16,"R  RESTART THIS CAVERN   CR  PAUSE",0
-        db 22,WHITE*16,"BREAK  GIVE UP",0
+        db 22,WHITE*16,"BREAK  GIVE UP    J (TITLE)  JOYSTICK",0
         db 0FFh
 
 ; ---------------------------------------------------------------- records

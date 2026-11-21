@@ -32,7 +32,13 @@ drum_age        ds 1
 
 key_pause       ds 1
 key_quit        ds 1
-key_extra       ds 1                ; bit 0 SPACE, 1 R, 2 S, 3 L, 4 Y, 5 N, 6 H
+key_extra       ds 1                ; bit 0 SPACE, 1 R, 3 J, 4 Y, 5 N, 6 H
+joy_on          ds 1                ; 1 = MZ-1X03 joystick in socket A is used
+joy_arm         ds 1                ; set while a wait loop watches for VBLANK
+joy_bits        ds 1                ; directions from the last sample (K_ bits)
+joy_fire        ds 1                ; K_FIRE if a fire button was down
+joy_raw         ds 2                ; last X and Y counts (for testing)
+j_prev          ds 1                ; J held last field (title toggle)
 fe_prev         ds 1
 fe_rep          ds 1
 keys            ds 1
