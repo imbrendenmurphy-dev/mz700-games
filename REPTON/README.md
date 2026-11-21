@@ -30,7 +30,8 @@ The blurb, specifications, RAM use, stills and an animated GIF are in
   by itself. The whole game is resident in RAM - nothing else is loaded.
 - **Emulator (e.g. MZ700WIN):** open `release/SKINK.MZT` (the same file).
 
-No extra hardware is needed.
+No extra hardware is needed. A Sharp **MZ-1X03 joystick** can be used
+(see below).
 
 ## Controls
 
@@ -42,6 +43,24 @@ No extra hardware is needed.
 | CR | pause |
 | BREAK | give up (asks Y/N) |
 | SPACE on the title | new game |
+| J on the title | joystick on / off |
+
+## Joystick
+
+Plug a Sharp MZ-1X03 joystick into socket A and press **J** on the title
+screen ("J  JOYSTICK ON"). The stick then moves Skink like the cursor
+keys, and either fire button starts a game, finishes name entry and stops
+the demo. The keyboard keeps working. The option is off by default
+because an empty socket would read as a stick held up and left.
+
+The MZ-1X03 is read the way the MiSTer core and mz800emu model it:
+from the start of VBLANK, E008h bit 1 (X) and bit 2 (Y) stay low for
+68 + 28 x position T-states (position 0-255); during the picture the
+same bits are the fire buttons (low = pressed). Skink times both pulses
+in one counting loop straight after the VBLANK edge, and a stick pushed
+more than a quarter of the way from the centre counts as that direction.
+*This follows the emulator models; it has not been tried with a real
+MZ-1X03.*
 
 ## The rules
 
@@ -143,6 +162,7 @@ py tools/solve.py               play the solution on the Python model (per-caver
 py tools/verify.py [--check]    play the solution on the Z80 build in the simulator
 py tools/crosscheck.py 1500 3   random walk: Z80 and Python model compared every tick
 py tools/test_frontend.py       title, status screen, give up, records
+py tools/test_joystick.py       the MZ-1X03 option: toggle, pulses, fire, moving, speed
 py tools/perf.py all 600        speed under a conservative VRAM wait model
 py tools/showcase.py            stills and an animated GIF in showcase/
 py tools/preview.py [KEYS]      render caverns to build/region_K.png

@@ -44,6 +44,7 @@ whole world: what is left in each cavern, the mosaic so far, and a hint.
 - A status screen with a hint for each cavern, a records table (best
   completion, then fastest time) with name entry, and an ending.
 - Four original tunes and a set of sound effects.
+- Keyboard or the Sharp MZ-1X03 joystick (press J on the title).
 - Proven completable: a recorded solution plays the whole game from start
   to finish on the real program, and the build refuses to finish if it
   stops winning.
@@ -55,8 +56,9 @@ whole world: what is left in each cavern, the mosaic so far, and a hint.
 | Machine | Sharp MZ-700, stock: Z80A at 3.5 MHz, 64 KB RAM, PAL |
 | Display | 40 x 25 text, 8 colours, built-in European character ROM only (no PCG, no bitmap mode) |
 | Sound | 8253 square-wave voice: music and effects from one player |
+| Controls | Cursor keys or Q / A / O / P; optional Sharp MZ-1X03 joystick (the stick's pulses are timed from VBLANK) |
 | Media | `SKINK.MZF` for a real machine through a UniCMT or tape; `SKINK.MZT` for emulators (identical) |
-| File | 20,215 bytes, loads at 1200h and starts by itself; nothing more is loaded |
+| File | 20,471 bytes, loads at 1200h and starts by itself; nothing more is loaded |
 | Language | Z80 assembly (sjasmplus); build tools and verification in Python |
 | Graphics | Each tile is a 2 x 2 block of ROM characters with its own colours; 96 tile looks, 8 animation phases per element |
 | Screen updates | A shadow copy of the screen means only tiles whose look changed are redrawn |
@@ -68,13 +70,13 @@ whole world: what is left in each cavern, the mosaic so far, and a hint.
 
 | Area | Address | Bytes |
 |---|---|---|
-| Program, maps, graphics, music, demo | 1200h-60F6h | 20,215 |
-| Variables and records table | 6100h-6202h | 259 |
+| Program, maps, graphics, music, demo | 1200h-61F6h | 20,471 |
+| Variables and records table | 6200h-6309h | 266 |
 | Game state | 8E00h-8E15h | 22 |
 | The whole world, unpacked (14 x 768) | 8F00h-B8FFh | 10,752 |
 | Snapshot of the current cavern on entry | C600h-C8FFh | 768 |
 | Screen shadow, look table, cavern counts | C900h-CA77h | 360 |
 | Stack (top) | below CFF0h | 256 |
-| **Total** | | **about 32,600 (31.8 KB)** |
+| **Total** | | **about 32,900 (32.1 KB)** |
 
-That leaves roughly 14 KB of the MZ-700's 47.5 KB of user RAM (1200h-CFFFh) free (6203h-8DFFh and B900h-C5FFh). Video and colour RAM (D000h-DFFFh) and the monitor ROM are not counted.
+That leaves roughly 14 KB of the MZ-700's 47.5 KB of user RAM (1200h-CFFFh) free (630Ah-8DFFh and B900h-C5FFh). Video and colour RAM (D000h-DFFFh) and the monitor ROM are not counted.

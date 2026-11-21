@@ -24,7 +24,7 @@ KEYS = {
     'cr': (0, 0), 'left': (7, 2), 'right': (7, 3), 'down': (7, 4), 'up': (7, 5),
     'space': (6, 4), 'z': (1, 6), 'x': (2, 0), 'break': (8, 7), 'shift': (8, 0),
     '1': (5, 7), '2': (5, 6), '3': (5, 5), 'a': (4, 7), 's': (2, 5),
-    'r': (2, 6), 'l': (3, 4), 'y': (1, 7), 'n': (3, 2), 'h': (4, 0), 'q': (2, 7), 'o': (3, 1), 'p': (3, 0),
+    'r': (2, 6), 'l': (3, 4), 'y': (1, 7), 'n': (3, 2), 'h': (4, 0), 'j': (3, 6), 'q': (2, 7), 'o': (3, 1), 'p': (3, 0),
 }
 
 
@@ -110,6 +110,8 @@ class MZ700:
         if a == 0xE002:
             # bit7 = /VBLK (0 during vertical blanking), bit6 = cursor blink
             return 0x7F if self.line() >= VISIBLE_LINES else 0xFF
+        if a == 0xE008:
+            return self.e008()
         if a == 0xE005:
             if self.ctr1_latch is None:
                 self.ctr1_latch = [self.ctr1_now() & 0xFF, self.ctr1_now() >> 8]
@@ -118,6 +120,28 @@ class MZ700:
                 self.ctr1_latch = None
             return v
         return 0xFF
+
+    # MZ-1X03 joystick in socket A: None = not plugged in.  Otherwise a dict
+    # x, y (0-255, centre 128) and fire (bool).  As the MiSTer core models
+    # it: from the start of VBLANK, bits 1 (X) and 2 (Y) are low for
+    # 68 + 28 x position T-states; during the picture they are the fire
+    # buttons (low = pressed).  Bit 0 and bit 7 are not modelled (read 1).
+    joy = None
+
+    def e008(self):
+        if self.joy is None:
+            return 0xFF
+        v = 0xFF
+        ft = self.cpu.t % FIELD_T
+        tv = ft - VISIBLE_LINES * LINE_T
+        if tv >= 0:
+            if tv < 68 + 28 * self.joy['x']:
+                v &= ~0x02
+            if tv < 68 + 28 * self.joy['y']:
+                v &= ~0x04
+        elif self.joy.get('fire'):
+            v &= ~0x02
+        return v & 0xFF
 
     def ctr1_now(self):
         elapsed = int((self.cpu.t - self.ctr1_load_t) / LINE_T)

@@ -62,6 +62,9 @@ vblev:  cp 0                        ; VBLANK level (set by detect_vblank)
         push hl
         ld hl,fieldcnt
         inc (hl)
+        ld a,(joy_arm)              ; a wait loop is watching for this edge:
+        or a                        ; time the joystick pulses first
+        call nz,joy_sample
         call snd_tick
         pop hl
         pop de
@@ -110,6 +113,8 @@ last_ctr:       dw 0
 wait_frame:
         push bc
         push de
+        ld a,(joy_on)
+        ld (joy_arm),a
         call lines_since
         ld bc,FRAME_LINES+156
         or a
@@ -120,6 +125,7 @@ wait_frame:
 .w:     ld a,(fieldcnt)
         ld b,a
 .e:     call poll                   ; next VBLANK start
+        call joy_read               ; (fire is read while the picture is drawn)
         ld a,(fieldcnt)
         cp b
         jr z,.e
@@ -131,6 +137,8 @@ wait_frame:
         ld (last_ctr),de
         ld a,(fieldcnt)
         ld (lastframe),a
+        xor a
+        ld (joy_arm),a
         pop de
         pop bc
         ret
@@ -138,26 +146,114 @@ wait_frame:
 ; wait A fields
 wait_fields:
         ld b,a
+        ld a,(joy_on)
+        ld (joy_arm),a
 .f:     ld a,(fieldcnt)
         ld c,a
 .w:     call poll
+        call joy_read
         ld a,(fieldcnt)
         cp c
         jr z,.w
         djnz .f
+        xor a
+        ld (joy_arm),a
+        ret
+
+; ---------------------------------------------------------------------
+; Sharp MZ-1X03 joystick (socket A), when switched on with J on the title.
+; E008h bits 1 (JA1, X) and 2 (JA2, Y): from the start of VBLANK each line
+; is low for 68 + 28 x position T-states (position 0-255, centre 128);
+; while the picture is drawn they are the two fire buttons (low = pressed).
+; joy_sample runs straight after a VBLANK edge that a wait loop caught and
+; times both pulses at once (82 T per count; centre is about 41 counts).
+; ---------------------------------------------------------------------
+JOY_PORT        equ 0E008h
+JOY_LO          equ 20                  ; fewer counts: left / up
+JOY_HI          equ 63                  ; more counts: right / down
+JOY_MAX         equ 120                 ; give up after ~9800 T
+
+joy_sample:
+        ld hl,JOY_PORT
+        ld bc,0                     ; B = X count, C = Y count
+        ld e,JOY_MAX
+.l:     ld a,(hl)
+        bit 1,a
+        jr nz,.x
+        inc b
+.x:     bit 2,a
+        jr nz,.y
+        inc c
+.y:     and 6
+        cp 6
+        jr z,.done
+        dec e
+        jr nz,.l
+.done:  ld e,0
+        ld a,b
+        cp JOY_LO
+        jr nc,$+4
+        set B_LEFT,e
+        cp JOY_HI
+        jr c,$+4
+        set B_RIGHT,e
+        ld a,c
+        cp JOY_LO
+        jr nc,$+4
+        set B_UP,e
+        cp JOY_HI
+        jr c,$+4
+        set B_DOWN,e
+        ld a,e
+        ld (joy_bits),a
+        ld a,b
+        ld (joy_raw),a
+        ld a,c
+        ld (joy_raw+1),a
+        ret
+
+; joy_read: A = the joystick's K_ bits (directions from the last sample,
+; fire read now unless it is VBLANK, when the lines carry the stick).
+; 0 when the joystick is off.  Keeps BC, DE, HL.
+joy_read:
+        ld a,(joy_on)
+        or a
+        ret z
+        push bc
+        ld a,(JOY_PORT)             ; read first, then make sure it was not
+        cpl                         ; VBLANK (the stick pulses start there)
+        and 6                       ; either fire button
+        jr z,$+4
+        ld a,K_FIRE
+        ld c,a
+        ld a,(KEYPC)
+        and 80h
+        ld b,a
+        ld a,(vblev+1)
+        cp b
+        jr z,.vb                    ; VBLANK now: keep the last fire state
+        ld a,c
+        ld (joy_fire),a
+.vb:    pop bc
+        ld a,(joy_bits)
+        push bc
+        ld b,a
+        ld a,(joy_fire)
+        or b
+        pop bc
         ret
 
 ; wait for one field (handy in front-end loops)
 wait_field:
         ld a,1
-        jr wait_fields
+        jp wait_fields
 
 ; ---------------------------------------------------------------------
 ; keyboard
 ; ---------------------------------------------------------------------
 ; read_keys: A = K_ bits of the game controls (cursor keys or Q/A/O/P).
 ; Also sets key_pause (CR), key_quit (BREAK) and key_extra: bit 0 SPACE,
-; 1 R, 2 S, 3 L, 4 Y, 5 N, 6 H
+; 1 R, 3 J, 4 Y, 5 N, 6 H.  The joystick (if on) adds to the K_ bits.
 read_keys:
         push bc
         push de
@@ -219,11 +315,11 @@ read_keys:
         bit 0,a
         jr nz,$+4
         set 6,e
-        ld (hl),3                   ; row 3: L (4), N (2), O (1), P (0)
+        ld (hl),3                   ; row 3: J (6), N (2), O (1), P (0)
         inc l
         ld a,(hl)
         dec l
-        bit 4,a
+        bit 6,a
         jr nz,$+4
         set 3,e
         bit 2,a
@@ -250,7 +346,8 @@ read_keys:
         ld (key_quit),a
         ld a,e
         ld (key_extra),a
-        ld a,c
+        call joy_read
+        or c
         pop hl
         pop de
         pop bc
@@ -283,6 +380,9 @@ anykey:
 wait_release:
 .w:     call poll
         call anykey
+        jr nz,.w
+        call joy_read
+        and K_FIRE
         jr nz,.w
         ret
 
