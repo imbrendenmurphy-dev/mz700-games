@@ -7,6 +7,8 @@ txt_credit:     db "MZ-700 VERSION  2026  VIBED BY BPM",0
 txt_press:      db "PRESS SPACE TO START",0
 txt_best:       db "HIGH SCORE ",0
 txt_startcave:  db "START IN CAVE ",0
+txt_joyoff:     db "J  JOYSTICK OFF",0
+txt_joyon:      db "J  JOYSTICK ON ",0
 
 scroll_text:
         db "                                        "
@@ -21,6 +23,7 @@ scroll_text:
         db "THE MAGIC WALL TURNS FALLING ROCKS INTO DIAMONDS - FOR A WHILE.    "
         db "CURSOR KEYS OR Q A O P TO DIG.  HOLD SPACE TO GRAB WITHOUT MOVING.  "
         db "LEFT AND RIGHT ON THIS SCREEN CHOOSE THE STARTING CAVE.  "
+        db "J SWITCHES ON AN MZ-1X03 JOYSTICK IN PORT 1 - EITHER BUTTON GRABS.  "
         db "CR PAUSES, BREAK GIVES UP.        ",0
 
 txt_guide:      db "- W H A T   L I E S   B E L O W -",0

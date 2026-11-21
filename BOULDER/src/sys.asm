@@ -38,7 +38,8 @@ detect_vblank:
         ld a,c
 .bshort:
         ld (vblev+1),a              ; level seen during VBLANK
-        ret
+        ld (vblev2+1),a
+        jp timer_init               ; and start the scan-line clock
 
 ; ---------------------------------------------------------------------
 ; poll: call at least every ~15000 T.  On each VBLANK start it counts a
@@ -49,17 +50,32 @@ poll:
         and 80h
 pollcmp:
         cp 0                        ; last level seen (self-modified)
-        jr nz,.edge
+        jr nz,poll_edge
+        ld a,(joy_on)
+        or a
+        jr z,poll_nj
+        ld a,(JOYPORT)              ; read the lines first, then make sure
+        ld (joy_tmp),a              ; VBLANK had not started: outside it the
+        ld a,(KEYPC)                ; pulses are over, so a line held low
+        and 80h                     ; is a button
+vblev2: cp 0                        ; VBLANK level (set by detect_vblank)
+        jr z,poll_nj
+        ld a,(joy_tmp)
+        ld (joy_disp),a
+poll_nj:
         ld a,(noise_on)
         or a
         ret z
         jp noise_step
-.edge:  ld (pollcmp+1),a
+poll_edge:
+        ld (pollcmp+1),a
 vblev:  cp 0                        ; VBLANK level (set by detect_vblank)
         ret nz
         push bc
         push de
         push hl
+        call read_ctr1              ; when VBLANK began, for the joystick
+        ld (joy_edge),hl
         ld hl,fieldcnt
         inc (hl)
         call snd_tick
@@ -68,33 +84,72 @@ vblev:  cp 0                        ; VBLANK level (set by detect_vblank)
         pop bc
         ret
 
-; wait for the start of the next game frame (FRAMEF fields after the last
-; one, always at the start of a VBLANK)
+; wait for the start of the next game frame: the first VBLANK start at
+; least FRAMEF fields after the last frame.  The fields are measured with
+; 8253 counter 1 (it counts scan lines), so a long stretch of work that
+; misses a VBLANK edge in poll no longer makes the next frame wait extra
+; fields.  Keeps BC and DE.
+FRAME_LINES     equ FRAMEF*312
+CTR1            equ 0E005h
+
+timer_init:
+        ld a,74h                    ; counter 1: LSB/MSB, mode 2, binary
+        ld (CTRL),a
+        xor a
+        ld (CTR1),a
+        ld (CTR1),a
+        call read_ctr1
+        ld (last_ctr),hl
+        ret
+
+; HL = counter 1 (latched)
+read_ctr1:
+        ld a,40h
+        ld (CTRL),a
+        ld a,(CTR1)
+        ld l,a
+        ld a,(CTR1)
+        ld h,a
+        ret
+
+; HL = lines since the last frame, DE = counter now
+lines_since:
+        call read_ctr1
+        ex de,hl
+        ld hl,(last_ctr)
+        or a
+        sbc hl,de
+        ret
+
+last_ctr:       dw 0
+
 wait_frame:
-        ld a,(fieldcnt)
-        ld hl,lastframe
-        sub (hl)
-        cp FRAMEF
-        jr c,.w                     ; early: wait for the field count
-        ld hl,drops                 ; late: realign on the next VBLANK
+        push bc
+        push de
+        call lines_since
+        ld bc,FRAME_LINES+156
+        or a
+        sbc hl,bc
+        jr c,.w
+        ld hl,drops                 ; already late
         inc (hl)
-        ld a,(fieldcnt)
+.w:     ld a,(fieldcnt)
         ld b,a
-.l2:    call poll
+.e:     call poll                   ; next VBLANK start
         ld a,(fieldcnt)
         cp b
-        jr z,.l2
+        jr z,.e
+        call lines_since
+        ld bc,FRAME_LINES-156
+        or a
+        sbc hl,bc
+        jr c,.w                     ; too early: another field
+        ld (last_ctr),de
+        ld a,(fieldcnt)
         ld (lastframe),a
-        ret
-.w:     call poll
-        ld a,(fieldcnt)
-        ld hl,lastframe
-        sub (hl)
-        cp FRAMEF
-        jr c,.w
-        ld a,(fieldcnt)
-        ld (hl),a
-        ret
+        pop de
+        pop bc
+        jp joy_sample
 
 ; wait A fields
 wait_fields:
@@ -106,12 +161,84 @@ wait_fields:
         cp c
         jr z,.w
         djnz .f
-        ret
+        jp joy_sample
 
 ; wait for one field (handy in front-end loops)
 wait_field:
         ld a,1
         jr wait_fields
+
+; ---------------------------------------------------------------------
+; MZ-1X03 joystick (port 1), as Sharp's own routine reads it: at the
+; start of VBLANK each axis line (E008h bit 1 = X, bit 2 = Y) goes low
+; for a time set by the stick, about 270 + 28 T per step of 0-255.  A
+; button holds its line low (SW1 on X, SW2 on Y), which poll notices
+; outside VBLANK.  Directions need only two looks: line already high 10
+; lines in = low end (left / up), still low 22 lines in = high end
+; (right / down), timed from the VBLANK start poll saw.  Call soon
+; after that start; it waits until 22 lines in.
+; ---------------------------------------------------------------------
+JOY_EARLY       equ 10
+JOY_LATE        equ 22
+
+joy_sample:
+        ld a,(joy_on)
+        or a
+        ret z
+        push bc
+        push de
+        push hl
+        ld de,(joy_edge)            ; the counter when VBLANK began
+        ld b,JOY_EARLY
+        call .until
+        ld a,(JOYPORT)
+        ld c,a                      ; early look
+        ld b,JOY_LATE
+        call .until
+        ld a,(JOYPORT)
+        ld b,a                      ; late look
+        ld a,(joy_disp)
+        ld l,a
+        ld h,0
+        bit 1,l                     ; X line held: SW1
+        jr nz,.xa
+        set B_FIRE,h
+        jr .y
+.xa:    bit 1,c
+        jr z,.xr
+        set B_LEFT,h
+        jr .y
+.xr:    bit 1,b
+        jr nz,.y
+        set B_RIGHT,h
+.y:     bit 2,l                     ; Y line held: SW2
+        jr nz,.ya
+        set B_FIRE,h
+        jr .done
+.ya:    bit 2,c
+        jr z,.yd
+        set B_UP,h
+        jr .done
+.yd:    bit 2,b
+        jr nz,.done
+        set B_DOWN,h
+.done:  ld a,h
+        ld (joy_bits),a
+        pop hl
+        pop de
+        pop bc
+        ret
+; wait until B scan lines have passed since counter value DE
+.until: call read_ctr1
+        push de
+        ex de,hl
+        or a
+        sbc hl,de                   ; lines gone (the counter counts down)
+        pop de
+        ld a,l
+        cp b
+        jr c,.until
+        ret
 
 ; ---------------------------------------------------------------------
 ; keyboard
@@ -191,8 +318,13 @@ read_keys:
         cpl
         and 80h
         ld (key_quit),a
+        ld a,(joy_on)
+        or a
         ld a,c
-        pop hl
+        jr z,.nj
+        ld hl,joy_bits
+        or (hl)
+.nj:    pop hl
         pop bc
         ret
 
@@ -213,7 +345,14 @@ anykey:
         or c
         ld c,a
         djnz .r
-        ld a,c
+        ld a,(joy_on)
+        or a
+        jr z,.nj
+        ld a,(joy_bits)
+        and K_FIRE
+        or c
+        ld c,a
+.nj:    ld a,c
         or a
         pop hl
         pop bc

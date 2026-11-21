@@ -148,6 +148,7 @@ title_screen:
         inc de
         djnz .nm
         call cave_select_draw
+        call joy_draw
         call dig_init
         ld hl,(scroll_ptr)          ; the text carries on where it left off last time
         ld a,h
@@ -172,6 +173,7 @@ title_fx:
         call scroller
         call dig_step
         call cave_select_keys
+        call joy_keys
         ; flash "press space"
         ld a,(logo_phase)
         and 16
@@ -207,10 +209,46 @@ cave_select_keys:
         ld (page_restart),a
         jp cave_select_draw
 
+; J switches the MZ-1X03 joystick on and off
+joy_keys:
+        ld a,3                      ; row 3: J is bit 6
+        ld (KEYPA),a
+        ld a,(KEYPA+1)
+        cpl
+        and 40h
+        ld hl,joy_kprev
+        ld b,(hl)
+        ld (hl),a
+        ret z
+        ld a,b
+        or a
+        ret nz
+        ld a,0FFh                   ; no button seen yet
+        ld (joy_disp),a
+        xor a
+        ld (joy_bits),a
+        ld a,(joy_on)
+        xor 1
+        ld (joy_on),a
+        ld hl,SFX_CLICK
+        ld a,1
+        call sfx
+        ld a,1
+        ld (page_restart),a
+joy_draw:
+        ld hl,txt_joyoff
+        ld a,(joy_on)
+        or a
+        jr z,$+5
+        ld hl,txt_joyon
+        ld c,13
+        ld a,CYAN*16
+        jp print_centre
+
 cave_select_draw:
         ld hl,txt_startcave
         ld b,11
-        ld c,12
+        ld c,11
         ld a,GREEN*16
         call print_at
         ld a,51h                    ; '<'

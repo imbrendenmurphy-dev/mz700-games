@@ -31,6 +31,12 @@ drum_age        ds 1
 
 key_pause       ds 1
 key_quit        ds 1
+joy_on          ds 1              ; MZ-1X03 joystick switched on (J on the title)
+joy_bits        ds 1              ; K_ bits read from it last frame
+joy_kprev       ds 1              ; J held last field
+joy_disp        ds 1
+joy_tmp         ds 1
+joy_edge        ds 2              ; 8253 counter 1 when VBLANK began              ; E008h seen outside VBLANK (0 bit = button held)
 fe_prev         ds 1
 fe_rep          ds 1
 keys            ds 1

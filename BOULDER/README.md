@@ -31,8 +31,31 @@ sound chip.
 | Cursor keys or Q / A / O / P | move and dig |
 | SPACE + direction | grab earth or a diamond next to you without moving |
 | LEFT / RIGHT on the title | choose the starting wing (cave A, E, I, M or Q) |
+| J on the title | switch the MZ-1X03 joystick on or off |
 | CR | pause |
 | BREAK | give up |
+
+## Joystick
+
+Press **J** on the title to switch on a Sharp **MZ-1X03** joystick in port 1
+(the left connector); it stays on until you press J again. The stick moves
+and digs, and either button grabs (button + direction) or starts a game.
+The keyboard still works alongside it.
+
+The MZ-1X03 is analog: at the start of each vertical blank, each axis line
+on E008h (bit 1 = X, bit 2 = Y) goes low for a time set by the stick, and a
+held button keeps its line low (SW1 on the X line, SW2 on the Y line). The
+game reads it the way Sharp's own routine does, but needs only two looks
+per frame: a line already high 10 scan lines into the blank is the low end
+(left / up), and one still low 22 lines in is the high end (right / down),
+so there is a wide dead zone around the centre. A held button takes over
+its axis, so hold SW2 to grab left or right and SW1 to grab up or down. The
+two looks cost a little time each frame (the busiest cave runs about 2%
+slower with the joystick on), so it is off until you ask for it.
+
+Emulators that fake the joystick as four on/off switches on E008h (MAME
+does this) won't work with it; it is written for the real hardware, and
+tested on a model of it in the simulator (`tools/test_joy.py`).
 
 ## The caves
 
@@ -102,10 +125,11 @@ py tools/tune.py [letters]      solve caves, set their clocks, save tools/soluti
 py tools/verify.py [letters]    play the solutions on the Z80 build, compared tick by tick
 py tools/crosscheck.py 0,4 400  random play: Z80 and Python model compared every tick
 py tools/test_game.py           scripted physics checks (all should pass)
+py tools/test_joy.py            the MZ-1X03 joystick on the simulator's model of it
 py tools/sheet.py               all caves on one contact sheet, at their true sizes (build/caves_sheet.png)
 py tools/scrollshot.py C R      walk through a cave on the Z80 build and screenshot the scrolling
 py tools/themeshots.py          one in-game screenshot per wing (build/wings.png)
-py tools/perf.py T 500          game speed in a cave (walking right, so it scrolls) under the VRAM wait model
+py tools/perf.py T 500 all [joy] game speed in a cave (walking right, so it scrolls) under the VRAM wait model
 py tools/wav.py 40              render the title music to build/title_music.wav
 ```
 

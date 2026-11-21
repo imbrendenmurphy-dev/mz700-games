@@ -169,7 +169,10 @@ def gen_demo(cs):
            'DEMOTAB: dw ' + ','.join('demo_%d' % i for i in range(len(cs)))]
     total = 0
     for i, c in enumerate(cs):
-        pairs = solutions.SOLUTIONS[c.letter]['keys']
+        sol = solutions.SOLUTIONS.get(c.letter)
+        if sol is None and '--draft' in sys.argv:
+            sol = {'keys': []}                # draft: a cave not solved yet has no demo
+        pairs = sol['keys']
         vals = [v for k, n in pairs for v in (k, n)] + [0, 0]
         total += len(vals)
         out.append('demo_%d:' % i)

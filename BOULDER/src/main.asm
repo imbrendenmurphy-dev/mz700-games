@@ -14,6 +14,7 @@ KEYPC           equ 0E002h          ; 8255 port C: bit 7 = /VBLK
 CTR0            equ 0E004h          ; 8253 counter 0 (sound)
 CTRL            equ 0E007h          ; 8253 control
 SNDGATE         equ 0E008h          ; sound gate
+JOYPORT         equ 0E008h          ; read: bits 1-2 = joystick 1 X / Y pulses
 
 ; ---------------------------------------------------------------- memory
 CAVEW           equ 64              ; map row stride: caves are up to 64 x 32

@@ -23,7 +23,7 @@ PAL = [(0, 0, 0), (0, 0, 255), (255, 0, 0), (255, 0, 255),
 KEYS = {
     'cr': (0, 0), 'left': (7, 2), 'right': (7, 3), 'down': (7, 4), 'up': (7, 5),
     'space': (6, 4), 'z': (1, 6), 'x': (2, 0), 'break': (8, 7), 'shift': (8, 0),
-    '1': (5, 7), '2': (5, 6), '3': (5, 5), 'a': (4, 7), 's': (2, 5),
+    '1': (5, 7), '2': (5, 6), '3': (5, 5), 'a': (4, 7), 's': (2, 5), 'j': (3, 6),
 }
 
 
@@ -116,7 +116,24 @@ class MZ700:
             if not self.ctr1_latch:
                 self.ctr1_latch = None
             return v
+        if a == 0xE008 and self.joy is not None:
+            return self.joy_read()
         return 0xFF
+
+    # MZ-1X03 joystick in port 1, as Sharp's read routine sees it: from the
+    # start of VBLANK each axis line (bit 1 = X, bit 2 = Y) is low for about
+    # 270 + 28 T per step of its 0-255 position; a held button keeps its
+    # line low (SW1 on X, SW2 on Y).  joy = [x, y, sw1, sw2] or None.
+    joy = None
+
+    def joy_read(self):
+        x, y, sw1, sw2 = self.joy
+        since = (self.cpu.t % FIELD_T) - VISIBLE_LINES * LINE_T
+        v = 0xFF
+        for bit, pos, sw in ((1, x, sw1), (2, y, sw2)):
+            if sw or 0 <= since < 270 + 28 * pos:
+                v &= ~(1 << bit) & 0xFF
+        return v
 
     def ctr1_now(self):
         elapsed = int((self.cpu.t - self.ctr1_load_t) / LINE_T)

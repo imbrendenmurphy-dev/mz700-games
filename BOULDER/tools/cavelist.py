@@ -76,29 +76,38 @@ def pen(c, bx, by):
 
 # ===================================================================== I THE SHALLOWS
 def a_first_light():
-    c = Cave('A', 'FIRST LIGHT', 'NEVER STAND UNDER A ROCK YOU FREED', 17, 10, 15, 150, 1,
-             [('DIRT', 82), ('BOULDER', 14), ('SPACE', 4)], w=48, h=24)
+    c = Cave('A', 'FIRST LIGHT', 'NEVER STAND UNDER A ROCK YOU FREED', 24, 10, 15, 150, 1,
+             [('DIRT', 86), ('BOULDER', 10), ('SPACE', 4)], w=64, h=32)
     # chandeliers: three rocks hanging over a gem - take it from the side
-    for x, y in ((9, 5), (17, 8), (25, 4), (33, 7), (41, 5), (6, 13), (37, 14)):
+    for x, y in ((10, 6), (19, 9), (28, 5), (37, 8), (48, 13), (57, 16), (6, 16),
+                 (14, 24), (27, 26), (40, 22), (52, 22)):
         c.stamp(x - 1, y - 3, ['.o.', '.o.', '.o.', '.*.', '...'])
     # the cellar: a rock-laden earth roof, and a door low on its left
-    c.box('BOULDER', 14, 11, 30, 11)
-    c.box('DIRT', 15, 12, 29, 12)
-    c.rect('BRICK', 14, 12, 30, 16)
-    c.box('SPACE', 15, 13, 29, 15)
-    c.line('DIAMOND', 16, 15, 28, 15, 2)
-    c.put('DIRT', 14, 15).put('DIRT', 13, 15)
-    # the last corridor: a gem under every rock, and no way back
-    c.line('BOULDER', 26, 20, 39, 20)
-    c.line('DIAMOND', 27, 21, 39, 21, 2)
-    c.line('DIRT', 28, 21, 38, 21, 2)
-    c.put('DIRT', 26, 21)
-    # the exit vault, opened only from that corridor
-    c.rect('BRICK', 40, 17, 46, 22)
-    c.box('SPACE', 41, 18, 45, 21)
-    c.put('DIRT', 40, 21)
+    c.box('BOULDER', 16, 13, 36, 13)
+    c.box('DIRT', 17, 14, 35, 14)
+    c.rect('BRICK', 16, 14, 36, 18)
+    c.box('SPACE', 17, 15, 35, 17)
+    c.line('DIAMOND', 18, 17, 34, 17, 2)
+    c.put('DIRT', 16, 17).put('DIRT', 15, 17)
+    # the attic, up in the far corner: the same again, its door on the right
+    c.box('BOULDER', 44, 3, 58, 3)
+    c.box('DIRT', 45, 4, 57, 4)
+    c.rect('BRICK', 44, 4, 58, 8)
+    c.box('SPACE', 45, 5, 57, 7)
+    c.line('DIAMOND', 46, 7, 56, 7, 2)
+    c.put('DIRT', 58, 7).put('DIRT', 59, 7)
+    # the last corridor: a gem under every rock, and no way back (step back and it seals)
+    c.box('DIRT', 33, 27, 38, 30).line('BOULDER', 39, 28, 55, 28)
+    c.line('DIAMOND', 39, 29, 55, 29, 2)
+    c.line('DIRT', 40, 29, 54, 29, 2)
+    c.put('DIRT', 38, 29).line('BRICK', 39, 30, 55, 30)
+    # the exit vault: in from the corridor, or down through a door in its roof
+    c.rect('BRICK', 56, 25, 62, 30)
+    c.box('SPACE', 57, 26, 61, 29)
+    c.put('DIRT', 56, 29)
+    c.box('DIRT', 58, 21, 60, 24).put('DIRT', 59, 25)
     c.put('DIAMOND', 4, 4).put('DIAMOND', 6, 7).put('DIAMOND', 2, 9).put('DIRT', 4, 3).put('DIRT', 6, 6)
-    c.start(2, 2).exit(45, 21)
+    c.start(2, 2).exit(61, 29)
     return c
 
 

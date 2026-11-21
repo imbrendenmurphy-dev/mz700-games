@@ -1,6 +1,6 @@
 """perf.py - game speed in a cave, with the VRAM wait model.
 
-    py tools/perf.py [cave letter] [fields] [none|all|display]
+    py tools/perf.py [cave letter] [fields] [none|all|display] [joy]
 
 Starts a game in the cave, walks the player right (so the window scrolls)
 and counts physics ticks against the target rate.
@@ -14,8 +14,12 @@ from run import Game  # noqa: E402
 letter = sys.argv[1] if len(sys.argv) > 1 else 'C'
 fields = int(sys.argv[2]) if len(sys.argv) > 2 else 500
 mode = sys.argv[3] if len(sys.argv) > 3 else 'all'
+joy = 'joy' in sys.argv[4:]                 # with the joystick switched on (and centred)
 g = Game(None if mode == 'none' else mode)
 g.run(30)
+if joy:
+    g.m.joy = [128, 128, 0, 0]
+    g.wb('joy_on', 1)
 g.wb('start_cave', ord(letter) - 65)
 g.run(10, ['space'])
 while not (g.rb('inbox_time') == 0 and g.rb('pl_dead') == 0 and g.rb('cave_no') == ord(letter) - 65):
@@ -27,6 +31,6 @@ for _ in range(fields // 25):
     g.run(25, ['right'])
 n = (g.rw('ticks') - t0) & 0xFFFF
 speed = g.rb('speed')
-print('cave %s %s: %d ticks in %d fields = %.2f ticks/s (target %.2f), %.1f%% CPU in VRAM waits, view x %d -> %d' % (
-    letter, mode, n, fields, n * 50 / fields, 50 / speed,
+print('cave %s %s%s: %d ticks in %d fields = %.2f ticks/s (target %.2f), %.1f%% CPU in VRAM waits, view x %d -> %d' % (
+    letter, mode, ' joy' if joy else '', n, fields, n * 50 / fields, 50 / speed,
     100.0 * (g.m.waits - w0) / (fields * 70886), vx0, g.rb('view_x')))
