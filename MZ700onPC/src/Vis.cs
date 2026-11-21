@@ -159,6 +159,7 @@ public sealed class MzVis
         y = PBudget(y) + 6;
         y = PVramLines(y) + 6;
         y = POps(y) + 6;
+        if (m.FloppyOn) y = PFloppy(y) + 6;
         PStack(y, H - y);
 
         buf = Right; Fill(0, 0, W, H, BG);
@@ -405,6 +406,39 @@ public sealed class MzVis
     }
 
     // ---------------------------------------------------------------- stack
+    // ---------------------------------------------------------------- MZ-1E05 floppy: FDC state and a track map
+    int PFloppy(int y0)
+    {
+        var f = m.Fdc;
+        int h = 15 + 3 * 10 + 2 * 7 + 4;
+        var dk = f.Disk[f.Drive];
+        int y = Panel(y0, h, "FLOPPY MZ-1E05  MB8876", f.Motor ? "MOTOR ON" : "MOTOR OFF");
+        int x = Text(5, y, "FD" + (f.Drive + 1) + " ", f.Motor ? AMBER : DIM);
+        string nm = dk == null ? "EMPTY" : dk.Name.ToUpperInvariant(); if (nm.Length > 20) nm = nm.Substring(0, 20);
+        x = Text(x, y, nm, dk == null ? DIM : TXT);
+        if (dk != null) TextR(W - 4, y, (dk.WriteProtect ? "PROT " : "") + (dk.Dirty ? "CHANGED" : dk.Format), dk.Dirty ? RED : DIM);
+        y += 10;
+        x = Text(5, y, f.Busy ? f.LastCmd : "IDLE", f.Busy ? HI : DIM);
+        TextR(W - 4, y, "ST " + H2(f.Status) + (f.Drq ? " DRQ" : "") + (f.IrqEnable ? " INT" : ""), f.Drq ? GREEN : DIM);
+        y += 10;
+        x = Text(5, y, "TRK " + f.Track + " SEC " + f.Sector + " HEAD " + f.HeadCyl[f.Drive] + "/" + f.Side, TXT);
+        TextR(W - 4, y, "R " + f.SectorsRead + " W " + f.SectorsWritten + (f.LostData > 0 ? " LOST " + f.LostData : ""), f.LostData > 0 ? RED : DIM);
+        y += 10;
+        // track map: 42 cylinders x 2 heads; red = written, green = read, amber = the head
+        int cw = 7;
+        for (int hd = 0; hd < 2; hd++)
+            for (int c = 0; c < 42; c++)
+            {
+                int i = c * 2 + hd, r = f.HeatR[i], w = f.HeatW[i];
+                bool has = dk != null && dk.Track(c, hd).Count > 0;
+                int col = w > 0 ? Lerp(0x301010, RED, w / 255.0) : r > 0 ? Lerp(0x103010, GREEN, r / 255.0) : has ? 0x1A2438 : 0x0C1018;
+                if (c == f.HeadCyl[f.Drive] && hd == f.Side) col = f.Motor ? AMBER : 0x604010;
+                Fill(5 + c * cw, y + hd * 7, cw - 1, 6, col);
+                f.HeatR[i] = r * 7 / 8; f.HeatW[i] = w * 7 / 8;
+            }
+        return y0 + h;
+    }
+
     int PStack(int y0, int avail)
     {
         int h = Math.Min(avail, 15 + 10 + 38 + 4 + 10 + 8 * 10 + 4);
@@ -598,8 +632,26 @@ public sealed class MzVis
 
     int PSound(int y0)
     {
-        int h = 15 + 3 * 10 + 4 + 40 + 4 + 36 + 4 + 10 + 2;
-        int y = Panel(y0, h, "8253 AND SPEAKER", m.SoundGate ? "GATE ON" : "GATE OFF");
+        int h = 15 + 3 * 10 + 4 + 40 + 4 + 36 + 4 + 10 + 2 + (m.PsgOn ? 20 : 0);
+        int y = Panel(y0, h, m.PsgOn ? "8253, SPEAKER, MZ-1500 PSG" : "8253 AND SPEAKER", m.SoundGate ? "GATE ON" : "GATE OFF");
+        if (m.PsgOn)
+        {
+            // two SN76489s: three tones and noise each; the box shows the volume
+            for (int k = 0; k < 2; k++)
+            {
+                var p = k == 0 ? m.PsgL : m.PsgR; int yy = y + k * 10;
+                int x = Text(5, yy, k == 0 ? "L" : "R", AMBER);
+                for (int c = 0; c < 4; c++)
+                {
+                    int att = p.Atten(c); double lv = (15 - att) / 15.0;
+                    int bx = 16 + c * 72;
+                    Fill(bx, yy - 1, 6, 8, att >= 15 ? 0x1A2A1A : Lerp(0x204020, GREEN, lv));
+                    string lab = c < 3 ? (att >= 15 ? "--" : Note(p.Hz(c)) + " " + (int)p.Hz(c)) : (att >= 15 ? "N --" : ((p.Reg[6] & 4) != 0 ? "N WHT" : "N PER") + ((p.Reg[6] & 3) == 3 ? " T3" : " /" + (512 << (p.Reg[6] & 3))));
+                    Text(bx + 9, yy, lab, att >= 15 ? DIM : TXT);
+                }
+            }
+            y += 20;
+        }
         string[] clk = { "1.108 MHZ", "HSYNC", "OUT1" };
         for (int i = 0; i < 3; i++)
         {
@@ -785,6 +837,9 @@ public sealed class MzVis
             case 0xE0: return "0000 RAM"; case 0xE1: return "D000 RAM"; case 0xE2: return "0000 ROM"; case 0xE3: return "D000 VRAM"; case 0xE4: return "RESET MAP";
             case 0xE5: return m.Pcg == PcgType.Mz1500 ? "PCG MAP" : "LOCK D000"; case 0xE6: return m.Pcg == PcgType.Mz1500 ? "PCG OFF" : "UNLOCK";
             case 0xF0: return "PCG PRIO"; case 0xF1: return "PALETTE";
+            case 0xD8: return "FDC CMD/ST"; case 0xD9: return "FDC TRACK"; case 0xDA: return "FDC SECTOR"; case 0xDB: return "FDC DATA";
+            case 0xDC: return "FD MOTOR"; case 0xDD: return "FD SIDE"; case 0xDF: return "FD INT";
+            case 0xE9: return "PSG L+R"; case 0xF2: return "PSG L"; case 0xF3: return "PSG R";
         }
         return "";
     }

@@ -217,7 +217,7 @@ public sealed class Headless
         }
     }
 
-    static readonly HashSet<string> configCmds = new HashSet<string> { "rom", "pcg", "vramwait", "joy", "joystick", "cgrom", "fasttape", "romwait", "sym", "quiet", "crash", "stack", "print", "watch", "ring" };
+    static readonly HashSet<string> configCmds = new HashSet<string> { "rom", "pcg", "vramwait", "joy", "joystick", "cgrom", "fasttape", "romwait", "sym", "quiet", "crash", "stack", "print", "watch", "ring", "psg", "floppy", "disk", "diskeject", "diskprotect", "diskmake", "diskblank" };
 
     bool Exec(string ln)
     {
@@ -260,6 +260,33 @@ public sealed class Headless
             case "stack": spLo = Num(a1); spHi = Num(a2); break;
             case "watch": watches.Add(new[] { Num(a1), a2 != "" ? Num(a2) : Num(a1) }); break;
             case "print": Console.WriteLine(rest); break;
+            case "psg": m.PsgOn = a1 != "off" && a1 != "0"; break;
+            case "floppy": m.FloppyOn = a1 != "off" && a1 != "0"; break;
+            case "disk":
+                {
+                    // disk [N] FILE: insert into drive N (1-4, default 1); turns the floppy interface on
+                    int dn = 0; string f = rest;
+                    if (a1.Length == 1 && char.IsDigit(a1[0]) && a.Length > 2) { dn = Num(a1) - 1; f = rest.Substring(1).Trim().Trim('"'); }
+                    var d = MzDisk.Load(Path.GetFullPath(f));
+                    m.Fdc.Disk[dn] = d; m.FloppyOn = true;
+                    int sz, ld, ex, st; string ipl = d.IplInfo(out sz, out ld, out ex, out st);
+                    Console.Error.WriteLine("disk {0}: {1} ({2}, {3} cylinders){4}", dn + 1, d.Name, d.Format, d.Cylinders,
+                        ipl != null ? string.Format(", IPL {0} size {1:X4} load {2:X4} exec {3:X4} from record {4}", ipl, sz, ld, ex, st) : ", not bootable");
+                }
+                break;
+            case "diskeject": m.Fdc.Disk[a1 != "" ? Num(a1) - 1 : 0] = null; break;
+            case "diskprotect": { var d = m.Fdc.Disk[Num(a1) - 1]; if (d != null) d.WriteProtect = a2 != "off" && a2 != "0"; } break;
+            case "diskblank": { var d = MzDisk.Blank(Path.GetFullPath(rest)); d.Save(); Console.Error.WriteLine("diskblank: " + d.Path); } break;
+            case "diskmake":
+                {
+                    // diskmake OUT.dsk PROGRAM.MZT [NAME]: a bootable IPL disk holding the tape file's first block
+                    var f = MzTapeFile.Load(a2); var b = f.Blocks[0];
+                    string nm = a.Length > 3 ? a[3] : b.Name;
+                    var d = MzDisk.FromProgram(Path.GetFullPath(a1), nm, b.Data, b.Load, b.Exec);
+                    d.Save();
+                    Console.Error.WriteLine("diskmake: {0} = {1} ({2:X4} bytes, load {3:X4}, exec {4:X4}){5}", d.Path, nm, b.Data.Length, b.Load, b.Exec, f.Blocks.Count > 1 ? " - only the first block; the program's later tape loads still need the tape" : "");
+                }
+                break;
 
             // ---- running
             case "mzt": case "mzf": case "load": case "vz":
@@ -327,6 +354,47 @@ public sealed class Headless
                 Console.WriteLine("banks {0}  pcg {1} {2}  vram wait {3} {4}-{5}  joystick {6}  font {7}  monitor {8}", Banks(), m.Pcg,
                     m.Pcg == PcgType.Pcg700 ? (m.Pcg700On ? "on" : "off") : m.Pcg == PcgType.Mz1500 ? "map " + m.PcgMap + " priority " + m.PcgPriority : "",
                     m.VramWait, m.WaitW0, m.WaitW1, m.Joystick, m.FontName, m.HasRom ? m.RomName : "stub");
+                break;
+            case "psgstate":
+                for (int k = 0; k < 2; k++)
+                {
+                    var p = k == 0 ? m.PsgL : m.PsgR; var sb = new StringBuilder(); sb.Append(k == 0 ? "PSG L:" : "PSG R:");
+                    for (int c = 0; c < 4; c++) sb.AppendFormat(" {0}={1}{2:F1}Hz att{3}", c < 3 ? "T" + (c + 1) : "N", c < 3 ? "" : p.NoiseName + " ", p.Hz(c), p.Atten(c));
+                    sb.AppendFormat(" writes {0}", p.Writes);
+                    Console.WriteLine(sb.ToString());
+                }
+                break;
+            case "fdc":
+                {
+                    var f = m.Fdc;
+                    Console.WriteLine("FDC {0} cmd {1:X2} ({2}) status {3:X2} track {4} sector {5} data {6:X2} drq {7} intrq {8}", f.StateName, f.Cmd, f.LastCmd, f.Status, f.Track, f.Sector, f.Data, f.Drq ? 1 : 0, f.Intrq ? 1 : 0);
+                    Console.WriteLine("drive {0} side {1} motor {2} head cyl {3} irq-enable {4}; sectors read {5} written {6} lost data {7} commands {8}", f.Drive + 1, f.Side, f.Motor ? "on" : "off", f.HeadCyl[f.Drive], f.IrqEnable ? 1 : 0, f.SectorsRead, f.SectorsWritten, f.LostData, f.Commands);
+                    for (int i = 0; i < MzFdc.DRIVES; i++) if (f.Disk[i] != null) Console.WriteLine("drive {0}: {1} ({2}, {3} cyl{4}{5})", i + 1, f.Disk[i].Name, f.Disk[i].Format, f.Disk[i].Cylinders, f.Disk[i].WriteProtect ? ", protected" : "", f.Disk[i].Dirty ? ", CHANGED" : "");
+                }
+                break;
+            case "diskboot":
+                Console.Error.WriteLine("diskboot: " + m.BootDisk());
+                break;
+            case "disksave":
+                {
+                    int dn = a1 != "" && a1.Length == 1 && char.IsDigit(a1[0]) ? Num(a1) - 1 : 0;
+                    string f = a1 != "" && !(a1.Length == 1 && char.IsDigit(a1[0])) ? rest : a2;
+                    var d = m.Fdc.Disk[dn];
+                    if (d == null) { Console.Error.WriteLine("disksave: drive {0} is empty", dn + 1); break; }
+                    if (f != "") d.Save(Path.GetFullPath(f)); else d.Save();
+                    Console.Error.WriteLine("disksave: drive {0} -> {1}", dn + 1, d.Path);
+                }
+                break;
+            case "diskdump":
+                {
+                    // diskdump REC [N]: logical records as the CPU sees them
+                    var d = m.Fdc.Disk[0]; int r0 = Num(a1), n = a2 != "" ? Num(a2) : 1;
+                    for (int r = r0; r < r0 + n && d != null; r++)
+                    {
+                        var b = d.ReadRecord(r); if (b == null) { Console.WriteLine("record {0}: missing", r); continue; }
+                        for (int o = 0; o < 256; o += 16) { var sb = new StringBuilder(); sb.AppendFormat("{0,4}:{1:X2} ", r, o); for (int i = 0; i < 16; i++) sb.AppendFormat(" {0:X2}", b[o + i]); sb.Append("  "); for (int i = 0; i < 16; i++) sb.Append(b[o + i] >= 32 && b[o + i] < 127 ? (char)b[o + i] : '.'); Console.WriteLine(sb.ToString()); }
+                    }
+                }
                 break;
             case "pit":
                 for (int i = 0; i < 3; i++) { var p = m.Pit[i]; Console.WriteLine("counter {0}: mode {1} {2} reload {3} count {4} out {5} gate {6} {7}", i, p.Mode, p.ModeName, p.Reload, p.Count, p.Out ? 1 : 0, p.Gate ? 1 : 0, p.Counting ? "running" : "stopped"); }

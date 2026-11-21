@@ -12,6 +12,10 @@ folder. It is the MZ-700 sibling of VZonPC: the same visualiser, the same kind o
   - the **MZ-1500 colour PCG**: three planes, 1024 characters, priority and palette.
 - **Joysticks:** two **MZ-1X03** analogue joysticks on `E008`. USB gamepads and their analogue sticks map to them, or a
   gamepad can stand in for the cursor keys, SPACE and RETURN in keyboard games.
+- **MZ-1500 PSG sound (optional):** two SN76489AN chips (three tones and noise each) on `OUT E9`/`F2`/`F3`, mixed
+  with the speaker.
+- **Floppy disks (optional):** the MZ-1E05 interface and MZ-1F02 drives: an MB8876 controller on ports `D8`–`DF`, D88
+  and DSK disk images, and a built-in boot ROM at `F000` (type `F` at the monitor, or drop a disk image on the window).
 - **Data recorder:** MZT/MZF tapes load instantly or at real speed through the monitor's own routine. WAV, FLAC and MP3
   audio tapes also play. `SAVE` is recorded back to an `.MZT` or a `.WAV`.
 - **Testing:** `mzemu.exe`, a headless runner for scripted tests, screenshots, WAV and sound logs, profiling, VRAM wait
@@ -26,9 +30,10 @@ It builds with the C# compiler that comes with Windows (`build.bat`). There is n
 | `MZ700onPC.exe` | the emulator window |
 | `mzemu.exe` | headless test runner (same emulation core) |
 | `build.bat` | rebuilds both from `src\` (`build.bat headless` builds only `mzemu.exe`) |
-| `roms\` | `1z013a.rom` (monitor, 4K), `mz700fon.int` (European CG-ROM), `mz700fon.jpn` (Japanese). Not in git. |
+| `roms\` | `1z013a.rom` (monitor, 4K), `mz700fon.int` (European CG-ROM), `mz700fon.jpn` (Japanese), optionally `mz1e05.rom` (the floppy interface ROM). Not in git. |
 | `tools\mkmzt.py` | wraps a raw binary in an MZT header: `py tools\mkmzt.py game.bin GAME.MZT 0x1200` |
-| `test\` | PCG test programs (`pcg700.asm`, `pcg1500.asm`) |
+| `tools\fdipl.asm`, `tools\mkipl.ps1` | the built-in floppy boot ROM, and the script that rebuilds `src\FdIpl.cs` from it |
+| `test\` | test programs: `pcg700.asm`, `pcg1500.asm`, `psgtest.asm` (PSG tones and noise), `fdctest.asm` (every FDC command) |
 | `mz700onpc.ini` | settings, written on exit |
 
 **Without the monitor ROM** a small built-in stand-in sets the hardware up, and `0038h` jumps to `1038h` as in the
@@ -48,6 +53,15 @@ font is used.
     code, and the motor is driven by PC3 and sensed on PC4. That is a good way to check a loader.
 - **File → Record tape output** records PC1 while the program saves. Name the file `.mzt` to have the pulses decoded
   back into a tape file, or `.wav` for the audio.
+- **Disks:** drop a `.D88`, `.DSK` or `.2D` image on the window to boot it, or use the **Disk** menu.
+  - **Ctrl+F2** inserts a disk in drive 1 (there is a drive 2 too). **Ctrl+F3** inserts one and boots it.
+  - Booting powers on, lets the monitor reach `*`, then does what typing `F` does: it runs the interface ROM at `F000`.
+    You can type `F` yourself at any time.
+  - Writes go to the image file when the disk is ejected or the emulator closes. Turn **Disk → Write disk changes
+    back** off to keep images untouched, or use **Save disk changes now**.
+  - **Disk → Make a boot disk from an .MZT** puts a program on a new bootable disk. **New blank formatted disk** makes
+    an empty 2D disk.
+- **Machine → MZ-1500 PSG sound** and **Machine → MZ-1E05 floppy interface** fit or remove the two expansions.
 - Symbols are found automatically when there is a `.sym` next to the MZT or in `..\build`, and named routines show in
   the visualiser. Both the sjasmplus format (`NAME: EQU 0x1234`) and zasm's (`1234 NAME`) work.
 
@@ -65,6 +79,7 @@ font is used.
 | F10 | visualiser (sidebars in fullscreen, its own window otherwise) |
 | F11 or Alt+Enter, or double-click | fullscreen |
 | F12 | screenshot, saved to `screenshots\` |
+| Ctrl+F2 / Ctrl+F3 | insert a disk in drive 1 / insert one and boot it |
 
 **MZ keyboard:** letters, digits, SPACE, RETURN, SHIFT, CTRL and the punctuation keys work as typed.
 
@@ -151,6 +166,59 @@ cursor keys, DEL, INST; row 8 SHIFT, CTRL, BREAK; row 9 F1–F5.
   - `OUT (F1)` sets the palette: colour `(d>>4)&7` → `d&7`.
 - With this PCG fitted, `E5`/`E6` have their MZ-1500 meaning. Otherwise `E5` locks `D000`–`FFFF` and `E6` unlocks it.
 
+**MZ-1500 PSG** (CSP eMZ-1500)
+- Two SN76489AN chips: `OUT (E9)` writes both, `OUT (F2)` the left one and `OUT (F3)` the right one. The window's sound
+  is mono, so both chips are mixed.
+- **Clock:** 3.579545 MHz, the MZ-1500's. A tone register N gives 3579545 / (32 N) Hz, so N = 254 is 440 Hz. N = 0
+  counts as 1024.
+- **Registers:** `1rrrdddd` latches register rrr (0/2/4 tone, 1/3/5/7 attenuation, 6 noise) with the low 4 bits, then
+  `0-dddddd` sets a tone's upper 6 bits. Attenuation is 2 dB a step, and 15 is off.
+- **Noise:** bit 2 = white (or periodic), bits 0–1 = rate (clock/512, /1024, /2048, or tone 3's rate). It is the
+  17-bit shift register CSP and MAME use for the "AN" part.
+- Each voice is a quarter of the speaker's full level, so all eight together still don't clip.
+- `psgtest.asm` measures 440.0 Hz and 658.3 Hz for N = 254 and 170.
+
+**Floppy: MZ-1E05 interface and MZ-1F02 drives** (CSP eMZ-700)
+- **Ports.** The controller is an MB8876, a WD1793 with an **inverted data bus**:
+  - `D8` command (write) and status (read), `D9` track, `DA` sector, `DB` data. The CPU complements every value, so
+    write `CPL`ed commands and `CPL` the status.
+  - **Sector data is not complemented in software.** MZ disks hold every byte inverted, so it reaches the CPU as it was
+    written.
+  - `DC` is the drive register: bit 7 starts the motor (0.56 s spin-up, 1.5 s run-on), and with bit 2 set bits 0–1 pick
+    the drive. `DD` bit 0 selects the head. `DF` bit 0 raises INT while DRQ is up, for interrupt-driven transfers.
+- **Commands.** Restore, seek, step in/out, read and write sector (single and multi), read address, read track, write
+  track (format: `F5`/`F6`/`F7` write sync marks and CRCs), and force interrupt.
+  - Status bits are not ready, write protect, head loaded / record type, seek error / RNF, CRC and lost data / track 00,
+    plus index, DRQ and busy.
+- **Timing.**
+  - 300 rpm and 32 µs a byte (MFM). A byte waiting in the data register when the next arrives sets **lost data**,
+    as on the real chip, so a disk routine has to keep up with 113 T a byte.
+  - Step rates 6/12/20/30 ms and 15 ms head settle. Sectors are spaced evenly round the track, so the wait for a
+    sector depends on where the disk has turned to.
+- **Disk images.** D88 (`.d88`/`.d77`/`.d68`), CPC DSK and Extended DSK (`.dsk`, the usual Sharp MZ format), and raw
+  2D (`.2d`, 40 × 2 × 16 × 256). Images are saved back in their own format.
+- **Sharp's disk layout.**
+  - Record r is on logical track r/16, sector r%16+1, and logical track t is cylinder t/2, head (t&1)^1. So record 0 is
+    cylinder 0, **head 1**, sector 1.
+  - That record is the IPL header: `03 "IPLPRO"`, the name (to `0Dh`), then size at `14h`, load at `16h`, exec at
+    `18h` and the first record at `1Eh`.
+  - This was checked against real MZ disk images, the CP/M system disks MZTools ships.
+- **Boot ROM.** `roms\mz1e05.rom` is used when present. Otherwise a built-in IPL of my own (`tools\fdipl.asm`, 496
+  bytes) does what the real one does:
+  - it starts with `00h`, so the monitor's `F` command runs it;
+  - it waits for the drive and reads the IPL record;
+  - it prints `IPL IS LOADING name`, loads the program and runs it.
+  - It says `NOT A BOOT DISK` or `DISK READ ERROR` and waits for a key when it can't.
+  - For loads below `1000h` (CP/M-style systems) it switches RAM in at `0000` first, as the MZ-800's IPL does.
+  - Without a monitor ROM, booting loads the IPL record's program directly.
+- **Tests.** `fdctest.asm` passes all seven checks:
+  - write and read back, read address, format a track, read the formatted sector;
+  - a multi-sector read stopped by force interrupt;
+  - an interrupt-driven read with an `INI` handler;
+  - track 00 after a seek.
+- A Dracula 2 boot disk made with `diskmake` loads its 184 sectors through the real monitor and the IPL in about
+  5 seconds. The MZ-800 CP/M disks load, then stop at MZ-800 hardware the MZ-700 doesn't have.
+
 **Power-on:** RAM comes up in stripes (`RANDRAM=seed` for random). The attributes `D800`–`DBFF` start at `71h` (white
 on blue), as in CSP. The monitor never writes them.
 
@@ -165,6 +233,9 @@ on blue), as in CSP. The monitor never writes them.
 - **VRAM by line.** Writes (white) and reads (cyan) to `D000`–`DFFF` on each of the 312 lines. Accesses outside the free
   window are red. Underneath: the T-states lost to waits this field.
 - **Opcodes.** A heat map of the first opcode byte, and the top instructions.
+- **Floppy** (when the interface is fitted). The drive, image and motor; the command in progress, status, DRQ;
+  track/sector registers, the head position, and sectors read and written, with lost data in red. Underneath is a
+  map of 42 cylinders × 2 heads: tracks flash green when read and red when written, and the head is amber.
 - **Stack.** SP over time and the return addresses.
 
 **Right column**
@@ -175,11 +246,13 @@ on blue), as in CSP. The monitor never writes them.
   the free window are marked.
 - **Video.** The colours in use, character set 2 cells, codes 80–FF, the PCG state, the banks and the wait mode.
 - **8253 and speaker.** All three counters: mode, count, OUT and gate. Counter 0's frequency and musical note, a
-  scope of the field's audio, and a 0–6 kHz spectrum with the peak note.
+  scope of the field's audio, and a 0–6 kHz spectrum with the peak note. With the MZ-1500 PSG fitted, two more rows
+  show each chip's three tones (note and Hz) and its noise setting, with a box lit by each voice's volume.
 - **Keyboard matrix and joysticks.** The 10×8 matrix, with pressed keys lit and the rows the game scans flashing.
   Beside it, both MZ-1X03 sticks.
 - **I/O, tape and character generator.**
-  - `E000`–`E008` register activity, recent `OUT`s (bank switching and PCG ports, named), and the tape state.
+  - `E000`–`E008` register activity, recent `OUT`s and `IN`s (bank switching, PCG, PSG and floppy ports, named),
+    and the tape state.
   - A 16×16 grid of the character generator. It shows the CG-ROM, both sets alternating, or the PCG RAM when one is
     fitted, with the PCG-700's own area in amber.
 
@@ -210,6 +283,12 @@ mzemu.exe GAME.MZT [frames] [out.png]                               quick look: 
 | `joy none` / `joy mz` | joysticks fitted or not |
 | `cgrom eu` / `cgrom jp` | character ROM |
 | `fasttape on\|off`, `romwait on\|off` | |
+| `psg on\|off` | the MZ-1500 PSGs |
+| `floppy on\|off` | the MZ-1E05 interface (`disk` turns it on) |
+| `disk [N] FILE` | insert a D88/DSK/2D image in drive N (1–4, default 1); prints whether it has an IPL record |
+| `diskeject [N]`, `diskprotect N on\|off` | |
+| `diskblank FILE` | write a blank formatted 2D disk (`.dsk` = Extended DSK, `.d88` = D88) |
+| `diskmake FILE GAME.MZT [NAME]` | write a bootable IPL disk holding the MZT's first block |
 | `sym FILE` | symbols, from sjasmplus (`NAME: EQU 0x...`) or zasm (`ADDR NAME`) |
 | `crash` | stop and write `crash.txt` (the last 4096 PCs) when PC enters VRAM/I/O, or the stub ROM, or SP drops below 1000h |
 | `stack LO HI`, `watch LO [HI]`, `quiet`, `print TEXT` | |
@@ -229,6 +308,8 @@ mzemu.exe GAME.MZT [frames] [out.png]                               quick look: 
 | `tape FILE` | insert an MZT/WAV and press PLAY (real speed unless `fasttape` is on and the monitor ROM is loaded) |
 | `tapeinsert FILE`, `tapeplay`, `tapestop`, `taperew`, `tapepos`, `tapelog` | |
 | `taperec FILE` … `taperecend` | record PC1; a `.mzt` name decodes the pulses to a tape file |
+| `diskboot` | power on and boot drive 1 (monitor, then `F000`) |
+| `disksave [N] [FILE]` | write drive N's image back, or to FILE (the format follows the extension). Headless runs never save on their own |
 
 **Inspection**
 
@@ -237,10 +318,13 @@ mzemu.exe GAME.MZT [frames] [out.png]                               quick look: 
 | `screen FILE [scale] [border]`, `shots PREFIX COUNT [every]` | |
 | `text` | the screen as ASCII (letters, digits, a few signs; `#` for anything else) |
 | `regs`, `mode`, `pit` | registers; banks, PCG, waits, fonts; the 8253 counters and the interrupt mask |
+| `psgstate` | both PSGs: each voice's frequency and attenuation, the noise mode, write counts |
+| `fdc` | the controller: state, command, status, registers, drive, motor, head, sector and lost-data counts, the disks |
+| `diskdump REC [n]` | logical records of drive 1 as the CPU sees them (uninverted), in hex and ASCII |
 | `peek A [n]`, `peekw A`, `dis A [n]` | |
 | `dump FILE` (as the CPU sees it), `dumpram FILE`, `dumpvram FILE` | |
 | `wav FILE` … `wavend` | speaker audio at 44.1 kHz |
-| `sndlog FILE` … `sndlogend` | every 8253/`E008` write as `T address value`, for sound tools |
+| `sndlog FILE` … `sndlogend` | every 8253/`E008` write as `T address value`, for sound tools (PSG writes appear as `100E9`, `100F2` and `100F3`) |
 | `waits`, `waitreset` | VRAM wait T-states, waited accesses, accesses outside the window and where the first was |
 | `tmark ADDR` + `tstats` | fields per frame, measured by writes to ADDR |
 | `prof 1` … `profsave FILE` | T-states per symbol |
@@ -252,7 +336,8 @@ mzemu.exe GAME.MZT [frames] [out.png]                               quick look: 
 
 The window can check itself too: `MZ700onPC.exe GAME.MZT --quit-after 8 --shot win.png [--vis] [--pcg 700] [--vramwait conservative] [--rom none]`.
 It runs the real window, captures it (and the visualiser window as `win_vis.png`), and exits without touching the
-settings. Other options: `--type "L\r"`, `--tape FILE`, `--fasttape 0`, `--scale N`, `--border 0`, `--fullscreen`.
+settings. Other options: `--type "L\r"`, `--tape FILE`, `--fasttape 0`, `--scale N`, `--border 0`, `--fullscreen`,
+`--psg 1`, `--floppy 1`, `--disk FILE` (or a disk image as the file argument: it boots), `--disk2 FILE`.
 
 ## Source
 
@@ -261,6 +346,8 @@ settings. Other options: `--type "L\r"`, `--tape FILE`, `--fasttape 0`, `--scale
 | `src\Z80.cs`, `src\Z80Dis.cs` | CPU and disassembler (shared with VZonPC) |
 | `src\Machine.cs` | memory map, banks, 8255, `E008`, VRAM waits, video, PCGs, joysticks, sound, MZT loading, tape traps |
 | `src\Pit.cs` | the 8253 |
+| `src\Psg.cs` | the SN76489AN |
+| `src\Fdc.cs`, `src\Disk.cs`, `src\FdIpl.cs` | the MB8876 and MZ-1E05 latches; D88/DSK/2D images and Sharp's record layout; the built-in IPL (generated) |
 | `src\Cmt.cs` | the tape format, signal, data recorder and recorder/decoder |
 | `src\Trace.cs`, `src\Vis.cs` | the visualiser |
 | `src\Headless.cs` | `mzemu` |
@@ -271,7 +358,10 @@ C# 5 only: no string interpolation or `?.`.
 
 ## Not emulated (yet)
 
-- The QuickDisk, floppy and printer interfaces.
+- The QuickDisk, printer and RS-232 interfaces.
+- Sharp's real MZ-1E05 ROM is used only if you supply it. The built-in IPL boots IPLPRO disks, but software that calls
+  routines inside the real ROM won't find them.
+- Stereo: the PSGs' left and right chips are mixed to mono.
 - The MZ-800's own modes.
 - Hardware scrolling. The MZ-700 has none.
 - Where the 320 pixels sit within the line relative to HSYNC isn't documented. Mid-line colour changes are drawn per

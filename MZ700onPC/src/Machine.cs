@@ -31,6 +31,15 @@ public sealed class MzMachine
     public bool Japanese;                                         // Japanese CG-ROM (mz700fon.jpn)
     public bool FastTape = true;                                  // trap the monitor's tape reads (RDINF/RDDAT) and load at once
     public bool RomWait = true;                                   // 1 wait state on monitor ROM accesses (CSP)
+    public bool PsgOn;                                            // MZ-1500 PSGs: SN76489AN x2 at OUT E9 / F2 / F3
+    public bool FloppyOn;                                         // MZ-1E05 interface + MZ-1F02 drives (D8-DF, ROM F000)
+
+    // MZ-1500 PSG and floppy
+    public readonly Sn76489 PsgL = new Sn76489(), PsgR = new Sn76489();
+    public double PsgGain = 0.25;                                 // per voice, against the speaker's +-1
+    public readonly MzFdc Fdc = new MzFdc();
+    public byte[] FdRom = new byte[0x1000];
+    public string FdRomName = "";
 
     // ---------------------------------------------------------------- state
     public readonly Z80 Cpu = new Z80();
@@ -111,6 +120,21 @@ public sealed class MzMachine
             }
         if (RomName == "") BuildStubRom();
         LoadFont();
+        LoadFdRom();
+    }
+
+    /// <summary>The MZ-1E05 ROM (F000-FFFF): roms\mz1e05.rom if present, else the built-in IPL (tools\fdipl.asm).</summary>
+    public void LoadFdRom()
+    {
+        for (int i = 0; i < FdRom.Length; i++) FdRom[i] = 0xFF;
+        FdRomName = "";
+        foreach (var n in new[] { "mz1e05.rom", "mz-1e05.rom", "mz700fd.rom" })
+        {
+            string p = Path.Combine(RomDir, n);
+            if (File.Exists(p)) { var b = File.ReadAllBytes(p); Array.Copy(b, FdRom, Math.Min(b.Length, 0x1000)); FdRomName = n; return; }
+        }
+        Array.Copy(FdIpl.Code, FdRom, FdIpl.Code.Length);
+        FdRomName = "built-in IPL";
     }
 
     public void LoadFont()
@@ -232,6 +256,7 @@ public sealed class MzMachine
         Pit[0].Mode = 3;
         PortA = 0; PortC = 0x0F; SoundGate = false; Pit[0].SetGate(false);
         PcgCtrl = 0xFF; PcgMap = -1; PcgPriority = 0; for (int i = 0; i < 8; i++) Palette[i] = i;
+        PsgL.Reset(); PsgR.Reset(); Fdc.Reset();
         Cpu.Reset();
         c0Clk = Cpu.Cyc * 5 / 16; lineClk = Cpu.Cyc * 5 / LINE_M; audM = Cpu.Cyc * 5;
         if (Tr != null) Tr.ResetTimes();
@@ -263,6 +288,7 @@ public sealed class MzMachine
         }
         if (a < 0xE000) { if (!peek) VramAccess(a, false); return Vram[a - 0xD000]; }
         if (a < 0xE800) return peek ? PeekIo(a) : ReadIo(a);
+        if (a >= 0xF000 && FloppyOn) return FdRom[a - 0xF000];
         return 0xFF;
     }
 
@@ -435,13 +461,28 @@ public sealed class MzMachine
     }
 
     // ---------------------------------------------------------------- Z80 ports: bank switching and the MZ-1500 PCG
-    public int In(int port) { int lo = port & 0xFF; if (Tr != null) Tr.Port(lo, 0xFF, false); return 0xFF; }
+    public int In(int port)
+    {
+        int lo = port & 0xFF, r = 0xFF;
+        if (FloppyOn && lo >= 0xD8 && lo <= 0xDB) { r = Fdc.In(lo, AccM); UpdateInt(); }
+        if (Tr != null) Tr.Port(lo, r, false);
+        return r;
+    }
 
     public void Out(int port, int v)
     {
         int lo = port & 0xFF;
         if (Tr != null) Tr.Port(lo, v, true);
         bool p15 = Pcg == PcgType.Mz1500;
+        if (FloppyOn && lo >= 0xD8 && lo <= 0xDF) { Fdc.Out(lo, v, AccM); UpdateInt(); return; }
+        if (PsgOn && (lo == 0xE9 || lo == 0xF2 || lo == 0xF3))
+        {
+            AudioTo(AccM);
+            if (lo != 0xF3) PsgL.Write(v);
+            if (lo != 0xF2) PsgR.Write(v);
+            if (SoundHook != null) SoundHook(AccM / 5, 0x10000 | lo, v);
+            return;
+        }
         switch (lo)
         {
             case 0xE0: RomIn = false; break;
@@ -483,6 +524,7 @@ public sealed class MzMachine
     void UpdateInt()
     {
         bool lv = Pit[2].Out && (PortC & 4) != 0;
+        if (FloppyOn && Fdc.IntRequest) lv = true;                   // MZ-1E05: DRQ interrupt when DF bit 0 is set
         if (lv && !intLevel) Interrupts++;
         intLevel = lv;
         Cpu.IntLine = lv;
@@ -517,6 +559,7 @@ public sealed class MzMachine
             sampFrac += dur; audM = end;
             if (!full) break;
             double lvl = acc / sampFrac; acc = 0; sampFrac -= SAMP_M; if (sampFrac < 0) sampFrac = 0;
+            if (PsgOn) lvl += (PsgL.Run(1.0 / RATE) + PsgR.Run(1.0 / RATE)) * PsgGain;
             // AC coupling: a one-pole high-pass at ~10 Hz so a held level fades to silence
             double y = 0.9986 * (hp + lvl - hpPrev); hpPrev = lvl; hp = y;
             short smp = (short)Math.Max(-32768, Math.Min(32767, y * Volume));
@@ -542,6 +585,7 @@ public sealed class MzMachine
             WaitTFrame = 0; ContendedFrame = 0;
             return false;
         }
+        if (FloppyOn && Fdc.Active) Fdc.Sync(now);
         SyncPit(now);
         while (renderLine < VIS && rel >= (long)renderLine * LINE_M + DISP_M) RenderLine(renderLine++);
         CurPc = Cpu.PC;
@@ -707,6 +751,32 @@ public sealed class MzMachine
         if (b.Attr != 1) Log(b.Attr == 2 ? "\"" + b.Name + "\" is a BASIC program (attribute 02): load S-BASIC first, then LOAD it from tape (F2)"
             : string.Format("\"{0}\" has file attribute {1:X2}, not 01 (machine code)", b.Name, b.Attr));
         return b;
+    }
+
+    /// <summary>Boots drive 1 as typing F at the monitor would: power on, the * prompt, then F000 (the MZ-1E05 ROM or
+    /// the built-in IPL). Without a monitor ROM the IPL record is loaded directly. Returns a description.</summary>
+    public string BootDisk()
+    {
+        FloppyOn = true;
+        PowerOn();
+        var d = Fdc.Disk[0];
+        if (d == null) return "no disk in drive 1";
+        int size, load, exec, start;
+        string info = d.IplInfo(out size, out load, out exec, out start);
+        if (HasRom)
+        {
+            RunFrames(60);
+            Cpu.SP = 0x10F0; Cpu.PC = 0xF000; Cpu.Halted = false;
+            return info != null ? "boot " + info : "boot (no IPLPRO record - the IPL will say so)";
+        }
+        if (info == null) return "not a boot disk (no IPLPRO record)";
+        for (int i = 0; i < size; i++)
+        {
+            var rec = d.ReadRecord(start + i / 256);
+            PokeRam((load + i) & 0xFFFF, rec != null ? rec[i & 255] : 0);
+        }
+        Cpu.SP = 0x10F0; Cpu.PC = exec; Cpu.IFF1 = Cpu.IFF2 = false; Cpu.Halted = false; Cpu.IM = 1;
+        return "direct load (no monitor ROM) " + info;
     }
 
     public void LoadBlock(MzBlock b)

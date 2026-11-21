@@ -113,7 +113,7 @@ public sealed class MainForm : Form
                 q.Start();
             }
         };
-        FormClosing += (s, e) => { running = false; if (emuThread != null) emuThread.Join(1000); if (m.TapeOut.Recording) m.TapeOut.Stop(m.NowM); if (!noSettings) SaveSettings(); };
+        FormClosing += (s, e) => { running = false; if (emuThread != null) emuThread.Join(1000); if (m.TapeOut.Recording) m.TapeOut.Stop(m.NowM); if (diskWriteBack) SaveDisksNow(false); if (!noSettings) SaveSettings(); };
 
         m.Log = s => ShowMessage(s);
         m.Quiet = true;
@@ -123,6 +123,8 @@ public sealed class MainForm : Form
             if (startProgram != null) LaunchNow(startProgram);
             if (autoType != null) { typeHold = startProgram == null && m.HasRom ? 60 : 0; TypeString(autoType); }
             if (startTape != null) InsertTapeNow(startTape, true);
+            if (startDisk[1] != null) InsertDiskNow(1, startDisk[1], false);
+            if (startDisk[0] != null) InsertDiskNow(0, startDisk[0], startProgram == null);
         });
     }
 
@@ -159,6 +161,11 @@ public sealed class MainForm : Form
             else if (a == "--integer") { integerScale = v != "0"; i++; }
             else if (a == "--no-settings") { }
             else if (a == "--vis") visOn = true;
+            else if (a == "--psg") { m.PsgOn = v != "0" && v != "off"; i++; }
+            else if (a == "--floppy") { m.FloppyOn = v != "0" && v != "off"; i++; }
+            else if (a == "--disk" || a == "--disk1") { startDisk[0] = Path.GetFullPath(v); i++; }
+            else if (a == "--disk2") { startDisk[1] = Path.GetFullPath(v); i++; }
+            else if (File.Exists(args[i]) && IsDiskName(args[i])) startDisk[0] = Path.GetFullPath(args[i]);
             else if (File.Exists(args[i])) startProgram = Path.GetFullPath(args[i]);
         }
     }
@@ -174,7 +181,10 @@ public sealed class MainForm : Form
     // ------------------------------------------------------------------ menus
     ToolStripMenuItem miRom, miJp, miPcgNone, miPcg700, miPcg1500, miWaitAcc, miWaitCons, miWaitDisp, miWaitOff, miJoy, miFastTape,
         miBorder, miVis, miInteger, miMono, miStatus, miFull, miArrowsJoy, miArrowsCursor, miPadJoy, miPadKeys, miSwap, miPause, miWarp, miMute, miJoyList,
-        miTapePlay, miTapeStop, miRec, miRecStop;
+        miTapePlay, miTapeStop, miRec, miRecStop, miPsg, miFloppy, miWriteBack;
+    ToolStripMenuItem[] miDiskEject = new ToolStripMenuItem[2], miDiskProt = new ToolStripMenuItem[2];
+    bool diskWriteBack = true;
+    string[] startDisk = new string[2];
     ToolStripMenuItem[] miScale = new ToolStripMenuItem[6];
 
     static ToolStripMenuItem Item(string text, Keys keys, EventHandler click)
@@ -210,6 +220,29 @@ public sealed class MainForm : Form
         file.DropDownItems.Add(new ToolStripSeparator());
         file.DropDownItems.Add(Item("Exit", Keys.None, (s, e) => Close()));
 
+        var disk = new ToolStripMenuItem("&Disk");
+        for (int d = 0; d < 2; d++)
+        {
+            int dn = d;
+            disk.DropDownItems.Add(Item("Insert disk in drive " + (dn + 1) + " (.D88 / .DSK / .2D)...", dn == 0 ? Keys.Control | Keys.F2 : Keys.None, (s, e) => OpenDiskDialog(dn, false)));
+        }
+        disk.DropDownItems.Add(Item("Insert a disk in drive 1 and boot it...", Keys.Control | Keys.F3, (s, e) => OpenDiskDialog(0, true)));
+        disk.DropDownItems.Add(Item("Boot drive 1 (the monitor's F command)", Keys.None, (s, e) => cmds.Enqueue(BootDiskNow)));
+        disk.DropDownItems.Add(new ToolStripSeparator());
+        for (int d = 0; d < 2; d++)
+        {
+            int dn = d;
+            miDiskEject[dn] = Item("Eject drive " + (dn + 1), Keys.None, (s, e) => cmds.Enqueue(() => EjectDiskNow(dn)));
+            miDiskProt[dn] = Item("Write-protect drive " + (dn + 1), Keys.None, (s, e) => cmds.Enqueue(() => { var dk = m.Fdc.Disk[dn]; if (dk != null) { dk.WriteProtect = !dk.WriteProtect; ShowMessage("Drive " + (dn + 1) + (dk.WriteProtect ? " write-protected" : " writable")); } }));
+        }
+        disk.DropDownItems.AddRange(new ToolStripItem[] { miDiskEject[0], miDiskEject[1], miDiskProt[0], miDiskProt[1], new ToolStripSeparator() });
+        miWriteBack = Item("Write disk changes back to the image file (on eject and exit)", Keys.None, (s, e) => { diskWriteBack = !diskWriteBack; });
+        disk.DropDownItems.Add(miWriteBack);
+        disk.DropDownItems.Add(Item("Save disk changes now", Keys.None, (s, e) => cmds.Enqueue(() => SaveDisksNow(true))));
+        disk.DropDownItems.Add(new ToolStripSeparator());
+        disk.DropDownItems.Add(Item("New blank formatted disk...", Keys.None, (s, e) => NewDiskDialog()));
+        disk.DropDownItems.Add(Item("Make a boot disk from an .MZT...", Keys.None, (s, e) => MakeBootDiskDialog()));
+
         var mach = new ToolStripMenuItem("&Machine");
         miRom = Item("Monitor ROM 1Z-013A (roms\\1z013a.rom)", Keys.None, (s, e) => Reconfigure(() => m.UseRom = !m.UseRom));
         miJp = Item("Japanese character ROM (roms\\mz700fon.jpn)", Keys.None, (s, e) => Reconfigure(() => m.Japanese = !m.Japanese));
@@ -225,7 +258,9 @@ public sealed class MainForm : Form
         miWaitOff = Item("Off (no waits, faster than the real machine)", Keys.None, (s, e) => cmds.Enqueue(() => { SetWaitMode("off"); ShowMessage("VRAM waits off"); }));
         wait.DropDownItems.AddRange(new ToolStripItem[] { miWaitAcc, miWaitCons, miWaitDisp, miWaitOff });
         miJoy = Item("MZ-1X03 joysticks on E008", Keys.None, (s, e) => cmds.Enqueue(() => m.Joystick = m.Joystick == JoyType.None ? JoyType.Mz1x03 : JoyType.None));
-        mach.DropDownItems.AddRange(new ToolStripItem[] { miRom, miJp, pcg, wait, miJoy, new ToolStripSeparator() });
+        miFloppy = Item("MZ-1E05 floppy interface + MZ-1F02 drives (ports D8-DF, ROM F000)", Keys.None, (s, e) => cmds.Enqueue(() => { m.FloppyOn = !m.FloppyOn; ShowMessage(m.FloppyOn ? "Floppy interface fitted: " + m.FdRomName + " at F000 (type F at the monitor)" : "Floppy interface removed"); }));
+        miPsg = Item("MZ-1500 PSG sound (2 x SN76489, ports E9 / F2 / F3)", Keys.None, (s, e) => cmds.Enqueue(() => { m.PsgOn = !m.PsgOn; m.PsgL.Reset(); m.PsgR.Reset(); ShowMessage(m.PsgOn ? "MZ-1500 PSG fitted" : "MZ-1500 PSG removed"); }));
+        mach.DropDownItems.AddRange(new ToolStripItem[] { miRom, miJp, pcg, wait, miJoy, miPsg, miFloppy, new ToolStripSeparator() });
         mach.DropDownItems.Add(Item("Power cycle", Keys.F4, (s, e) => cmds.Enqueue(PowerOnNow)));
         mach.DropDownItems.Add(Item("Reset (the RESET switch)", Keys.Shift | Keys.F4, (s, e) => cmds.Enqueue(() => m.Reset())));
         miPause = Item("Pause", Keys.F6, (s, e) => { paused = !paused; });
@@ -268,7 +303,7 @@ public sealed class MainForm : Form
             "MZ-1X03 joysticks, data recorder, sound, visualiser.\n\nMonitor: " + (m.HasRom ? m.RomName : "none (built-in stub)") +
             "\nCharacter ROM: " + m.FontName + "\nROM folder: " + MzMachine.RomDir, "About MZ700onPC")));
 
-        menu.Items.AddRange(new ToolStripItem[] { file, mach, view, input, help });
+        menu.Items.AddRange(new ToolStripItem[] { file, disk, mach, view, input, help });
         menu.MenuActivate += (s, e) => SyncMenu();
     }
 
@@ -280,7 +315,8 @@ public sealed class MainForm : Form
         "PC gamepads are MZ-1X03 joysticks (analogue sticks work), or cursor keys + SPACE / RETURN for keyboard games.\n\n" +
         "F1 help   F2 insert tape   F3 load program   F4 power cycle   F5 reload program\n" +
         "F6 pause   F7 paste text   F8 mute   F9 warp   F10 visualiser   F11 / Alt+Enter fullscreen   F12 screenshot\n" +
-        "Drop an .MZT / .MZF on the window to run it; drop a .WAV to put it in the data recorder.";
+        "Drop an .MZT / .MZF on the window to run it; drop a .WAV to put it in the data recorder.\n" +
+        "Drop a .D88 / .DSK disk image to boot it. Ctrl+F2 inserts a disk, Ctrl+F3 inserts and boots; F at the monitor boots drive 1.";
 
     void SyncMenu()
     {
@@ -289,6 +325,13 @@ public sealed class MainForm : Form
         string wm = WaitModeName;
         miWaitAcc.Checked = wm == "accurate"; miWaitCons.Checked = wm == "conservative"; miWaitDisp.Checked = wm == "display"; miWaitOff.Checked = wm == "off";
         miJoy.Checked = m.Joystick == JoyType.Mz1x03;
+        miPsg.Checked = m.PsgOn; miFloppy.Checked = m.FloppyOn; miWriteBack.Checked = diskWriteBack;
+        for (int d = 0; d < 2; d++)
+        {
+            var dk = m.Fdc.Disk[d];
+            miDiskEject[d].Enabled = dk != null; miDiskProt[d].Enabled = dk != null; miDiskProt[d].Checked = dk != null && dk.WriteProtect;
+            miDiskEject[d].Text = "Eject drive " + (d + 1) + (dk != null ? " (" + dk.Name + (dk.Dirty ? ", changed" : "") + ")" : "");
+        }
         miFastTape.Checked = m.FastTape;
         miTapePlay.Enabled = m.Cass.HasTape; miTapeStop.Enabled = m.Cass.HasTape;
         miRec.Enabled = !m.TapeOut.Recording; miRecStop.Enabled = m.TapeOut.Recording;
@@ -325,6 +368,8 @@ public sealed class MainForm : Form
         string s = "MZ-700" + (m.HasRom ? "" : " (no monitor ROM)");
         if (m.Pcg == PcgType.Pcg700) s += " + PCG-700"; else if (m.Pcg == PcgType.Mz1500) s += " + MZ-1500 PCG";
         if (m.Joystick == JoyType.Mz1x03) s += " + 2 x MZ-1X03";
+        if (m.PsgOn) s += " + MZ-1500 PSG";
+        if (m.FloppyOn) s += " + MZ-1E05 floppy";
         if (m.Japanese) s += ", Japanese CG-ROM";
         s += ", VRAM waits " + WaitModeName;
         return s;
@@ -390,11 +435,112 @@ public sealed class MainForm : Form
         var files = (string[])e.Data.GetData(DataFormats.FileDrop);
         if (files == null || files.Length == 0) return;
         string p = files[0];
+        if (IsDiskName(p)) { cmds.Enqueue(() => InsertDiskNow(0, p, true)); return; }
         if (MzTapeFile.IsTapeName(p)) Launch(p);
         else if (p.EndsWith(".wav", StringComparison.OrdinalIgnoreCase) || p.EndsWith(".flac", StringComparison.OrdinalIgnoreCase) || p.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase))
             cmds.Enqueue(() => InsertTapeNow(p, true));
         else Launch(p);
     }
+
+    // ------------------------------------------------------------------ floppy disks
+    static bool IsDiskName(string p)
+    {
+        string e = Path.GetExtension(p).ToLowerInvariant();
+        return e == ".d88" || e == ".d77" || e == ".d68" || e == ".dsk" || e == ".2d";
+    }
+
+    void InsertDiskNow(int drive, string p, bool boot)
+    {
+        try
+        {
+            if (diskWriteBack && m.Fdc.Disk[drive] != null && m.Fdc.Disk[drive].Dirty) m.Fdc.Disk[drive].Save();
+            var d = MzDisk.Load(p);
+            m.Fdc.Disk[drive] = d; m.FloppyOn = true;
+            lastDir = Path.GetDirectoryName(p);
+            int sz, ld, ex, st; string ipl = d.IplInfo(out sz, out ld, out ex, out st);
+            if (boot)
+            {
+                string r = m.BootDisk();
+                lastProgram = null; sessionProgram = false;
+                string name = Path.GetFileName(p);
+                BeginInvoke((Action)(() => Text = "MZ700onPC - " + name));
+                ShowMessage("Drive 1: " + name + " - " + r);
+            }
+            else ShowMessage("Drive " + (drive + 1) + ": " + d.Name + " (" + d.Format + ")" + (ipl != null ? ", boot disk " + ipl : "") + (m.HasRom ? " - type F at the monitor to boot" : ""));
+        }
+        catch (Exception ex) { ShowMessage("Disk: " + ex.Message); }
+    }
+
+    void EjectDiskNow(int drive)
+    {
+        var d = m.Fdc.Disk[drive]; if (d == null) return;
+        try { if (diskWriteBack && d.Dirty) d.Save(); } catch (Exception ex) { ShowMessage("Disk: can't save " + d.Name + ": " + ex.Message); return; }
+        m.Fdc.Disk[drive] = null;
+        ShowMessage("Drive " + (drive + 1) + " ejected" + (d.Writes > 0 ? (diskWriteBack ? ", changes saved" : ", changes discarded") : ""));
+    }
+
+    void SaveDisksNow(bool report)
+    {
+        int n = 0;
+        for (int i = 0; i < MzFdc.DRIVES; i++)
+        {
+            var d = m.Fdc.Disk[i];
+            if (d == null || !d.Dirty) continue;
+            try { d.Save(); n++; } catch (Exception ex) { if (report) ShowMessage("Disk: can't save " + d.Name + ": " + ex.Message); }
+        }
+        if (report) ShowMessage(n == 0 ? "No disk changes to save" : "Saved " + n + " disk image(s)");
+    }
+
+    void BootDiskNow()
+    {
+        string r = m.BootDisk();
+        lastProgram = null; sessionProgram = false;
+        ShowMessage("Boot: " + r);
+    }
+
+    void OpenDiskDialog(int drive, bool boot)
+    {
+        using (var d = new OpenFileDialog { Filter = "Floppy disk images (*.d88;*.d77;*.dsk;*.2d)|*.d88;*.d77;*.d68;*.dsk;*.2d|All files|*.*", InitialDirectory = lastDir ?? "", Title = boot ? "Boot a disk in drive 1" : "Insert a disk in drive " + (drive + 1) })
+            if (d.ShowDialog(this) == DialogResult.OK) { string p = d.FileName; cmds.Enqueue(() => InsertDiskNow(drive, p, boot)); }
+    }
+
+    void NewDiskDialog()
+    {
+        using (var f = new SaveFileDialog { Filter = "Extended DSK (*.dsk)|*.dsk|D88 (*.d88)|*.d88", FileName = "blank.dsk", Title = "New blank formatted MZ disk (40 x 2 x 16 x 256)" })
+            if (f.ShowDialog(this) == DialogResult.OK)
+            {
+                string p = f.FileName;
+                cmds.Enqueue(() =>
+                {
+                    try { MzDisk.Blank(p).Save(); InsertDiskNow(m.Fdc.Disk[0] != null && m.Fdc.Disk[1] == null ? 1 : 0, p, false); }
+                    catch (Exception ex) { ShowMessage("Disk: " + ex.Message); }
+                });
+            }
+    }
+
+    void MakeBootDiskDialog()
+    {
+        string src;
+        using (var d = new OpenFileDialog { Filter = "MZ-700 programs (*.mzt;*.mzf)|*.mzt;*.mzf|All files|*.*", InitialDirectory = lastDir ?? "", Title = "Program to put on a boot disk" })
+        { if (d.ShowDialog(this) != DialogResult.OK) return; src = d.FileName; }
+        using (var f = new SaveFileDialog { Filter = "Extended DSK (*.dsk)|*.dsk|D88 (*.d88)|*.d88", FileName = Path.GetFileNameWithoutExtension(src) + ".dsk", Title = "Save the boot disk as" })
+        {
+            if (f.ShowDialog(this) != DialogResult.OK) return;
+            string p = f.FileName;
+            cmds.Enqueue(() =>
+            {
+                try
+                {
+                    var t = MzTapeFile.Load(src); var b = t.Blocks[0];
+                    MzDisk.FromProgram(p, b.Name, b.Data, b.Load, b.Exec).Save();
+                    InsertDiskNow(0, p, true);
+                    if (t.Blocks.Count > 1) ShowMessage("Boot disk made from the first tape block only; this program loads more from tape");
+                }
+                catch (Exception ex) { ShowMessage("Disk: " + ex.Message); }
+            });
+        }
+    }
+
 
     void PasteText()
     {
@@ -565,6 +711,7 @@ public sealed class MainForm : Form
         var c = m.Cass;
         if (c.HasTape && (c.Motor || c.PlayPressed)) st += "TAPE " + (c.Motor ? ">" : "||") + " " + (int)(c.Seconds / 60) + ":" + ((int)c.Seconds % 60).ToString("00") + "  ";
         if (m.TapeOut.Recording) st += "REC  ";
+        if (m.FloppyOn && m.Fdc.Motor) st += "FD" + (m.Fdc.Drive + 1) + " " + m.Fdc.HeadCyl[m.Fdc.Drive] + "/" + m.Fdc.Side + (m.Fdc.Busy ? " *" : "") + "  ";
         stRight.Text = st + (paused ? "PAUSED  " : "") + (warp ? "WARP  " : "") + (muted ? "MUTE  " : "") + fps.ToString("0") + " fps";
     }
 
@@ -717,6 +864,9 @@ public sealed class MainForm : Form
                     case "vramwait": SetWaitMode(v); break;
                     case "joystick": m.Joystick = v == "1" ? JoyType.Mz1x03 : JoyType.None; break;
                     case "fasttape": m.FastTape = v == "1"; break;
+                    case "psg": m.PsgOn = v == "1"; break;
+                    case "floppy": m.FloppyOn = v == "1"; break;
+                    case "diskwriteback": diskWriteBack = v == "1"; break;
                     case "scale": scale = Math.Max(1, Math.Min(5, int.Parse(v))); break;
                     case "integerscale": integerScale = v == "1"; break;
                     case "border": showBorder = v == "1"; break;
@@ -742,6 +892,7 @@ public sealed class MainForm : Form
             File.WriteAllLines(iniPath, new[] {
                 "rom=" + (m.UseRom ? 1 : 0), "japanese=" + (m.Japanese ? 1 : 0), "pcg=" + m.Pcg, "vramwait=" + WaitModeName,
                 "joystick=" + (m.Joystick == JoyType.Mz1x03 ? 1 : 0), "fasttape=" + (m.FastTape ? 1 : 0),
+                "psg=" + (m.PsgOn ? 1 : 0), "floppy=" + (m.FloppyOn ? 1 : 0), "diskwriteback=" + (diskWriteBack ? 1 : 0),
                 "scale=" + scale, "integerscale=" + (integerScale ? 1 : 0), "border=" + (showBorder ? 1 : 0),
                 "fullscreen=" + (fullscreen ? 1 : 0), "mono=" + (m.Mono ? 1 : 0),
                 "arrowsjoystick=" + (arrowsJoy ? 1 : 0), "padkeys=" + (padKeys ? 1 : 0), "swapjoysticks=" + (swapJoy ? 1 : 0), "muted=" + (muted ? 1 : 0), "visualiser=" + (visOn ? 1 : 0),
