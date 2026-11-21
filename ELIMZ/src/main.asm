@@ -116,6 +116,7 @@ start:
         ldir
         ld hl,5A3Ch
         ld (seed),hl
+        call snd_init
 .attract:
         call title_screen           ; NZ: start, Z: timed out
         jr nz,.play
@@ -197,6 +198,7 @@ new_game:
         include "combat.asm"
         include "attract.asm"
         include "qol.asm"
+        include "fx.asm"
 
 ; ---------------------------------------------------------------- data
         include "../build/gen_tables.inc"

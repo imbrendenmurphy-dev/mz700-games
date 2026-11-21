@@ -49,6 +49,8 @@ class MZ700:
         self.ctr_mode_byte = {}
         self.gate = 0
         self.sound_log = []          # (t, gate, divisor)
+        self.spk_log = []            # (t, kind, value): 'm' counter-0 control word,
+                                     # 'n' count loaded, 'g' gate (see tools/wav.py)
         self.waits = 0
         self.font = None
         if font_path and os.path.exists(font_path):
@@ -142,6 +144,7 @@ class MZ700:
                 self.ctr0_value = self.ctr0_bytes[0] | (self.ctr0_bytes[1] << 8)
                 self.ctr0_bytes = []
                 self.sound_log.append((self.cpu.t, self.gate, self.ctr0_value))
+                self.spk_log.append((self.cpu.t, 'n', self.ctr0_value))
         elif a == 0xE005:
             self.ctr1_bytes.append(v)
             if len(self.ctr1_bytes) == 2:
@@ -156,11 +159,13 @@ class MZ700:
                     self.ctr1_latch = [n & 0xFF, n >> 8]
             elif counter == 0:
                 self.ctr0_bytes = []
+                self.spk_log.append((self.cpu.t, 'm', v))
             elif counter == 1:
                 self.ctr1_bytes = []
         elif a == 0xE008:
             self.gate = v & 1
             self.sound_log.append((self.cpu.t, self.gate, self.ctr0_value))
+            self.spk_log.append((self.cpu.t, 'g', v & 1))
         return True
 
     # ---------------------------------------------------------------- running

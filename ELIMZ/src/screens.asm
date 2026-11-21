@@ -38,23 +38,17 @@ title_screen:
         ldir
         ld a,T_DART
         ld (title_ship),a
-        call .newship
         call fe_reset
         ld a,1
         ld (state),a                    ; no crosshair
+        call .newship
         ld hl,330                       ; then the attract sequence
         ld (att_t),hl
+        ; Each frame is nearly all music: the mixer only plays while we
+        ; wait, so the ship is drawn once (every five bars) and the logo
+        ; just shimmers.
 .loop:  call wait_frame
-        ld ix,objects
-        ld a,6
-        call roll_to_side
-        ld a,CYAN
-        call set_col
-        ld a,5
-        call pitch_up
-        call draw_obj
-        call stamp_title
-        call present
+        call shimmer
         ld hl,title_t
         dec (hl)
         call z,.next
@@ -90,6 +84,14 @@ title_screen:
         ld a,(title_ship)
         ld (ix+O_TYPE),a
         call ori_forward
+        ld b,4                          ; a three-quarter view
+.r:     push bc
+        ld a,3
+        call roll_to_side
+        ld a,3
+        call pitch_up
+        pop bc
+        djnz .r
         ld hl,-40
         ld (ix+O_Y),l
         ld (ix+O_Y+1),h
@@ -100,8 +102,43 @@ title_screen:
         ld hl,300
         ld (ix+O_Z),l
         ld (ix+O_Z+1),h
-        ld a,180
+        ld a,CYAN
+        call set_col
+        call draw_obj
+        call stamp_title
+        call present
+        ld a,70                         ; five bars of the waltz
         ld (title_t),a
+        ret
+
+; the logo's rows take turns to light up white
+shimmer:
+        ld hl,frame
+        inc (hl)
+        ld a,(hl)
+        and 1
+        ret nz
+        ld a,(hl)
+        rrca
+        and 7
+        ld c,a                          ; the lit row (0..7: 5..7 = none)
+        ld hl,ARAM+VIEW_ROW*40
+        ld b,0
+.row:   ld a,b
+        cp c
+        ld a,YELLOW<<4
+        jr nz,$+4
+        ld a,WHITE<<4
+        push bc
+        ld b,40
+.c:     ld (hl),a
+        inc hl
+        djnz .c
+        pop bc
+        inc b
+        ld a,b
+        cp 5
+        jr c,.row
         ret
 
 title_text:

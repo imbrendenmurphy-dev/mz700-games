@@ -12,26 +12,39 @@ drops           ds 1
 turbo           ds 1                ; test harness: no frame waits
 autoplay        ds 1                ; test harness: keys from demo_keys
 demo_keys       ds 1
-noise_on        ds 1
-noise_band      ds 1
-cur_div         ds 2
+snd_vars:                           ; cleared by snd_init
+snd_mode        ds 1                ; 1 mixer, 0 tone generator (flight)
 snd_mute        ds 1
-sfxptr          ds 2
-sfxpri          ds 1
 mus_on          ds 1
-mus_song        ds 2
-mus_ord         ds 2
-mus_row         ds 2
-mus_tick        ds 1
-mus_speed       ds 1
-mus_fx          ds 1
-mus_arp         ds 1
-lead_note       ds 1
-lead_age        ds 1
-bass_note       ds 1
-bass_age        ds 1
-drum_kind       ds 1
-drum_age        ds 1
+noise_on        ds 1
+nz_seed         ds 1
+cur_div         ds 2
+hw_par          ds 1
+snd_clk         ds 2
+snd_ph          ds 1
+snd_seed        ds 2
+mx_left         ds 1
+mx_accA         ds 2
+mx_accB         ds 2
+mx_accC         ds 2
+mx_stepA        ds 2
+mx_stepB        ds 2
+mx_stepC        ds 2
+mx_tout         ds 2
+mvoice0         ds MV_SIZE
+mvoice1         ds MV_SIZE
+mvoice2         ds MV_SIZE
+mslot0          ds SL_SIZE
+mslot1          ds SL_SIZE
+mslot2          ds SL_SIZE
+hslot0          ds HS_SIZE
+hslot1          ds HS_SIZE
+snd_vars_end:
+fx_pal          ds 2
+fx_n            ds 1
+fx_dir          ds 1
+fx_ph           ds 1
+fx_last         ds 9
 key_extra       ds 1
 fe_prev         ds 1
 fe_rep          ds 1
@@ -40,7 +53,6 @@ fe_rep          ds 1
 keys            ds 1
 frame           ds 1
 state           ds 1                ; 0 flying, 1 docked, 2 destroyed
-state_t         ds 1
 speed           ds 1
 shield          ds 1
 energy          ds 1
@@ -101,7 +113,6 @@ loc_x           ds 1
 loc_y           ds 1
 loc_z           ds 1
 deb_r           ds 1
-dfx_t           ds 1
 att_t           ds 2
 demo_t          ds 2
 pl_best         ds 2

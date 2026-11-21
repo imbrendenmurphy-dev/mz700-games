@@ -13,10 +13,23 @@ DOTZ            equ 2600                ; ships beyond this are drawn as a dot
 MAXSPEED        equ 32
 
 ; ---------------------------------------------------------------------
-; flight: one sortie.  Returns A = 1 docked, 0 destroyed.
+; flight: one sortie.  Returns A = 0 destroyed, 1 docked, 2 jumped,
+; 3 demo cut short, 4 demo over.  Sound: the tone generator in flight,
+; the mixer again afterwards.
 ; ---------------------------------------------------------------------
 flight:
+        call flight_in
+        push af
+        call snd_fe
+        pop af
+        ret
+
+flight_in:
         call mus_stop
+        ld a,(arrive)                   ; out of the station: the launch tunnel
+        or a
+        call z,launch_fx
+        call snd_fl
         ld a,WHITE<<4
         call cls
         call hud_frame
@@ -65,6 +78,9 @@ flight:
         jr nz,.nocon
         call controls
 .nocon: call world_step
+        ld a,(state)                    ; blown up: the death sequence
+        cp 2
+        jr z,.dead
         call render
         call present
         call hud_update
@@ -73,11 +89,9 @@ flight:
         jr z,.docked
         cp 3
         jr z,.jumped
-        cp 2
-        jr nz,.loop
-        ld hl,state_t                   ; destroyed: let the debris fly
-        dec (hl)
-        jr nz,.loop
+        jr .loop
+.dead:  call hud_update
+        call death_seq
         xor a
         ret
 .docked:
@@ -470,6 +484,7 @@ rotate_world:
         ld ix,objects
         ld b,MAXOBJ
 .o:     push bc
+        call poll
         ld a,(ix+O_TYPE)
         or a
         jr z,.n
@@ -487,6 +502,7 @@ rotate_world:
         djnz .o
         ld hl,planet
         call .vhl
+        call poll
         ld hl,dust
         ld b,NDUST
 .d:     push bc
@@ -591,6 +607,7 @@ world_step:
         ld ix,objects
         ld b,MAXOBJ
 .o:     push bc
+        call poll
         ld a,(ix+O_TYPE)
         or a
         call nz,obj_step
@@ -633,13 +650,8 @@ world_step:
         ; destroyed
         ld a,2
         ld (state),a
-        ld a,40
-        ld (state_t),a
         xor a
         ld (speed),a
-        ld hl,SFX_CRASH
-        ld a,9
-        call sfx
         ld hl,txt_dead
         jp message
 
@@ -1525,6 +1537,7 @@ render:
         call draw_planet
         ld a,WHITE
         call set_col
+        call poll
         ld hl,dust
         ld b,NDUST
 .d:     push bc
@@ -1558,6 +1571,7 @@ render:
         add hl,de
         pop bc
         djnz .d
+        call poll
         ld ix,objects
         ld b,MAXOBJ
 .o:     push bc
@@ -1581,10 +1595,7 @@ render:
         djnz .o
         ld a,(state)
         or a
-        jr z,.cross
-        cp 2
         ret nz
-        jp death_fx
 .cross: ; crosshair
         ld a,CYAN
         call set_col
@@ -1837,7 +1848,8 @@ draw_obj:
         pop iy                          ; IY -> vertices
         xor a
         ld (vi),a
-.v:     ld hl,mtx
+.v:     call poll
+        ld hl,mtx
         call xrow
         push hl
         ld l,(ix+O_X)
@@ -1987,6 +1999,7 @@ getw:
 ; clipped against the near plane
 ; ---------------------------------------------------------------------
 draw_edge:
+        call poll                       ; flight sound keeps time while we draw
         ld a,(ea)
         call .out
         ld (outa),a
@@ -2342,66 +2355,3 @@ txt_scooped:    db "SCOOPED: ",0
 txt_holdfull:   db "HOLD FULL - CANISTER LOST",0
 txt_noscoop:    db "CANISTER SMASHED - FIT A SCOOP",0
 
-; ---------------------------------------------------------------------
-; death_fx: our own ship blowing apart (state 2, state_t 40 -> 1)
-; ---------------------------------------------------------------------
-death_fx:
-        ld a,(state_t)
-        neg
-        add a,42                        ; t = 2 .. 41
-        ld (dfx_t),a
-        ld hl,CX
-        ld (ccx),hl
-        ld hl,CY
-        ld (ccy),hl
-        and 3
-        ld e,a
-        ld d,0
-        ld hl,DFX_COL
-        add hl,de
-        ld a,(hl)
-        call set_col
-        ld a,(dfx_t)
-        add a,a
-        call circle
-        ld a,(dfx_t)
-        cp 7
-        jr c,.sp
-        ld a,RED
-        call set_col
-        ld a,(dfx_t)
-        add a,a
-        sub 10
-        call circle
-.sp:    ld a,WHITE                      ; flying wreckage
-        call set_col
-        ld a,(dfx_t)
-        srl a
-        inc a
-        ld (deb_r),a
-        ld iy,DEBRIS
-        ld b,16
-.p:     push bc
-        ld a,(deb_r)
-        ld c,a
-        ld b,(iy+0)
-        call mul8s
-        ld de,CX
-        add hl,de
-        push hl
-        ld a,(deb_r)
-        ld c,a
-        ld b,(iy+1)
-        call mul8s
-        ld de,CY
-        add hl,de
-        ex de,hl
-        pop hl
-        call plot_clip
-        inc iy
-        inc iy
-        pop bc
-        djnz .p
-        ret
-
-DFX_COL: db YELLOW,RED,WHITE,RED

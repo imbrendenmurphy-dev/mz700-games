@@ -32,6 +32,10 @@ do_pause:
         ld hl,txt_paused
         call message
         call sfx_stop
+        ld a,(snd_mute)                 ; the auto-dock waltz waits too
+        push af
+        ld a,1
+        ld (snd_mute),a
 .r1:    call poll
         call pkey
         jr nz,.r1
@@ -41,6 +45,8 @@ do_pause:
 .r2:    call poll
         call pkey
         jr nz,.r2
+        pop af
+        ld (snd_mute),a
         ld hl,txt_resume
         jp message
 
@@ -255,10 +261,7 @@ load_pilot:
 
 ; after the monitor's tape code: our timer and sound back as they were
 tape_done:
-        xor a
-        ld (SNDGATE),a
-        ld a,36h
-        ld (CTRL),a
+        call snd_fe
         call timer_init
         ld a,1
         ld (cr_dirty),a
@@ -304,6 +307,10 @@ tape_result:
         jr c,$+3
         inc a
         ld (tape_ok),a
+        or a
+        ld hl,SFX_SAVE
+        ld a,5
+        call nz,sfx
         ld hl,txt_tapeok
         ld a,(tape_ok)
         or a

@@ -524,7 +524,7 @@ docked_screen:
         or a
         jr nz,.sk
         jr .mt
-.keys:  call poll
+.keys:  call wait_field                 ; the mixer plays while we wait
         call getkey
         cp 'M'
         jr z,.market
@@ -569,7 +569,7 @@ docked_screen:
         jr c,.poor
         ld a,MAXFUEL
         ld (fuel),a
-        ld hl,SFX_BEEP
+        ld hl,SFX_BUY
         ld a,3
         call sfx
         jp .menu
@@ -710,7 +710,7 @@ market_screen:
         inc (hl)
         call price_de
         call cr_add
-.done:  ld hl,SFX_BEEP
+.done:  ld hl,SFX_BUY
         ld a,3
         call sfx
         ld a,(mkt_sel)
@@ -1180,37 +1180,9 @@ hyper_jump:
         ld a,0
         adc a,a
         ld (ambush),a
-        ld a,WHITE<<4
-        call cls
         ld hl,SFX_JUMP
         ld a,9
         call sfx
-        ld b,36
-.f:     push bc
-        call wait_frame
-        pop bc
-        push bc
-        ld hl,CX
-        ld (ccx),hl
-        ld hl,CY
-        ld (ccy),hl
-        ld a,b
-        and 7
-        call set_col
-        ld a,37                         ; rings rush outwards
-        sub b
-        ld c,a
-        add a,a
-        add a,2
-        push bc
-        call circle
-        pop bc
-        ld a,c
-        cp 3
-        jr c,.n
-        add a,2
-        call circle
-.n:     call present
-        pop bc
-        djnz .f
-        ret
+        ld hl,HYPER_PAL                 ; rings rush inwards
+        ld bc,36*256+0FFh
+        jp tunnel_fx

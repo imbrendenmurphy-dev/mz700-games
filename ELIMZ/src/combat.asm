@@ -125,7 +125,7 @@ fire_seeker:
         dec (hl)
         ld hl,txt_away
         call message
-        ld hl,SFX_LAUNCH
+        ld hl,SFX_ZAP
         ld a,6
         jp sfx
 
@@ -163,7 +163,7 @@ pirate_seeker:
         pop ix
         ld hl,txt_incoming
         call message
-        ld hl,SFX_LAUNCH
+        ld hl,SFX_ALARM
         ld a,7
         jp sfx
 
@@ -313,6 +313,9 @@ award_kill:
         inc hl
         ld d,(hl)
         call cr_add
+        ld hl,SFX_KILL
+        ld a,5
+        call sfx
         ld hl,txt_kill
         jp message
 
@@ -339,7 +342,7 @@ use_jammer:
         add ix,de
         pop bc
         djnz .o
-        ld hl,SFX_ZAP
+        ld hl,SFX_JAM
         ld a,7
         call sfx
         ld hl,txt_jam
@@ -601,7 +604,7 @@ eq_buy:
         jr nz,.ok
         ld a,HOLDMAX+15
         ld (holdmax),a
-.ok:    ld hl,SFX_BEEP
+.ok:    ld hl,SFX_BUY
         ld a,3
         jp sfx
 .no:    ld hl,SFX_OUCH

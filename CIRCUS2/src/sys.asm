@@ -38,7 +38,7 @@ detect_vblank:
         ld a,c
 .bshort:
         ld (vblev+1),a              ; level seen during VBLANK
-        ret
+        jp timer_init               ; and start the scan-line clock
 
 ; ---------------------------------------------------------------------
 ; poll: call at least every ~15000 T.  On each VBLANK start it counts a
@@ -68,32 +68,71 @@ vblev:  cp 0                        ; VBLANK level (set by detect_vblank)
         pop bc
         ret
 
-; wait for the start of the next game frame (FRAMEF fields after the last
-; one, always at the start of a VBLANK)
+; wait for the start of the next game frame: the first VBLANK start at
+; least FRAMEF fields after the last frame.  The fields are measured with
+; 8253 counter 1 (it counts scan lines), so a long stretch of work that
+; misses a VBLANK edge in poll no longer makes the next frame wait extra
+; fields.  Keeps BC and DE.
+FRAME_LINES     equ FRAMEF*312
+CTR1            equ 0E005h
+
+timer_init:
+        ld a,74h                    ; counter 1: LSB/MSB, mode 2, binary
+        ld (CTRL),a
+        xor a
+        ld (CTR1),a
+        ld (CTR1),a
+        call read_ctr1
+        ld (last_ctr),hl
+        ret
+
+; HL = counter 1 (latched)
+read_ctr1:
+        ld a,40h
+        ld (CTRL),a
+        ld a,(CTR1)
+        ld l,a
+        ld a,(CTR1)
+        ld h,a
+        ret
+
+; HL = lines since the last frame, DE = counter now
+lines_since:
+        call read_ctr1
+        ex de,hl
+        ld hl,(last_ctr)
+        or a
+        sbc hl,de
+        ret
+
+last_ctr:       dw 0
+
 wait_frame:
-        ld a,(fieldcnt)
-        ld hl,lastframe
-        sub (hl)
-        cp FRAMEF
-        jr c,.w                     ; early: wait for the field count
-        ld hl,drops                 ; late: realign on the next VBLANK
+        push bc
+        push de
+        call lines_since
+        ld bc,FRAME_LINES+156
+        or a
+        sbc hl,bc
+        jr c,.w
+        ld hl,drops                 ; already late
         inc (hl)
-        ld a,(fieldcnt)
+.w:     ld a,(fieldcnt)
         ld b,a
-.l2:    call poll
+.e:     call poll                   ; next VBLANK start
         ld a,(fieldcnt)
         cp b
-        jr z,.l2
+        jr z,.e
+        call lines_since
+        ld bc,FRAME_LINES-156
+        or a
+        sbc hl,bc
+        jr c,.w                     ; too early: another field
+        ld (last_ctr),de
+        ld a,(fieldcnt)
         ld (lastframe),a
-        ret
-.w:     call poll
-        ld a,(fieldcnt)
-        ld hl,lastframe
-        sub (hl)
-        cp FRAMEF
-        jr c,.w
-        ld a,(fieldcnt)
-        ld (hl),a
+        pop de
+        pop bc
         ret
 
 ; wait A fields
