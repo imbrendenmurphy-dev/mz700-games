@@ -35,8 +35,31 @@ The game takes over the machine. Reset to leave.
 | P or BREAK | pause. While paused: P plays on, S toggles sound, Q quits to the title |
 | S on the title | sound on / off |
 | D on the title | level: Easy / Normal / Hard (5 / 4 / 3 lives, slower or faster balloons) |
+| J on the title | joystick: Off / Stick / Paddle (see below) |
 | SPACE (or any other key) on the title | start |
 | letters, CR, cursor left | type your name in the high-score table |
+
+### Joystick
+
+The game supports Sharp's **MZ-1X03** joystick in socket A. Press **J** on
+the title to pick a mode:
+
+- **Stick:** push left or right past the middle to slide the seesaw.
+- **Paddle:** the stick's position is the seesaw's position, like the
+  paddle on the original arcade *Circus*. This suits the MZ-1X03, whose
+  stick doesn't spring back to the centre.
+
+Either button flips the seesaw and starts a game. **Move the stick fully
+left and right once** after choosing a mode: the game learns the stick's
+range from what it sees, because published timings for the MZ-1X03
+differ, and it ignores the stick until it has seen enough of the range.
+
+The stick is read the documented way. E008h bits 1 and 2 are the
+buttons while the picture is drawn. During vertical blanking the X line
+is low for a time set by the stick's position, and the game times that
+pulse every other frame. This has only been tested against a model of
+the stick in the simulator (the timings used by the MiSTer core), **not
+on a real MZ-1X03**. MZ-800 Atari-style joysticks are not supported.
 
 ## How it plays
 
@@ -53,6 +76,12 @@ Holding left or right as he lands steers the launch. Flipping the seesaw
 lets you catch on either side. A clown who drops onto the occupied end
 gets a **BONK!** and a second chance. Miss the plank and it's **OUCH!**
 (one life). Pop every balloon to clear the act.
+
+The seesaw is a little longer than on the VZ (nine cells, thirteen with
+the wide power-up). Gravity starts low: the opening acts are floaty, slow
+motion versions of the VZ flights (about 1.4x the hang time in Act 1).
+It gets a little stronger in each act until the encore, which runs at
+the VZ game's full speed.
 
 **Scoring**
 - Balloons are worth more the higher their row. Each pop in an unbroken
@@ -129,7 +158,10 @@ glyphs:
 - Physics runs in sub-cell fixed point (x in quarter cells, y in pixels,
   8.8) at 25 updates a second with two substeps, scaled from the VZ
   constants. The launch speeds are tuned so the weak, medium and PERFECT
-  launches reach the same rows they reach on the VZ. Collisions use the
+  launches reach the same rows they reach on the VZ. Each act takes its
+  gravity from a table in `build.py` (`ACT_GRAV`, 15 in Act 1 up to the
+  VZ's 31 in the encore). Every speed is scaled by sqrt(g/31), so a
+  launch flies the same path, only slower. Collisions use the
   cells the player can see.
 - **Compositor:** the background (canopy, poles, balloon rows, HUD) is
   kept in RAM. Each frame the moving objects are put into a cell list, and
@@ -177,6 +209,9 @@ the European CG-ROM image at `rom/mz700fon.int`, which is not included.
 - `tools/perf.py`: frame timing per act with the VRAM wait-state model.
 - `tools/soak.py`: a long attract-mode run with crash and compositor checks.
 - `tools/scorecheck.py`: the score matches the points awarded.
+- `tools/test_joystick.py`: the joystick option against a model of the
+  MZ-1X03: the title option, a button starting a game, the range being
+  learned, and both Stick and Paddle steering.
 - `tools/run.py`: run with scripted keys and take screenshots.
 
 Results so far (all on the release build):
@@ -194,8 +229,11 @@ Results so far (all on the release build):
   in range, and no object cells were left behind.
 - Front end: the title options, pause and sound toggle, game over, and a
   name typed into first place in the high-score table all worked.
-- Timing with the VRAM wait model: acts 1 and 6 had 1 late frame in 750
-  updates, and act 9, the busiest, had 4.
+- Timing with the VRAM wait model (`tools/perf.py`, after the scan-line
+  frame pacing fix): act 1 had 2 late frames in 500 updates and act 6
+  had 6. Act 9, the busiest, ran about 4% of its frames late (64 in about
+  1,500 updates). With the joystick on and the stick held at the far end
+  (the slowest to read) that rose to 79.
 
 ## Known limitations
 

@@ -137,6 +137,7 @@ init_once:
         ld (seed),hl
         ld a,1
         ld (difficulty),a
+        call joy_reset
         ld a,NACTS-2
         ld (demo_act),a
         call init_hiscores

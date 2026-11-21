@@ -47,6 +47,9 @@ txt_diff:       db "D  LEVEL: ",0
 txt_easy:       db "EASY",0
 txt_normal:     db "NORMAL",0
 txt_hard:       db "HARD",0
+txt_joy:        db "J  JOYSTICK: ",0
+txt_jstick:     db "STICK",0
+txt_jpaddle:    db "PADDLE",0
 txt_tkeys:      db "Z X MOVE   SPACE FLIP   P PAUSE",0
 txt_credit:     db "VIBED BY BPM 2026",0
 txt_machine:    db "FOR THE SHARP MZ-700",0

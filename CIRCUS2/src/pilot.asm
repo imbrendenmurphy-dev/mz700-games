@@ -16,10 +16,10 @@ ai_input:
         jr z,.f
         ld a,80                     ; nobody flying: wait in the middle
         ld (ai_target),a
-        jp .steer
+        jp steer_to
 .f:     ld hl,ai_t
         dec (hl)
-        jp p,.steer
+        jp p,steer_to
         ld (hl),9
         ld l,(ix+CS_X)
         ld h,(ix+CS_X+1)
@@ -33,22 +33,22 @@ ai_input:
         ld e,(ix+CS_VY)
         ld d,(ix+CS_VY+1)
         ld b,250
-.sim:   ld hl,GRAV
+.sim:   ld hl,(ph_grav)
         bit 7,d
         jr nz,.g
         ld a,(pw_umb)
         or a
         jr z,.g
-        ld hl,GRAV_UMB
+        ld hl,(ph_umb)
 .g:     add hl,de
         ex de,hl                    ; DE = vy
         bit 7,d                     ; fall-speed cap
         jr nz,.nc
         ld a,(pw_umb)
         or a
-        ld hl,VMAX
+        ld hl,(ph_vmax)
         jr z,.cap
-        ld hl,VMAX_UMB
+        ld hl,(ph_vumb)
 .cap:   push hl
         or a
         sbc hl,de
@@ -107,23 +107,25 @@ ai_input:
         sub b
         jr .tt
 .tl:    add a,b
-.tt:    cp 3                        ; out of reach with this tilt (the
+.tt:    cp 5                        ; out of reach with this tilt (the
         jr c,.flip                  ; centre must stay in cells 4..35 or so):
-        cp 37                       ; flip the seesaw instead
+        cp 35                       ; flip the seesaw instead
         jr nc,.flip
         add a,a
         add a,a
         add a,2
         ld (ai_target),a
-        jr .steer
+        jr steer_to
 .flip:  ld a,(flipcool)
         or a
-        jr nz,.steer
+        jr nz,steer_to
         ld hl,ai_t                  ; think again next update
         ld (hl),0
         ld a,K_FIRE
         ret
-.steer: ld a,(ai_target)
+; slide the seesaw toward ai_target: K_ bits in A
+steer_to:
+        ld a,(ai_target)
         ld c,a
         ld a,(see_hw)               ; clamp to the legal range
         add a,4
@@ -165,4 +167,74 @@ ai_input:
         ld a,K_RIGHT
         ret
 .none:  xor a
+        ret
+
+; ---------------------------------------------------------------------
+; joystick directions ORed into A (the keys so far).  Stick: lean past a
+; dead zone to slide.  Paddle: the stick's position is the seesaw's.
+; ---------------------------------------------------------------------
+JOY_MINRANGE    equ 40
+
+joy_dir:
+        push bc
+        push de
+        push hl
+        ld e,a
+        ld a,(joy_min)
+        ld c,a
+        ld a,(joy_max)
+        sub c
+        jr c,.out                   ; nothing seen yet
+        cp JOY_MINRANGE
+        jr c,.out                   ; range not learned: move the stick
+        ld d,a                      ; D = range
+        ld a,(joy_x)
+        sub c
+        ld b,a                      ; B = x - min
+        ld a,(joy_mode)
+        cp 2
+        jr z,.paddle
+        ld a,d                      ; stick: dead zone of range/8 each side
+        srl a
+        ld c,a                      ; C = centre
+        srl a
+        srl a
+        ld h,a                      ; H = range/8
+        ld a,c
+        sub h
+        cp b
+        jr c,.nl
+        jr z,.nl
+        set B_LEFT,e
+        jr .out
+.nl:    ld a,c
+        add a,h
+        cp b
+        jr nc,.out
+        set B_RIGHT,e
+        jr .out
+.paddle:
+        ld h,b                      ; HL = (x - min) * 128
+        ld l,0
+        srl h
+        rr l
+        ld c,d
+        call div16_8                ; L = 0..128
+        ld a,l
+        add a,16                    ; seesaw centre 16..144
+        ld hl,ai_target             ; ignore jitter of a few units
+        ld c,a
+        sub (hl)
+        jr nc,$+4
+        neg
+        cp 4
+        jr c,.keep
+        ld (hl),c
+.keep:  call steer_to
+        or e
+        ld e,a
+.out:   ld a,e
+        pop hl
+        pop de
+        pop bc
         ret

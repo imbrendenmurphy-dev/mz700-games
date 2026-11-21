@@ -44,6 +44,12 @@ tmp_slots       ds 2
 
 ; options and front end
 difficulty      ds 1                ; 0 easy, 1 normal, 2 hard
+joy_mode        ds 1                ; 0 keys only, 1 stick, 2 paddle
+joy_x           ds 1                ; last X pulse, in 42 T steps
+joy_min         ds 1                ; learned range (joy_max follows)
+joy_max         ds 1
+joy_btn         ds 1                ; NZ while a button is held
+joy_tog         ds 1                ; alternate frames
 demo_act        ds 1
 demo_key        ds 1
 anim_fe         ds 1
@@ -88,11 +94,29 @@ combo           ds 1
 streak          ds 1
 see_x           ds 2                ; pivot, 8.8 units
 see_v           ds 2
-see_hw          ds 1                ; half width in units (12 or 20)
+see_hw          ds 1                ; half width in units (16 or 24)
 tilt            ds 1                ; 0 = left end low, 1 = right end low
 flipcool        ds 1
 flipanim        ds 1
 piestick        ds 1
+phys:                               ; this act's physics (a PHYS row)
+ph_grav         ds 2
+ph_umb          ds 2
+ph_vmax         ds 2
+ph_vumb         ds 2
+ph_weak         ds 2                ; launch speeds (negative = up)
+ph_mid          ds 2
+ph_tip          ds 2
+ph_bonk         ds 2
+ph_boing        ds 2
+ph_tvy          ds 2
+ph_steer        ds 2
+ph_vxcap        ds 2
+ph_vxneg        ds 2
+ph_kick         ds 2
+ph_tvx          ds 1                ; tower jump vx base and range
+ph_tvr          ds 1
+                ds 2
 pw_wide         ds 1                ; power-up timers (these four in order)
 pw_slow         ds 1
 pw_x2           ds 1

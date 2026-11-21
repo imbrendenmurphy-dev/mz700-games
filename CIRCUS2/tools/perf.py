@@ -1,7 +1,9 @@
-"""perf.py [none|all|display] [act] [fields] - frame rate in play, with the VRAM wait model.
+"""perf.py [none|all|display] [act] [fields] [--joy] - frame rate in play, with the VRAM wait model.
 
 Starts a game on the given act (1-9) with the pilot steering and reports
-updates per second (target 25), late frames and CPU time lost to VRAM waits."""
+updates per second (target 25), late frames and CPU time lost to VRAM waits.
+--joy plugs in the MZ-1X03 model (stick at the far right, the slowest
+read) and turns the joystick option on."""
 import sys
 sys.path.insert(0, 'tools')
 from run import Game, S  # noqa: E402
@@ -11,6 +13,9 @@ act = int(sys.argv[2]) if len(sys.argv) > 2 else 1
 fields = int(sys.argv[3]) if len(sys.argv) > 3 else 1000
 g = Game(None if mode == 'none' else mode)
 g.run(60)
+if '--joy' in sys.argv:
+    g.m.joy = {'x': 255}
+    g.wb('joy_mode', 1)
 g.m.held = {'space'}
 g.m.run_until_pc(S['wait_release'], max_t=70886 * 50)
 g.m.held = set()

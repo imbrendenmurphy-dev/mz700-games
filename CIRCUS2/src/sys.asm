@@ -120,6 +120,9 @@ wait_frame:
 .w:     ld a,(fieldcnt)
         ld b,a
 .e:     call poll                   ; next VBLANK start
+        ld a,(joy_mode)
+        or a
+        call nz,joy_buttons
         ld a,(fieldcnt)
         cp b
         jr z,.e
@@ -131,6 +134,14 @@ wait_frame:
         ld (last_ctr),de
         ld a,(fieldcnt)
         ld (lastframe),a
+        ld a,(joy_mode)             ; a VBLANK has just begun: time the
+        or a                        ; joystick's X pulse (every other frame,
+        jr z,.nj                    ; as it can take up to 3 ms)
+        ld hl,joy_tog
+        inc (hl)
+        bit 0,(hl)
+        call nz,joy_measure
+.nj:
         pop de
         pop bc
         ret
@@ -229,6 +240,9 @@ read_keys:
         bit 0,a
         jr nz,$+4
         set 0,e
+        bit 6,a                     ; J
+        jr nz,$+4
+        set 7,e
         ld (hl),4                   ; row 4: D (4)
         inc l
         ld a,(hl)
@@ -244,6 +258,10 @@ read_keys:
         set 4,e
         ld a,e
         ld (key_extra),a
+        ld a,(joy_btn)              ; joystick buttons fire too
+        or a
+        jr z,$+4
+        set B_FIRE,c
         ld a,c
         pop hl
         pop de
@@ -311,6 +329,9 @@ gk_tab: db "YZ",0,0,0,0,0,0
 anykey:
         push bc
         push hl
+        ld a,(joy_mode)             ; refresh the joystick buttons
+        or a
+        call nz,joy_buttons
         ld hl,KEYPA
         ld b,10
         ld c,0
@@ -324,10 +345,81 @@ anykey:
         or c
         ld c,a
         djnz .r
-        ld a,c
-        or a
+        ld a,(joy_btn)              ; a joystick button counts as a key
+        or c
         pop hl
         pop bc
+        ret
+
+; ---------------------------------------------------------------------
+; Sharp MZ-1X03 joystick (stick A).  E008h bits 1 and 2 are multiplexed
+; by /VBLK: while the picture is drawn they are the two buttons (low =
+; pressed); from the start of VBLANK each one is low for a time set by
+; the stick's X or Y position (about 0.05 to 3 ms).  Sources disagree on
+; the exact times, so the range is learned from what is seen (joy_min /
+; joy_max).  Only X is used.
+; ---------------------------------------------------------------------
+JOYP            equ 0E008h
+
+; at a VBLANK start: count 42 T steps until X goes high -> joy_x (0-255)
+joy_measure:
+        push bc
+        push hl
+        ld hl,JOYP
+        ld b,0
+.m:     ld a,(hl)
+        and 2
+        jr nz,.hi
+        nop
+        nop
+        djnz .m
+        ld a,255                    ; still low after ~3 ms
+        jr .st
+.hi:    xor a
+        sub b                       ; steps counted
+.st:    ld (joy_x),a
+        ld hl,joy_min               ; widen the learned range
+        cp (hl)
+        jr nc,$+3
+        ld (hl),a
+        inc hl                      ; joy_max
+        cp (hl)
+        jr c,$+3
+        ld (hl),a
+        pop hl
+        pop bc
+        ret
+
+; while the picture is drawn: the buttons -> joy_btn (NZ = pressed)
+joy_buttons:
+        push bc
+        push hl
+        ld hl,vblev+1               ; the /VBLK level during blanking
+        ld a,(KEYPC)
+        and 80h
+        cp (hl)
+        jr z,.x                     ; blanking: these are stick pulses
+        ld a,(JOYP)
+        ld c,a
+        ld a,(KEYPC)                ; still the picture after the read?
+        and 80h
+        cp (hl)
+        jr z,.x
+        ld a,c
+        cpl
+        and 6                       ; either button
+        ld (joy_btn),a
+.x:     pop hl
+        pop bc
+        ret
+
+; forget the learned range (when the option changes)
+joy_reset:
+        ld a,255
+        ld (joy_min),a
+        xor a
+        ld (joy_max),a
+        ld (joy_btn),a
         ret
 
 ; wait until no key is held

@@ -26,6 +26,7 @@ KEYS = {
     '1': (5, 7), '2': (5, 6), '3': (5, 5), 'a': (4, 7), 's': (2, 5),
     'r': (2, 6), 'l': (3, 4), 'y': (1, 7), 'n': (3, 2), 'h': (4, 0), 'q': (2, 7), 'o': (3, 1), 'p': (3, 0),
     'b': (4, 6), 'c': (4, 5), 'd': (4, 4), 'm': (3, 3),
+    'j': (3, 6),
 }
 
 
@@ -111,6 +112,8 @@ class MZ700:
         if a == 0xE002:
             # bit7 = /VBLK (0 during vertical blanking), bit6 = cursor blink
             return 0x7F if self.line() >= VISIBLE_LINES else 0xFF
+        if a == 0xE008:
+            return self.joy_read()
         if a == 0xE005:
             if self.ctr1_latch is None:
                 self.ctr1_latch = [self.ctr1_now() & 0xFF, self.ctr1_now() >> 8]
@@ -119,6 +122,28 @@ class MZ700:
                 self.ctr1_latch = None
             return v
         return 0xFF
+
+    # MZ-1X03 joystick in socket A, modelled as in the MiSTer core (after
+    # mz800emu): while the picture is drawn bits 1/2 are the buttons (low =
+    # pressed); from the start of VBLANK each is low for 68 + 28 * position
+    # T-states.  joy = None (nothing plugged in) or {'x': 0-255, 'fire': bool}
+    joy = None
+
+    def joy_read(self):
+        v = 0xFF
+        j = self.joy
+        if j is None:
+            return v
+        ft = self.cpu.t % FIELD_T
+        vb = VISIBLE_LINES * LINE_T
+        if ft >= vb:
+            if ft - vb < 68 + 28 * j.get('x', 128):
+                v &= ~2
+            if ft - vb < 68 + 28 * j.get('y', 128):
+                v &= ~4
+        elif j.get('fire'):
+            v &= ~2
+        return v
 
     def ctr1_now(self):
         elapsed = int((self.cpu.t - self.ctr1_load_t) / LINE_T)

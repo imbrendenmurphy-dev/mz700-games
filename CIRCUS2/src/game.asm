@@ -29,19 +29,14 @@ RW_DCOFS        equ 7               ; drawn cell offset (FF = redraw)
 RW_DY           equ 8               ; drawn char row (FF = none)
 RW_CLR          equ 9               ; ROW CLEAR announced
 
-GRAV            equ 31
-GRAV_UMB        equ 14
-VMAX            equ 1904
-VMAX_UMB        equ 510
-V_WEAK          equ 1132
-V_MID           equ 1400
-V_TIP           equ 1700
+; gravity and launch speeds come from this act's PHYS row (build.py)
+PHYS_SIZE       equ 32
 LAUNCH_Y        equ 140
 LAND_Y0         equ 152             ; feet window for landing
 LAND_Y1         equ 164
 FLOOR_FEET      equ 168
-HW_NORM         equ 12
-HW_WIDE         equ 20
+HW_NORM         equ 16              ; a 9-cell plank
+HW_WIDE         equ 24              ; 13 cells
 
 T_NORM          equ 0
 T_GIFT          equ 1
@@ -172,6 +167,25 @@ act_setup:
         inc hl
         ld de,4                     ; name, hint
         add hl,de
+        push hl
+        ld a,(encore)               ; this act's gravity: floaty early on
+        or a
+        ld a,9
+        jr nz,.ph
+        ld a,(act)
+.ph:    ld l,a
+        ld h,0
+        add hl,hl
+        add hl,hl
+        add hl,hl
+        add hl,hl
+        add hl,hl                   ; x32
+        ld de,PHYS
+        add hl,de
+        ld de,phys
+        ld bc,PHYS_SIZE
+        ldir
+        pop hl
         ld a,(nrows)
         or a
         jr z,.norows
@@ -796,8 +810,13 @@ get_controls:
         jr .s
 .p:     call read_keys
         bit B_UP,a
-        jr z,.s
+        jr z,.j
         or K_FIRE
+.j:     ld b,a
+        ld a,(joy_mode)
+        or a
+        ld a,b
+        call nz,joy_dir
 .s:     and K_LEFT|K_RIGHT|K_FIRE
         ld b,a
         ld a,(inp)
@@ -1035,9 +1054,12 @@ clown_tick:
         ld (ix+CS_STATE),S_FLY      ; jump!
         ld (ix+CS_FL),0
         ld (ix+CS_POPS),0
-        ld b,80
+        ld a,(ph_tvr)
+        ld b,a
         call rand_below
-        add a,125                   ; 0.49 .. 0.80 units per substep
+        ld c,a
+        ld a,(ph_tvx)               ; 0.49 .. 0.80 units per substep, scaled
+        add a,c
         ld l,a
         ld h,0
         ld a,(ix+CS_SIDE)
@@ -1045,7 +1067,7 @@ clown_tick:
         call nz,neg_hl
         ld (ix+CS_VX),l
         ld (ix+CS_VX+1),h
-        ld hl,-408
+        ld hl,(ph_tvy)
         ld (ix+CS_VY),l
         ld (ix+CS_VY+1),h
         ld a,(ix+CS_SIDE)
@@ -1101,21 +1123,21 @@ clown_step:
         dec (ix+CS_CD)
 .cd:    ld l,(ix+CS_VY)             ; gravity
         ld h,(ix+CS_VY+1)
-        ld de,GRAV
+        ld de,(ph_grav)
         bit 7,h
         jr nz,.g                    ; rising: full gravity
         ld a,(pw_umb)
         or a
         jr z,.g
-        ld de,GRAV_UMB
+        ld de,(ph_umb)
 .g:     add hl,de
         bit 7,h                     ; cap the fall speed
         jr nz,.nc
         ld a,(pw_umb)
         or a
-        ld de,VMAX
+        ld de,(ph_vmax)
         jr z,.cap
-        ld de,VMAX_UMB
+        ld de,(ph_vumb)
 .cap:   push hl
         or a
         sbc hl,de
@@ -1200,7 +1222,7 @@ clown_step:
         ld (pw_net),a
         ld a,1
         ld (hud_req),a
-.boing: ld hl,-1600
+.boing: ld hl,(ph_boing)
         ld (ix+CS_VY),l
         ld (ix+CS_VY+1),h
         ld (ix+CS_Y+1),LAUNCH_Y
@@ -1265,7 +1287,7 @@ try_land:
         cp b
         jr z,.bonk
         ret nc
-.bonk:  ld hl,-680                  ; the occupied end: bounce off
+.bonk:  ld hl,(ph_bonk)             ; the occupied end: bounce off
         ld (ix+CS_VY),l
         ld (ix+CS_VY+1),h
         res 3,(ix+CS_FL)
@@ -1283,9 +1305,8 @@ try_land:
         rrca
         and 3Fh
         cp c
-        ld hl,-150
-        jr c,.bs
-        ld hl,150
+        ld hl,(ph_kick)
+        call c,neg_hl
 .bs:    ld (ix+CS_VX),l
         ld (ix+CS_VX+1),h
 .bk:    ld hl,SFX_BONK
@@ -1322,15 +1343,17 @@ try_land:
         ld a,(inp)                  ; steer
         bit B_LEFT,a
         jr z,.s1
-        ld bc,-88
-        add hl,bc
-.s1:    bit B_RIGHT,a
+        ld bc,(ph_steer)
+        or a
+        sbc hl,bc
+.s1:    ld a,(inp)
+        bit B_RIGHT,a
         jr z,.s2
-        ld bc,88
+        ld bc,(ph_steer)
         add hl,bc
 .s2:    bit 7,h                     ; |vx| <= 288
         jr nz,.vneg
-        ld bc,288
+        ld bc,(ph_vxcap)
         push hl
         or a
         sbc hl,bc
@@ -1339,7 +1362,7 @@ try_land:
         ld h,b
         ld l,c
         jr .vok
-.vneg:  ld bc,-288
+.vneg:  ld bc,(ph_vxneg)
         push hl
         or a
         sbc hl,bc
@@ -1379,11 +1402,11 @@ try_land:
         jr c,.tip
         ld a,e
         cp 2
-        ld hl,-V_MID
+        ld hl,(ph_mid)
         jr nc,.setv
-        ld hl,-V_WEAK
+        ld hl,(ph_weak)
         jr .setv
-.tip:   ld hl,-V_TIP
+.tip:   ld hl,(ph_tip)
         set 2,(iy+CS_FL)
         push hl
         push iy
@@ -2068,9 +2091,9 @@ draw_seesaw:
         ld (tmpx),a                 ; centre
         ld a,b
         cp 5
-        ld hl,PLANK7
+        ld hl,PLANK9
         jr c,$+5
-        ld hl,PLANK11
+        ld hl,PLANK13
         ld a,(pal+P_PLANK)
         ld c,a
         ld a,(piestick)
@@ -2146,8 +2169,8 @@ draw_seesaw:
 
 ; plank pieces (row, glyph) from the low (left) end: a line falling
 ; from row 20 line 0 to row 19 line 2
-PLANK7:         db 20,70h, 19,3Ch, 19,7Ch, 19,38h, 19,78h, 19,34h, 19,74h
-PLANK11:        db 20,70h, 19,3Ch, 19,3Ch, 19,7Ch, 19,38h, 19,38h, 19,78h, 19,34h, 19,34h, 19,74h, 19,74h
+PLANK9:         db 20,70h, 19,3Ch, 19,3Ch, 19,7Ch, 19,38h, 19,78h, 19,34h, 19,74h, 19,74h
+PLANK13:        db 20,70h, 19,3Ch, 19,3Ch, 19,7Ch, 19,7Ch, 19,38h, 19,38h, 19,78h, 19,78h, 19,34h, 19,34h, 19,74h, 19,74h
 
 ; clown IX: hat colour (tmpc), body colour (tmpy)
 draw_clown:

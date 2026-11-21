@@ -208,7 +208,7 @@ title_screen:
         call read_keys
         ld b,a
         ld a,(key_extra)
-        and 06h                     ; S or D
+        and 86h                     ; S, D or J
         jr nz,.opt
         ld a,b
         or a
@@ -233,7 +233,18 @@ title_screen:
         ld (snd_mute),a
         ld a,2
         jr .show
-.d:     ld a,(difficulty)           ; D: easy / normal / hard
+.d:     bit 7,a
+        jr z,.d2
+        ld a,(joy_mode)             ; J: joystick off / stick / paddle
+        inc a
+        cp 3
+        jr c,$+3
+        xor a
+        ld (joy_mode),a
+        call joy_reset
+        ld a,4
+        jr .show
+.d2:    ld a,(difficulty)           ; D: easy / normal / hard
         inc a
         cp 3
         jr c,$+3
@@ -488,7 +499,7 @@ title_msg:
         or a
         jr nz,.n0
         ld hl,txt_press
-        jr .pr
+        jp .pr
 .n0:    dec a
         jr nz,.n1
         ld hl,txt_hi                ; HI 015000 BPM
@@ -536,6 +547,22 @@ title_msg:
         ld hl,strbuf
         jr .pr
 .n3:    dec a
+        jr nz,.n4
+        ld hl,txt_joy
+        ld de,strbuf
+        call strcpy
+        ld a,(joy_mode)
+        add a,a
+        ld hl,joytxt
+        call add_hl_a
+        ld a,(hl)
+        inc hl
+        ld h,(hl)
+        ld l,a
+        call strcpy
+        ld hl,strbuf
+        jr .pr
+.n4:    dec a
         ld hl,txt_tkeys
         jr z,.pr
         dec a
@@ -545,8 +572,9 @@ title_msg:
 .pr:    ld d,TMSG_ROW
         ld b,YELLOW*16
         jp bg_centre
-NTMSG           equ 7
+NTMSG           equ 8
 difftxt:        dw txt_easy,txt_normal,txt_hard
+joytxt:         dw txt_off,txt_jstick,txt_jpaddle
 
 ; append 6 BCD digits from HL (3 bytes) at DE
 bcd6_append:
