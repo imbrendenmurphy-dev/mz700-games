@@ -99,6 +99,9 @@ tick_play:
         call update_bullets
         call update_shots
         call player_collide
+        ld a,(state)            ; still alive: humans next to you are saved too
+        cp S_PLAY
+        call z,rescue_near
         call place_player
         call pick_tick
         call edge_flash

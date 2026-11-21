@@ -931,7 +931,7 @@ howto_recs:
         db 4,2,70h
         db "SHOOT EVERY ROBOT TO CLEAR THE WAVE.",0
         db 6,2,70h
-        db "TOUCH THE HUMANS TO SAVE THEM:",0
+        db "GET NEXT TO THE HUMANS TO SAVE THEM:",0
         db 7,2,70h
         db "1000, THEN 2000 ... UP TO 5000 EACH.",0
         db 9,2,70h

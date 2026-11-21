@@ -20,7 +20,7 @@ ViBED by BPM 2026.
 
 - **Real MZ-700 / UniCMT:** copy `release/ROBOGEDN.MZT` to the USB stick
   (`release/ROBOGEDN.MZF` is the same file under the other common extension)
-  and load it like a tape (`L` from the monitor). It loads at 1200h-4B53h and
+  and load it like a tape (`L` from the monitor). It loads at 1200h-4BAFh and
   starts by itself.
 - **MZ700WIN:** File > Open `release/ROBOGEDN.MZT`.
 
@@ -41,7 +41,8 @@ You can move one way and shoot another, which is the whole point of the game.
 ## The game
 
 The robots have risen, and the last human family is wandering the arena.
-Shoot every robot to clear the wave, and run into the humans to save them.
+Shoot every robot to clear the wave, and run to the humans to save them: being
+next to one (any of the 8 cells round it) is enough.
 Each rescue is worth more than the last (1000, 2000, 3000, 4000, then 5000
 each). The count starts again every wave.
 
@@ -165,7 +166,7 @@ missiles are in the air at once. `play.py` prints the measured game speed.
 | Address | Use |
 |---|---|
 | 1000h-11FFh | stack (monitor work area; the game never returns to the monitor) |
-| 1200h-4B53h | code and data |
+| 1200h-4BAFh | code and data |
 | 8000h-87FFh | object layer (chars, attributes) |
 | 8800h-8BFFh | redraw flags |
 | 8C00h-8DFFh | particles (32 x 16 bytes) |

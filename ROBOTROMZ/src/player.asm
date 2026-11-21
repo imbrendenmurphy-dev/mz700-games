@@ -241,7 +241,43 @@ player_collide:
         jr c,.robot
         cp T_KID+1
         jr nc,.robot
-        ; rescue: 1000, 2000 ... 5000 points
+        jp rescue_human
+.robot: ld a,(iy+OFL)
+        bit 0,a                 ; F_DEADLY
+        ret z
+        call shielded
+        jp z,player_die
+        ld a,(iy+OFL)           ; shielded: it's destroyed if it can be
+        bit 1,a
+        ret z
+        push iy
+        pop ix
+        jp kill_obj
+.pick:  ld b,(iy+OY)            ; a power-up
+        ld c,(iy+OX)
+        ld (iy+OT),0
+        ld a,(iy+OAUX)
+        or a
+        jr nz,.psh
+        ld hl,T3WAY
+        ld (pw3),hl
+        ld a,0E0h
+        jr .p3
+.psh:   ld hl,TSHIELD
+        ld (pwsh),hl
+        ld a,0D0h
+.p3:    ld de,000Ch
+        call burst
+        call hud_power_dirty
+        ld de,0250h
+        ld a,10
+        call add_score
+        ld hl,sfx_pick
+        ld a,6
+        jp play_sfx
+
+; IY = a human the player has reached: save them (1000, 2000 ... 5000)
+rescue_human:
         ld a,(rescues)
         ld c,a
         inc a
@@ -284,39 +320,40 @@ player_collide:
         ld hl,sfx_rescue
         ld a,5
         jp play_sfx
-.robot: ld a,(iy+OFL)
-        bit 0,a                 ; F_DEADLY
-        ret z
-        call shielded
-        jr z,player_die
-        ld a,(iy+OFL)           ; shielded: it's destroyed if it can be
-        bit 1,a
-        ret z
-        push iy
-        pop ix
-        jp kill_obj
-.pick:  ld b,(iy+OY)            ; a power-up
-        ld c,(iy+OX)
-        ld (iy+OT),0
-        ld a,(iy+OAUX)
+
+; Humans are saved from any of the 8 cells round the player as well as
+; their own: on a 40 x 25 grid an exact hit is too fiddly.  (Robots and
+; bullets still have to hit the player's own cell.)
+rescue_near:
+        ld ix,nbr_ofs
+        ld b,8
+.l:     push bc
+        call player_ofs
+        ld e,(ix+0)
+        ld d,(ix+1)
+        add hl,de
+        call occ_at
         or a
-        jr nz,.psh
-        ld hl,T3WAY
-        ld (pw3),hl
-        ld a,0E0h
-        jr .p3
-.psh:   ld hl,TSHIELD
-        ld (pwsh),hl
-        ld a,0D0h
-.p3:    ld de,000Ch
-        call burst
-        call hud_power_dirty
-        ld de,0250h
-        ld a,10
-        call add_score
-        ld hl,sfx_pick
-        ld a,6
-        jp play_sfx
+        jr z,.nx
+        call id_to_iy
+        ld a,(iy+OST)           ; still materialising
+        or a
+        jr nz,.nx
+        ld a,(iy+OT)
+        cp T_MOM
+        jr c,.nx
+        cp T_KID+1
+        jr nc,.nx
+        push ix
+        call rescue_human
+        pop ix
+.nx:    pop bc
+        inc ix
+        inc ix
+        djnz .l
+        ret
+
+nbr_ofs: dw -41,-40,-39,-1,1,39,40,41
 
 player_die:
         ld a,S_DYING

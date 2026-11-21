@@ -38,7 +38,8 @@ There's no time to think, only to move and shoot, and to keep moving.
 - **Orbs** bounce around hatching spark-spitting **Seekers**.
 - **Factories** roll out **Tanks** that lob shells off the walls.
 
-Save the humans for 1,000 to 5,000 points apiece. Grab **3-Way** spread
+Save the humans for 1,000 to 5,000 points apiece: just reach the cell next to
+one. Grab **3-Way** spread
 shot and the **Shield** (robots that touch you are destroyed), earn the
 **Full Family Bonus**, and pick up an extra life every 25,000 points. The
 first ten waves ease you in; waves 21-40 are new mixes, ending with
@@ -80,14 +81,14 @@ first ten waves ease you in; waves 21-40 are new mixes, ending with
 | Sound | One voice on 8253 counter 0: an engine of pitch sweeps, warbles and three bands of noise. Noise is re-rolled continuously while the CPU waits for vertical blank, on its own random generator |
 | Input | The keyboard matrix is scanned every tick; any mix of the 8 movement and 8 firing directions works together |
 | Media | `ROBOGEDN.MZF` for a real machine through a UniCMT or tape; `ROBOGEDN.MZT` for emulators (identical) |
-| File | 14,676 bytes (plus the 128-byte tape header), loads at 1200h and starts by itself; nothing more is loaded |
+| File | 14,768 bytes (plus the 128-byte tape header), loads at 1200h and starts by itself; nothing more is loaded |
 | Language | Z80 assembly (sjasmplus), about 6,300 lines; build, test and showcase tools in Python (an MZ-700 model with video-memory wait states, a renderer invariant checker, a WAV renderer for the sound) |
 
 ### RAM used
 
 | Area | Address | Bytes |
 |---|---|---|
-| Program, graphics, waves, sound, text, variables | 1200h-4B53h | 14,676 |
+| Program, graphics, waves, sound, text, variables | 1200h-4BAFh | 14,768 |
 | Object layer (characters, attributes) | 8000h-87FFh | 2,048 |
 | Redraw flags | 8800h-8BFFh | 1,024 |
 | Particles (32 x 16) | 8C00h-8DFFh | 512 |
@@ -98,9 +99,9 @@ first ten waves ease you in; waves 21-40 are new mixes, ending with
 | Background, work screen, video RAM shadow (characters, attributes) | B000h-C7FFh | 6,144 |
 | Owner / collision map, bullet map | C800h-CFFFh | 2,048 |
 | Stack (in the monitor's work area, below 1200h) | 1000h-11FFh | (512) |
-| **Total** | | **31,316 (30.6 KB)** |
+| **Total** | | **31,408 (30.7 KB)** |
 
-That leaves 17,324 bytes (16.9 KB) of the MZ-700's 47.5 KB of user RAM
-(1200h-CFFFh) free: 4B54h-7FFFh, 8E00h-8FFFh, 9A00h-9FFFh, A700h-A7FFh and
+That leaves 17,232 bytes (16.8 KB) of the MZ-700's 47.5 KB of user RAM
+(1200h-CFFFh) free: 4BB0h-7FFFh, 8E00h-8FFFh, 9A00h-9FFFh, A700h-A7FFh and
 AA00h-AFFFh. Video and colour RAM (D000h-DFFFh) and the monitor ROM are
 not counted.
