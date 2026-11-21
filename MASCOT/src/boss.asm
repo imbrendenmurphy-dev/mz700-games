@@ -480,6 +480,9 @@ ph_update:
         add a,(ix+O_HY)
         ld (ix+O_Y),a
         ; colour cycle: warn by flashing for the last 30 frames
+        ld a,(ix+O_FLASH)           ; a hit flash wins over the warning
+        cp 5
+        jr nc,.nw
         ld a,(ix+O_TM)
         cp 30
         jr nc,.nw
@@ -564,6 +567,9 @@ baron_update:
         xor a
         call obj_walk
         ; shield colour
+        ld a,(ix+O_FLASH)           ; a hit flash wins over the warning
+        cp 5
+        jr nc,.nw
         ld a,(ix+O_TM)
         cp 30
         jr nc,.nw
@@ -600,7 +606,10 @@ baron_update:
         ld (ix+O_VY),low -140
         ld (ix+O_VY+1),high -140
         ld (ix+O_GND),0
-.nj:    ld a,(ix+O_AN)
+.nj:    ld a,(ix+O_FLASH)           ; no sparks while reeling from a hit
+        cp 5
+        ret nc
+        ld a,(ix+O_AN)
         and 63
         cp 32
         ret nz

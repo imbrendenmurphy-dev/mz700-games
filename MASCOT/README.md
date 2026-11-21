@@ -27,7 +27,8 @@ of the 8253 sound chip.
 | X / M | tongue: eat enemies, grab gems |
 | C / N | change colour (from World 2) |
 | UP / DOWN | climb vines |
-| DOWN | duck: the tongue then skims the ground (on a plank: drop through) |
+| DOWN | duck (on planks too): the tongue then skims the ground |
+| DOWN + jump | drop through a plank |
 | CR | pause |
 | BREAK | quit to the title |
 
@@ -73,7 +74,7 @@ doing.
     and lava/goo pits.
   - Level-clear tally with an all-gems bonus.
 - **Physics:** acceleration and skidding, variable jump height, coyote time
-  (6 frames) and a jump buffer (7 frames), with 1/256-cell fixed-point motion
+  (8 frames) and a jump buffer (7 frames), with 1/256-cell fixed-point motion
   at 50 Hz.
 - **Front end:**
   - Rainbow-cycling title screen with a scroller and title music.
@@ -91,9 +92,12 @@ MZ-700 character ROM as `rom/mz700fon.int`.
 py build.py                 generate data, assemble, write build/ and release/
 py build.py preview         also draw every room and level map to build/rooms/
 py tools/reach.py           solver: every level finishable, every pickup reachable
+py tools/platforms.py       platforms no reachable spot ever stands on
+py tools/leaps.py           take-off timing slack of every jump over a deadly drop
 py tools/test_boss.py       beat all four bosses in the simulator
 py tools/test_flow.py       final boss -> tally -> ending -> high-score entry
 py tools/test_joy.py        joystick page and play with the simulated MZ-1X03
+py tools/test_duck.py       duck on a plank, DOWN + jump drops through
 py tools/perf.py 0 1500     frame drops under the conservative VRAM wait model
 py tools/run.py N shots --keys "f:key+key,..."   scripted run with screenshots
 py tools/wav.py 40 out.wav  record the title music
@@ -145,6 +149,21 @@ py tools/wav.py 40 out.wav  record the title music
   - Ending, high-score entry, room transitions and frame timing.
 - `tools/reach.py` passes all 12 levels. It uses its own copy of the physics,
   ignores enemies, and treats moving platforms optimistically.
+- `tools/leaps.py` measures the take-off slack of every jump over a deadly
+  drop. Every one gives at least 6 frames (most 10-30). Colour-change jumps
+  also give about 30 frames to time the swap.
+- Fixed after hardware play:
+  - Springs never bounced in versions before this one (the landing code kept
+    only the "solid" bit of the tile). The level solver modelled them
+    correctly, so it didn't notice. The spring crossing in 1-2 was impossible
+    in the real game. That room now has a wide spring over a plank floor
+    instead of a pit.
+  - DOWN on a plank used to drop through it, so you couldn't duck there to
+    tongue small enemies. It now ducks; DOWN + jump drops through.
+  - Stomping the dizzy Big Bumble cost a heart: it hops up after the hit
+    and caught Kiko on his bounce. A boss flashing from a hit is now
+    harmless to touch and throws nothing. `test_boss.py` now checks that
+    no stomp costs a heart (it used to keep Kiko invulnerable throughout).
 - What still needs doing:
   - Real hardware / emulator check, especially the real VBLANK polarity (it
     is measured at boot) and how the sound sounds.

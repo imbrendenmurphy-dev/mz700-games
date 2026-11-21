@@ -90,10 +90,21 @@ def main(n):
             g.wb('hvy', 60)
             g.wb('hvy', 0, 1)
             g.wb('hstate', 0)
+            g.wb('hinv', 0)          # a good stomp must not hurt Kiko
             g.run(12)
         b2 = boss(g)
         if b2 and b2['hp'] < hp0:
             hits += 1
+            if n != 3:
+                for f in range(25):  # the boss hops up after the hit
+                    g.run(1)
+                    if g.rb('hearts') < 3:
+                        print('   hurt at +%d: kiko %s, objects %s' % (f, g.hero(), [
+                            (o['t'], o['x'], o['y'], o['st'], o['flash']) for o in objs(g)]))
+                        break
+                if g.rb('hearts') < 3:
+                    print('FAIL: Kiko lost a heart stomping the boss')
+                    main.hurt = True
             print('hit %d: hp %d -> %d' % (hits, hp0, b2['hp']))
             g.shot('boss%d_hit%d' % (n, hits))
     g.run(100)
@@ -108,7 +119,7 @@ def main(n):
         g.run(30)
         print('level_done', g.rb('level_done'), 'state', g.rb('hstate'))
     main.game = g
-    return boss(g) is None and bool(goal)
+    return boss(g) is None and bool(goal) and not getattr(main, 'hurt', False)
 
 
 if __name__ == '__main__':

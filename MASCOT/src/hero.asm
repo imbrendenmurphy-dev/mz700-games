@@ -21,7 +21,7 @@ VINEJV          equ -96
 STOMPV          equ -96
 STOMPV_HI       equ -150
 SPRINGV         equ -176
-COYOTE          equ 6
+COYOTE          equ 8               ; frames to still jump after walking off
 JBUF            equ 7
 TMAX            equ 5               ; tongue reach (cells beyond the snout)
 
@@ -181,8 +181,9 @@ hero_update:
 .post:  call hero_touch
         jp hero_anim
 
-; DOWN on solid ground (or a moving platform) = duck; DOWN on a plank
-; still drops through it.  The duck lasts while a low tongue is out.
+; DOWN on anything Kiko stands on = duck (planks too: DOWN + JUMP drops
+; through a plank, see hero_jump_check).  The duck lasts while a low
+; tongue is out.
 duck_check:
         ld a,(htngst)               ; keep the pose for a low tongue
         or a
@@ -211,7 +212,7 @@ duck_check:
         ld b,a
         ld d,2
         call tflags_row
-        and F_SOLID
+        and F_SOLID|F_ONEWAY
         jr nz,.yes
         call plat_under
         ret nc
@@ -427,8 +428,29 @@ hero_jump_check:
         ret z
         ld a,(hgnd)
         or a
+        jr z,.air
+        ld a,(hkeys)                ; DOWN + JUMP on a plank: drop through
+        and K_DOWN
+        jr z,hero_jump
+        ld a,(ky)
+        inc a
+        ld c,a
+        ld a,(kx)
+        ld b,a
+        ld d,2
+        call tflags_row
+        ld e,a
+        and F_SOLID
         jr nz,hero_jump
-        ld a,(hcoy)
+        ld a,e
+        and F_ONEWAY
+        jr z,hero_jump
+        ld a,10
+        ld (hdrop),a
+        xor a
+        ld (hjbuf),a
+        ret
+.air:   ld a,(hcoy)
         or a
         ret z
 hero_jump:
@@ -529,26 +551,7 @@ hero_move_y:
         ld a,(hgnd)
         or a
         jr z,.air
-        ; on the ground: still supported?
-        ld a,(hkeys)
-        and K_DOWN
-        jr z,.nodrop
-        ld a,(ky)                   ; DOWN on a plank: drop through
-        inc a
-        ld c,a
-        ld a,(kx)
-        ld b,a
-        ld d,2
-        call tflags_row
-        ld e,a
-        and F_SOLID
-        jr nz,.nodrop
-        ld a,e
-        and F_ONEWAY
-        jr z,.nodrop
-        ld a,10
-        ld (hdrop),a
-.nodrop:
+        ; on the ground: still supported?  (hdrop set: dropping through)
         call hero_supported
         or a
         ret nz
@@ -605,12 +608,14 @@ hero_move_y:
         call tflags_row
         ld e,a
         and F_SOLID
+        ld a,e                      ; .land keeps all the flags (springs!)
         jr nz,.land
         ld a,(hdrop)
         or a
         jr nz,.noone
         ld a,e
         and F_ONEWAY
+        ld a,e
         jr nz,.land
 .noone: call plat_under_next
         jr c,.landp

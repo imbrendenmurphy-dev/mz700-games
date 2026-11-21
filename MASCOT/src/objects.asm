@@ -969,7 +969,13 @@ objects_interact:
 .hit:   ld a,(ix+O_FL)
         and OF_HARM
         jr z,.next
-        call obj_face_hero          ; knocked away from it
+        ld a,(ix+O_FL)              ; a boss flashing from a hit (it hops
+        and OF_BOSS                 ; up after a stomp, into Kiko) is safe;
+        jr z,.harm                  ; short flickers (4) don't count
+        ld a,(ix+O_FLASH)
+        cp 5
+        jr nc,.next
+.harm:  call obj_face_hero          ; knocked away from it
         call hero_hurt
 .next:  ld de,OSZ
         add ix,de

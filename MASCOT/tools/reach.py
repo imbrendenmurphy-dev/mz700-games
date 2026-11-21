@@ -188,7 +188,11 @@ class Sim:
                         self.xf = nf
             else:
                 self.xf = nf
-        # jump
+        # jump (DOWN + JUMP on a plank: drop through instead)
+        if self.jbuf and self.gnd and keys & 2:
+            e = self.row_flags(self.x, self.y + 1)
+            if not (e & TL.F_SOLID) and e & TL.F_ONEWAY:
+                self.drop, self.jbuf = 10, 0
         if self.jbuf and (self.gnd or self.coy):
             self.vy, self.gnd, self.coy, self.jbuf = JUMPV, False, 0, 0
         # gravity
@@ -197,14 +201,10 @@ class Sim:
             self.vy = min(self.vy, VMAXY)
         # move y
         if self.gnd:
-            if keys & 2:
-                e = self.row_flags(self.x, self.y + 1)
-                if not (e & TL.F_SOLID) and e & TL.F_ONEWAY:
-                    self.drop = 10
             if not self.supported():
                 self.gnd = False
                 if self.vy >= 0:
-                    self.coy = 6
+                    self.coy = 8
         else:
             p = self.y * 256 + self.yf + self.vy
             ny, nf = p >> 8, p & 255
