@@ -149,8 +149,53 @@ mus_play:
         pop ix
         ret
 
+; ---------------------------------------------------------------------
+; the tracker: one channel for the tone generator, as the demoscene
+; plays it.  A value per 50 Hz tick (tools/music.py arranges the waltz:
+; plucked notes, oom-pah-pah hits, arpeggio chords, vibrato).  Stream:
+; 00 silence, 01-DF a divisor from TRK_TAB, E0+k hold k more ticks,
+; FF loop.  It needs no CPU between ticks, so the screen can animate.
+; ---------------------------------------------------------------------
+trk_play:                               ; HL = stream
+        ld (trk_ptr),hl
+        ld (trk_start),hl
+        xor a
+        ld (trk_rep),a
+        ld (trk_cur),a
+        inc a
+        ld (trk_on),a
+        ret
+
+trk_tick:
+        ld a,(trk_on)
+        or a
+        ret z
+        ld hl,trk_rep
+        ld a,(hl)
+        or a
+        jr z,.rd
+        dec (hl)
+        ret
+.rd:    ld hl,(trk_ptr)
+.r2:    ld a,(hl)
+        inc hl
+        cp 0FFh
+        jr nz,.nl
+        ld hl,(trk_start)
+        jr .r2
+.nl:    ld (trk_ptr),hl
+        cp 0E0h
+        jr c,.val
+        sub 0E0h
+        ld (trk_rep),a
+        ret
+.val:   ld (trk_cur),a
+        ret
+
 mus_stop:
         xor a
+        ld (trk_on),a
+        ld (trk_cur),a
         ld (mus_on),a
         ld (mvoice0+MV_PTR+1),a
         ld (mvoice1+MV_PTR+1),a
@@ -281,6 +326,9 @@ sfx_stop:
 snd_tick:
         push ix
         push iy
+        push hl
+        call trk_tick
+        pop hl
         ld a,(mus_on)
         or a
         jr z,.nm
@@ -857,17 +905,33 @@ hw_sub:
         jr z,.s1
         ld ix,hslot0
         or a
-        jr z,hs_out
+        jp z,hs_out
         ld a,(hw_par)                   ; both busy: take turns
         rra
-        jr nc,hs_out
+        jp nc,hs_out
         ld ix,hslot1
-        jr hs_out
+        jp hs_out
 .s1:    ld ix,hslot1
         or a
-        jr nz,hs_out
-        ; no effect: the music voices take turns
-        ld a,(mus_on)
+        jp nz,hs_out
+        ; no effect: the tracker, or the music voices take turns
+        ld a,(trk_on)
+        or a
+        jr z,.nt
+        ld a,(trk_cur)
+        or a
+        jp z,out_off
+        add a,a
+        ld e,a
+        ld d,0
+        ld hl,TRK_TAB-2
+        add hl,de
+        ld a,(hl)
+        inc hl
+        ld h,(hl)
+        ld l,a
+        jp out_div
+.nt:    ld a,(mus_on)
         or a
         jp z,out_off
         ld ix,mvoice0

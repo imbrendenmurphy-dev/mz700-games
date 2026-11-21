@@ -141,9 +141,9 @@ view_reset:
         ld bc,18*64-1
         ld (hl),0
         ldir
-        ld hl,RSHD
+        ld hl,RSHD                      ; cells and colours
         ld de,RSHD+1
-        ld bc,RAD_W*RAD_H-1
+        ld bc,255
         ld (hl),0FFh
         ldir
         ret

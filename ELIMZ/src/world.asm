@@ -25,7 +25,9 @@ flight:
         ret
 
 flight_in:
-        call mus_stop
+        ld a,(autoplay)                 ; the attract demo keeps its waltz
+        or a
+        call z,mus_stop
         ld a,(arrive)                   ; out of the station: the launch tunnel
         or a
         call z,launch_fx
@@ -144,7 +146,10 @@ world_init:
         ld (planet+2),hl
         ld hl,21000
         ld (planet+4),hl
-.pl:
+.pl:    ld hl,SUN0                      ; the sun, beyond the planet
+        ld de,sunv
+        ld bc,6
+        ldir
         ld a,10
         ld (speed),a
         ld a,64
@@ -511,6 +516,8 @@ rotate_world:
         djnz .o
         ld hl,planet
         call .vhl
+        ld hl,sunv                      ; the sun turns with the world
+        call .vhl
         call poll
         ld hl,dust
         ld b,NDUST
@@ -679,11 +686,11 @@ sub_speed:
 ; HL -> vector: keep |x|+|y|+|z| <= 31000 (scale far things inwards)
 clamp_far:
         push hl
-        call .sum
-        pop hl
+        call .sum                       ; HL = |x|+|y|+|z|
         ld de,31000
         or a
         sbc hl,de
+        pop hl                          ; HL -> the vector again
         ret c
         ld b,3                          ; v -= v/16
 .c:     push bc
@@ -1543,7 +1550,33 @@ txt_bump:       db "COLLISION - USE THE PORT!",0
 ; render: planet, dust, ships, crosshair, lasers
 ; ---------------------------------------------------------------------
 render:
-        call draw_planet
+        call planet_prep                ; where the planet is: it is drawn
+        call span_clear                 ; after the ships, round them
+        call poll
+        ld ix,objects
+        ld b,MAXOBJ
+.o:     push bc
+        ld a,(ix+O_TYPE)
+        or a
+        jr z,.n
+        cp T_DEBRIS
+        jr nz,.sh
+        call draw_debris
+        jr .n
+.sh:    ld e,a
+        ld d,0
+        ld hl,TYPE_COL-1
+        add hl,de
+        ld a,(hl)
+        call set_col
+        call draw_obj
+.n:     ld de,OBJSZ
+        add ix,de
+        pop bc
+        djnz .o
+        call planet_draw
+.dust:  xor a
+        ld (pl_on),a
         ld a,WHITE
         call set_col
         call poll
@@ -1580,28 +1613,6 @@ render:
         add hl,de
         pop bc
         djnz .d
-        call poll
-        ld ix,objects
-        ld b,MAXOBJ
-.o:     push bc
-        ld a,(ix+O_TYPE)
-        or a
-        jr z,.n
-        cp T_DEBRIS
-        jr nz,.sh
-        call draw_debris
-        jr .n
-.sh:    ld e,a
-        ld d,0
-        ld hl,TYPE_COL-1
-        add hl,de
-        ld a,(hl)
-        call set_col
-        call draw_obj
-.n:     ld de,OBJSZ
-        add ix,de
-        pop bc
-        djnz .o
         ld a,(state)
         or a
         ret nz
@@ -1652,9 +1663,10 @@ render:
 TYPE_COL:
         db WHITE,RED,MAGENTA,RED,YELLOW,CYAN,YELLOW,WHITE,GREEN,YELLOW
 
-draw_planet:
-        ld a,GREEN
-        call set_col
+planet_prep:
+        xor a
+        ld (pl_mode),a
+        ld (pl_on),a
         ld hl,(planet+4)
         ld de,-2000
         add hl,de
@@ -1677,16 +1689,40 @@ draw_planet:
         ld a,l
         cp 120
         ret nc
-        cp 2
-        jr nc,.c
         ld hl,(psx)
-        ld de,(psy)
-        jp plot_clip
-.c:     ld hl,(psx)
         ld (ccx),hl
         ld hl,(psy)
         ld (ccy),hl
-        jp circle
+        cp 2
+        ld b,1
+        jr c,.mode                      ; far: a dot
+        inc b
+        push bc
+        call crescent                   ; the crescent's shape
+        pop bc
+.mode:  ld a,b
+        ld (pl_mode),a
+        ret
+
+; draw the planet round the ships in front of it: a dark limb in blue
+; and the lit crescent in cyan, a row at a time
+planet_draw:
+        ld a,(pl_mode)
+        or a
+        ret z
+        ld hl,plot_mask
+        call plot_hook
+        ld a,(pl_mode)
+        dec a
+        jr nz,.disc
+        ld a,CYAN
+        call set_col
+        ld hl,(ccx)
+        ld de,(ccy)
+        call plot_clip
+        jr .done
+.disc:  call crescent_rows               ; the limb and the crescent
+.done:  jp plot_unhook
 
 draw_debris:
         call obj_screen                 ; uses the model radius: fine for a size
@@ -1913,21 +1949,19 @@ draw_obj:
         ld hl,nv
         cp (hl)
         jp c,.v
-        ; edges
+        ; edges: only those on faces towards us (hidden.asm)
+        ld (ed0),iy
         ld a,(ne)
-        ld b,a
-.e:     push bc
-        ld a,(iy+0)
-        ld (ea),a
-        ld a,(iy+1)
-        ld (eb),a
-        push iy
-        call draw_edge
-        pop iy
-        inc iy
-        inc iy
-        pop bc
-        djnz .e
+        add a,a
+        ld e,a
+        ld d,0
+        add iy,de                       ; IY -> the faces
+        call cull_faces
+        ld (ef0),iy
+        call occl_check                 ; over the planet: note our dots so
+        call nz,rec_on                  ; that it is drawn round us
+.edges: call obj_edges
+        call plot_unhook
         bit 0,(ix+O_FLAG)               ; firing: find our centre for the beam
         ret z
         call obj_screen

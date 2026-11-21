@@ -70,7 +70,7 @@ for port, inv in (('A', False), ('B', True), ('A', True), ('B', False)):
     if port == 'A' and not inv:
         for (x, y), want in (((255, 128), 2), ((0, 128), 1), ((128, 0), 4), ((128, 255), 8), ((128, 128), 0)):
             joy['x'], joy['y'] = x, y
-            g.run(3)
+            g.run(10)                          # a frame to read it, a frame to use it
             seen = flight_dirs(g, 20)
             check('flight stick %d,%d' % (x, y), seen & 15 == want, seen)
         # every flight frame should get a fresh reading

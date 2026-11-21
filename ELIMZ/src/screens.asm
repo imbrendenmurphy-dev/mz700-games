@@ -29,8 +29,11 @@ title_screen:
         or a
         jr nz,.s
         jr .t
-.go:    ld hl,SONG_WALTZ
-        call mus_play
+.go:    call snd_fl                     ; the waltz on the tracker: it needs
+        ld a,(trk_on)                   ; no CPU, so the ship spins every frame
+        or a                            ; (it plays on through the attract
+        ld hl,TRK_WALTZ                 ; screens)
+        call z,trk_play
         ld hl,objects
         ld de,objects+1
         ld bc,MAXOBJ*OBJSZ-1
@@ -41,13 +44,21 @@ title_screen:
         call fe_reset
         ld a,1
         ld (state),a                    ; no crosshair
+        xor a
+        ld (title_ang),a
+        ld hl,tstars                    ; stars at random places
+        ld b,2*NTSTARS
+.st:    push hl
+        call rand
+        pop hl
+        ld (hl),a
+        inc hl
+        djnz .st
         call .newship
         ld hl,330                       ; then the attract sequence
         ld (att_t),hl
-        ; Each frame is nearly all music: the mixer only plays while we
-        ; wait, so the ship is drawn once (every five bars) and the logo
-        ; just shimmers.
 .loop:  call wait_frame
+        call .spin
         call shimmer
         ld hl,title_t
         dec (hl)
@@ -76,10 +87,10 @@ title_screen:
         ld a,h
         or l
         jr nz,.loop
-        call mus_stop
         xor a                           ; Z: time for the demo
         ret
 .start: call mus_stop
+        call snd_fe
         or 1
         ret
 .next:  ld a,(title_ship)
@@ -92,33 +103,80 @@ title_screen:
         ld ix,objects
         ld a,(title_ship)
         ld (ix+O_TYPE),a
-        call ori_forward
-        ld b,4                          ; a three-quarter view
-.r:     push bc
-        ld a,3
-        call roll_to_side
-        ld a,3
-        call pitch_up
-        pop bc
-        djnz .r
-        ld hl,-40
+        ld hl,-30
         ld (ix+O_Y),l
         ld (ix+O_Y+1),h
-        ld hl,200
+        ld hl,140
         ld a,(title_ship)
         cp T_STATION
         jr nz,$+5
-        ld hl,300
+        ld hl,260
         ld (ix+O_Z),l
         ld (ix+O_Z+1),h
-        ld a,CYAN
-        call set_col
-        call draw_obj
-        call stamp_title
-        call present
-        ld a,70                         ; five bars of the waltz
+        ld a,128                        ; two turns each
         ld (title_t),a
         ret
+
+; one step of the spin: the stars drift by (near ones faster), then
+; the next of 64 orientations, in the ship's own colour, under the logo
+.spin:  ld a,WHITE
+        call set_col
+        ld hl,tstars
+        ld b,NTSTARS
+.sl:    ld a,(hl)                       ; x (0..255: 80 dots + off screen)
+        sub 1
+        bit 0,b
+        jr z,$+4
+        sub 1                           ; every other star is nearer
+        ld (hl),a
+        inc hl
+        cp 80
+        jr nc,.sn
+        push bc
+        push hl
+        ld b,a
+        ld a,(hl)                       ; y: dot rows 12..35
+        and 1Fh
+        cp 24
+        jr c,$+4
+        sub 12
+        add a,12
+        ld c,a
+        call plot
+        pop hl
+        pop bc
+.sn:    inc hl
+        djnz .sl
+        ld a,(title_ang)
+        inc a
+        and 63
+        ld (title_ang),a
+        ld l,a
+        ld h,0
+        add hl,hl
+        ld d,h
+        ld e,l
+        add hl,hl
+        add hl,hl
+        add hl,hl
+        add hl,de                       ; * 18
+        ld de,SPIN
+        add hl,de
+        ld de,objects+O_SIDE
+        ld bc,18
+        ldir
+        ld a,(title_ship)
+        ld hl,TYPE_COL-1
+        add a,l
+        ld l,a
+        jr nc,$+3
+        inc h
+        ld a,(hl)
+        call set_col
+        ld ix,objects
+        call draw_obj
+        call stamp_title
+        jp present
 
 ; the logo's rows take turns to light up white
 shimmer:

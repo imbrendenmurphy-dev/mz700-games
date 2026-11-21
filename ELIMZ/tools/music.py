@@ -293,6 +293,120 @@ SFX = ['LASER', 'HIT', 'BOOM', 'OUCH', 'ZAP', 'ALARM', 'WARN', 'CRASH', 'SCOOP',
        'BUY', 'DOCK', 'JUMP', 'LAUNCH', 'DEATH', 'SAVE']
 
 
+# ------------------------------------------------------------------ the tracker
+# One square-wave channel, a pitch per 50 Hz tick, as demoscene players
+# on the MZ-700 do it (Genesis Project's "Sharper" is the model): every
+# note starts with a one-tick octave pluck, the "oom" is a falling kick
+# into the bass note, each "pah" a quick two-note chord blip, held notes
+# get a slow vibrato, and gaps in the tune fill with a fading arpeggio.
+def cents(m, c):
+    return hz(m) * 2 ** (c / 1200)
+
+
+def tracker_waltz():
+    """-> a list of frequencies (None = silence), one per tick"""
+    beat = BEAT
+    bar = 3 * beat
+    mel = []                                     # (start tick, ticks, midi or None)
+    t = 0
+    chords = []
+    for phrase, chs in WALTZ:
+        toks = phrase.split()
+        i = 0
+        while i < len(toks):
+            n = 1
+            while i + n < len(toks) and toks[i + n] == '-':
+                n += 1
+            tok = toks[i]
+            mel.append((t, n * beat, None if tok in '.-' else midi(tok)))
+            t += n * beat
+            i += n
+        chords += chs.split()
+    total = t
+    out = [None] * total
+    used = [False] * total
+
+    def put(k, f):
+        if 0 <= k < total:
+            out[k] = f
+            used[k] = True
+
+    # rhythm: the oom (a kick falling into the root) and the pahs
+    for b, c in enumerate(chords):
+        root, p1, p2, _ = CHORD[c]
+        r = midi(root)
+        t0 = b * bar
+        put(t0, hz(r + 24))
+        put(t0 + 1, hz(r + 12))
+        put(t0 + 2, hz(r))
+        put(t0 + 3, cents(r, -30))
+        for k in (1, 2):
+            tb = t0 + k * beat
+            put(tb, hz(midi(p1) + 12))
+            put(tb + 1, hz(midi(p2) + 12))
+    # the tune: plucked, with vibrato on held notes
+    prev = None
+    for start, ln, m in mel:
+        if m is None:
+            prev = None
+            continue
+        k = start
+        while k < start + ln and used[k]:
+            k += 1
+        if prev == m and k - 1 >= start and not used[k - 1]:
+            out[k - 1] = None                   # a gap between repeated notes
+        age = 0
+        first = True
+        for tk in range(k, start + ln):
+            if used[tk]:
+                continue
+            if first:
+                f = hz(m + 12)
+                first = False
+            elif age >= 10:
+                f = cents(m, (0, 12, 18, 12, 0, -12, -18, -12)[(age // 2) % 8])
+            else:
+                f = hz(m)
+            out[tk] = f
+            used[tk] = True
+            age += 1
+        prev = m
+    # rests in the tune: an arpeggio of the bar's chord that fades out
+    for b, c in enumerate(chords):
+        root, p1, p2, pn = CHORD[c]
+        arp = [midi(root) + 24, midi(p1) + 12, midi(p2) + 12]
+        for k in range(bar):
+            tk = b * bar + k
+            if used[tk]:
+                continue
+            kb = k % beat
+            if kb < 9:
+                out[tk] = hz(arp[tk % 3])
+                used[tk] = True
+    return out
+
+
+def tracker_stream(freqs, label):
+    """compress per-tick frequencies: a divisor table plus a byte stream"""
+    divs = [0 if f is None else div_of(f) for f in freqs]
+    table = sorted(set(d for d in divs if d))
+    assert len(table) <= 0xDF, len(table)
+    idx = {d: i + 1 for i, d in enumerate(table)}
+    stream = []
+    i = 0
+    while i < len(divs):
+        v = idx.get(divs[i], 0)
+        n = 1
+        while i + n < len(divs) and divs[i + n] == divs[i] and n < 32:
+            n += 1
+        stream.append(v)
+        if n > 1:
+            stream.append(0xE0 + n - 2)
+        i += n
+    stream.append(0xFF)
+    return table, stream
+
+
 def db(vals, per=18):
     return ['        db ' + ','.join('%d' % v for v in vals[i:i + per]) for i in range(0, len(vals), per)]
 
@@ -317,6 +431,12 @@ def gen_asm():
         out.append('        dw ' + ','.join('%s_v%d' % (name, i) for i in range(3)))
         for i, v in enumerate(voices):
             out += v.encode('%s_v%d' % (name, i), loop)
+    table, stream = tracker_stream(tracker_waltz(), 'TRK_WALTZ')
+    out.append('TRK_TAB:')
+    for i in range(0, len(table), 12):
+        out.append('        dw ' + ','.join('%d' % v for v in table[i:i + 12]))
+    out.append('TRK_WALTZ:')
+    out += db(stream)
     for name in SFX:
         h = HSFX.get(name)
         mx = MSFX.get(name, (None, None, None))

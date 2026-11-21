@@ -3,7 +3,7 @@
     py tools/wav.py SCENE [seconds]      -> build/sound/SCENE.wav
 
 Scenes:
-    title   the title screen and its waltz (the 3-voice mixer)
+    title   the title screen: the tracker waltz on the tone generator
     launch  start a game: the launch tunnel, then flight
     dock    start a game, then dock at once: docking sound and the waltz
     hyper   start a game, then jump: the hyperspace screen

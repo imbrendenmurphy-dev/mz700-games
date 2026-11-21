@@ -200,6 +200,7 @@ new_game:
         include "qol.asm"
         include "fx.asm"
         include "joy.asm"
+        include "hidden.asm"
 
 ; ---------------------------------------------------------------- data
         include "../build/gen_tables.inc"

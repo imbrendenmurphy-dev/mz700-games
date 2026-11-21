@@ -238,6 +238,7 @@ steer:
 ; gallery: the ships of the spacelanes, one by one.  NZ on a key.
 ; ---------------------------------------------------------------------
 gallery:
+        call snd_fl                     ; the waltz plays on
         ld a,WHITE<<4
         call cls
         ld b,0
@@ -360,6 +361,7 @@ txt_gallery:    db "SHIPS OF THE SPACELANES",0
 ; handbook: controls and tips.  NZ on a key.
 ; ---------------------------------------------------------------------
 handbook:
+        call snd_fl
         ld a,WHITE<<4
         call cls
         ld b,0

@@ -38,7 +38,10 @@ st = lambda: mem[S['state']]          # noqa: E731
 mode = lambda: mem[S['snd_mode']]     # noqa: E731
 
 g.run(40)
-check('title plays music in the mixer', mode() == 1 and mem[S['mus_on']] == 1)
+check('title: the tracker waltz on the tone generator', mode() == 0 and mem[S['trk_on']] == 1)
+f0 = mem[S['title_ang']]
+g.run(30)
+check('title: the ship spins every frame', (mem[S['title_ang']] - f0) & 63 >= 9)
 mem[S['att_t']] = 2
 mem[S['att_t'] + 1] = 0
 check('attract demo flies on the tone generator', until(lambda: mem[S['autoplay']] == 1 and mode() == 0, 200))
@@ -46,10 +49,12 @@ g.shot('flow_demo')
 mem[S['demo_t']] = 2
 mem[S['demo_t'] + 1] = 0
 check('demo hands over to the gallery', until(lambda: mem[S['autoplay']] == 0, 300))
+check('the waltz plays on through the demo and gallery', mem[S['trk_on']] == 1)
 g.run(100)
 g.shot('flow_gallery')
 g.run(4, ['space'])
-check('a key returns to the title', until(lambda: mem[S['mus_on']] == 1, 300))
+t0 = mem[S['title_ang']]
+check('a key returns to the title', until(lambda: mem[S['title_ang']] != t0 and mem[S['autoplay']] == 0, 300))
 g.run(20)
 g.run(8, ['space'])
 check('a game starts with the launch tunnel', until(lambda: mem[S['fx_n']] > 0, 60, 2))
