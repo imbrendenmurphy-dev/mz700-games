@@ -45,39 +45,9 @@ class Game:
         while c.t < end:
             step()
             if not (lo <= c.pc < hi):
-                if c.pc in (0x21, 0x24, 0x27, 0x2A):
-                    self.tape_call(c.pc)
-                    continue
                 raise RuntimeError('PC escaped to %04X (SP %04X)' % (c.pc, c.sp))
         if not (0xCE00 < c.sp <= 0xCFF0):
             raise RuntimeError('stack pointer %04X' % c.sp)
-
-    tape_hdr = None
-    tape_data = None
-
-    def tape_call(self, pc):
-        """stand-in for the monitor ROM tape routines (the simulator has no ROM)"""
-        m = self.m.mem
-        c = self.m.cpu
-        size = m[0x1102] | m[0x1103] << 8
-        addr = m[0x1104] | m[0x1105] << 8
-        ok = True
-        if pc == 0x21:
-            self.tape_hdr = bytes(m[0x10F0:0x1170])
-        elif pc == 0x24:
-            self.tape_data = bytes(m[addr:addr + size])
-        elif pc == 0x27:
-            ok = self.tape_hdr is not None
-            if ok:
-                m[0x10F0:0x1170] = self.tape_hdr
-        elif pc == 0x2A:
-            ok = self.tape_data is not None
-            if ok:
-                m[addr:addr + len(self.tape_data)] = self.tape_data
-        c.f = (c.f & ~1) | (0 if ok else 1)
-        c.pc = m[c.sp] | m[c.sp + 1] << 8
-        c.sp += 2
-        c.t += 70886 * 50
 
     def shot(self, name):
         p = os.path.join(self.shots, name + '.png')

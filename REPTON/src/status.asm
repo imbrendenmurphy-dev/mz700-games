@@ -1,13 +1,12 @@
 ; =====================================================================
 ;  status.asm - the world status screen (SPACE during play): every
 ;  cavern visited and what is left in it, the Sun Mosaic so far, the
-;  totals, a hint for this cavern, and saving to tape
+;  totals and a hint for this cavern
 ; =====================================================================
 
 status_screen:
         call sfx_stop
         call wait_release
-.redraw:
         ld a,BLACK
         call cls
         ld hl,txt_status_h
@@ -115,17 +114,11 @@ status_screen:
         ld c,23
         ld a,GREEN*16
         call print_centre
-        ; keys: S saves, anything else goes back
+        ; any key goes back
 .w:     call wait_field
         call anykey
         jr z,.w
-        call read_keys
-        ld a,(key_extra)
-        bit 2,a
-        jr z,.back
-        call tape_save
-        jp .redraw
-.back:  jp wait_release
+        jp wait_release
 
 ; status line for region A on screen row A + 3
 status_line:

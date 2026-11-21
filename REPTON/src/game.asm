@@ -4,17 +4,11 @@
 ; =====================================================================
 
 ; ---------------------------------------------------------------------
-; game: a new game (A = 1) or a game loaded from tape (A = 2)
+; game: a new game
 ; ---------------------------------------------------------------------
 game:
-        cp 2
-        jr nz,.new
-        call tape_load
-        ret nz
-        call resume_world
-        jr .go
-.new:   call new_world
-.go:    xor a
+        call new_world
+        xor a
         ld (demo),a
         ld hl,0
         ld (replay_ptr),hl
@@ -30,6 +24,7 @@ game:
 
 ; demo_game: the attract-mode demo replays the start of the solution
 demo_game:
+        call mus_stop               ; the demo plays like a real game: no title song
         call new_world
         ld a,1
         ld (demo),a
@@ -60,19 +55,6 @@ new_world:
         ld a,START_REGION
         ld de,START_POS
         jp enter_region
-
-; resume_world: the world and state came from tape; the player is in it
-resume_world:
-        xor a
-        ld (won),a
-        ld a,(region)
-        call set_region
-        ld de,(pl_pos)
-        ld hl,(rbase)
-        add hl,de
-        ld (pl_addr),hl
-        call take_snapshot
-        jp recount
 
 ; set_region: A = region -> region, rbase, theme
 set_region:

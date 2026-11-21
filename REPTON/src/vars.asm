@@ -62,7 +62,6 @@ mver            ds 1
 sdir            ds 1
 anim_fe         ds 1
 page_len        ds 1
-page_allow_load ds 1
 page_fx         ds 2
 rec_pct         ds 1
 mos_n           ds 1
@@ -104,7 +103,6 @@ rec_ptr         ds 2
 rec_pos         ds 1
 rec_i           ds 1
 st_sel          ds 1
-tape_err        ds 1
 PBUF            ds 80
 RECORDS         ds 8*8              ; name[3], percent, time h, m, s, deaths
 vars_end:

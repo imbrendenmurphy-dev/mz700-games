@@ -15,13 +15,6 @@ CTR0            equ 0E004h          ; 8253 counter 0 (sound)
 CTRL            equ 0E007h          ; 8253 control
 SNDGATE         equ 0E008h          ; sound gate
 
-; monitor ROM (1Z-013A) tape routines and the tape header buffer
-MON_WRINF       equ 0021h
-MON_WRDAT       equ 0024h
-MON_RDINF       equ 0027h
-MON_RDDAT       equ 002Ah
-IBUFE           equ 10F0h           ; 128-byte tape header
-
 ; ---------------------------------------------------------------- world geometry
 RW              equ 32              ; region width (cells / tiles)
 RH              equ 24              ; region height
@@ -31,7 +24,7 @@ VIEWH           equ 12
 VIEWTOP         equ 1               ; first screen row of the view
 
 ; ---------------------------------------------------------------- memory
-SAVEVARS        equ 8E00h           ; saved game state (256 bytes) ...
+SAVEVARS        equ 8E00h           ; game state (256 bytes) ...
 WORLD           equ 8F00h           ; ... followed by every region
 WORLD_END       equ WORLD+NREG*RSZ
 SNAP            equ 0C600h          ; the current region as it was on entry
@@ -79,7 +72,7 @@ start:
         call detect_vblank
         call init_once
 attract:
-        call title_screen           ; NZ = start a game (A = 1 new, 2 load)
+        call title_screen           ; NZ = start a game
         jr nz,.play
         call story_page
         jr nz,.play
@@ -114,7 +107,6 @@ init_once:
         include "render.asm"
         include "game.asm"
         include "status.asm"
-        include "tape.asm"
         include "screens.asm"
         include "text.asm"
 
