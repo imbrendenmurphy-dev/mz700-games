@@ -46,6 +46,23 @@ fx_dir          ds 1
 fx_ph           ds 1
 fx_last         ds 9
 key_extra       ds 1
+joy_on          ds 1                ; the MZ-1X03 joystick (joy.asm)
+joy_req         ds 1
+joy_skip        ds 1
+joy_run         ds 1
+joy_end         ds 1
+joy_rel         ds 1
+joy_rawend      ds 1
+joy_rawrel      ds 1
+joy_btn         ds 1
+joy_sw2         ds 1
+joy_dirs        ds 1
+joy_vref        ds 2
+joy_fl          ds 2
+joy_len         ds 2
+joy_lo          ds 2
+joy_hi          ds 2
+joy_sum         ds 4
 fe_prev         ds 1
 fe_rep          ds 1
 

@@ -199,6 +199,7 @@ new_game:
         include "attract.asm"
         include "qol.asm"
         include "fx.asm"
+        include "joy.asm"
 
 ; ---------------------------------------------------------------- data
         include "../build/gen_tables.inc"

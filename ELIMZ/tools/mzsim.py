@@ -52,6 +52,9 @@ class MZ700:
         self.spk_log = []            # (t, kind, value): 'm' counter-0 control word,
                                      # 'n' count loaded, 'g' gate (see tools/wav.py)
         self.waits = 0
+        # an MZ-1X03 joystick on E008 (None: not plugged in).  dict: x, y
+        # (0-255, 128 centre), sw1, sw2, port 'A'/'B', inv (flip polarity)
+        self.joy = None
         self.font = None
         if font_path and os.path.exists(font_path):
             # MZ-700 CG-ROM dumps store the leftmost pixel in bit 0; flip to MSB-left
@@ -120,7 +123,28 @@ class MZ700:
             if not self.ctr1_latch:
                 self.ctr1_latch = None
             return v
+        if a == 0xE008 and self.joy:
+            return self.joy_e008()
         return 0xFF
+
+    def joy_e008(self):
+        """mz800emu / MiSTer model: from the start of VBLANK each axis line is
+        low for 68 + 28 x position T; in the picture the lines are the fire
+        switches, low when pressed.  inv flips every level."""
+        j = self.joy
+        ft = self.cpu.t % FIELD_T
+        blank_t = ft - VISIBLE_LINES * LINE_T
+        if blank_t >= 0:
+            bx = 0 if blank_t < 68 + 28 * j['x'] else 1
+            by = 0 if blank_t < 68 + 28 * j['y'] else 1
+        else:
+            bx = 0 if j.get('sw1') else 1
+            by = 0 if j.get('sw2') else 1
+        if j.get('inv'):
+            bx ^= 1
+            by ^= 1
+        sh = 3 if j.get('port') == 'B' else 1
+        return (0xFF & ~(3 << sh)) | (bx << sh) | (by << (sh + 1))
 
     def ctr1_now(self):
         elapsed = int((self.cpu.t - self.ctr1_load_t) / LINE_T)

@@ -349,6 +349,15 @@ read_flight:
         rrca
         rrca
         or b
+        ld b,a
+        call joy_read                   ; the joystick: SW2 fires a seeker
+        or c
+        ld c,a
+        ld a,(joy_sw2)
+        rlca
+        rlca
+        rlca
+        or b
         ld (mkey),a
         ld (hl),8
         inc l

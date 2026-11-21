@@ -61,6 +61,9 @@ pollcmp:
         push hl
 vblev:  cp 0                        ; VBLANK level (set by detect_vblank)
         jr nz,.half
+        ld a,(joy_on)               ; first, while the stick's pulses run
+        or a
+        call nz,joy_poll
         ld hl,fieldcnt
         inc (hl)
         ld a,(snd_mode)
@@ -68,7 +71,10 @@ vblev:  cp 0                        ; VBLANK level (set by detect_vblank)
         jr z,.clk
         call snd_tick               ; the mixer screens: a tick a field
         jr .x
-.half:  ld a,(snd_mode)
+.half:  ld a,(joy_on)               ; the picture starts: joystick buttons
+        or a
+        call nz,joy_btns
+        ld a,(snd_mode)
         or a
         jr nz,.x
 .clk:   call snd_clock              ; flight: ticks by the scan-line clock
@@ -260,7 +266,8 @@ read_keys:
         set 4,e
         ld a,e
         ld (key_extra),a
-        ld a,c
+        call joy_read
+        or c
         pop hl
         pop de
         pop bc

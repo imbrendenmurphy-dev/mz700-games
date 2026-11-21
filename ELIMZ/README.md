@@ -18,7 +18,12 @@ An original wireframe space-combat and trading game for the 64K Sharp MZ-700, in
 | P | pause |
 | S | sound on/off |
 
-On the title screen, L loads a saved pilot. When docked, S saves and L loads (a normal tape file, so UniCMT works).
+On the title screen, L loads a saved pilot and J switches the joystick on or off.
+
+### Joystick (Sharp MZ-1X03)
+Plug the stick into either socket, leave it centred with the buttons up, and press J on the title screen. The game finds the socket and calibrates, then shows JOYSTICK ON (or NO JOYSTICK). The stick steers like the cursor keys (forward dives), SW1 fires the lasers and works as SPACE/RETURN on the menus, and SW2 fires a seeker. The keyboard keeps working alongside it.
+
+The MZ-1X03 is analogue: from the start of each vertical blank, each axis line on E008h gives a pulse whose length follows the stick, and while the picture is displayed the same lines carry the two buttons. `src/joy.asm` times the pulses in scan lines on 8253 counter 1, from the VBLANK start, which it tracks to the line even when the program sees it late. Sources disagree on the signal's polarity and scale, so switching on learns the resting levels and the centre, and a direction counts once the pulse is half the centre's length shorter or longer. On the music screens it reads the stick every other frame, which costs the mixer about 1 ms of sound each time. Tested only in the simulator (`py tools/test_joy.py`, which models the stick as mz800emu and the MiSTer core do). When docked, S saves and L loads (a normal tape file, so UniCMT works).
 
 To dock, fly straight into the slot on the station's front face. The station spins; flying in down its centre line always works.
 
@@ -62,5 +67,5 @@ py build.py
 py tools/run.py 300 120,299 --keys "150:space,156:-"
 py tools/test_flow.py
 ```
-`tools/test_flow.py` runs the whole game: the attract cycle, launching, docking, the market, hyperspace, death and game over.
+`tools/test_joy.py` checks the joystick in both sockets and both polarities. `tools/test_flow.py` runs the whole game: the attract cycle, launching, docking, the market, hyperspace, death and game over.
 `tools/run.py`, `mzsim.py` and `z80.py` are the shared Python MZ-700 simulator. Screenshots go to `build/shots/`. The CG-ROM image `rom/mz700fon.int` is not committed.

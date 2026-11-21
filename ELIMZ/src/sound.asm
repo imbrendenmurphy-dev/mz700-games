@@ -668,13 +668,21 @@ mx_edge:
         ld hl,vblev+1
         cp (hl)
         pop hl
-        jp nz,ml_b                      ; the blank ended: straight back
+        jr z,.vbs
+        ld a,(joy_on)                   ; the blank ended: the joystick's
+        or a                            ; buttons show now
+        call nz,joy_btns
+        jp ml_b                         ; straight back
+.vbs:
         ld (mx_accA),hl                 ; a VBLANK starts: one field gone
         ld (mx_accC),ix
         exx
         ld (mx_accB),hl
         exx
-        call mx_stamp
+        call mx_stamp                   ; HL = counter 1
+        ld a,(joy_on)
+        or a
+        call nz,joy_edge                ; the joystick's pulses start now
         ld hl,fieldcnt
         inc (hl)
         call snd_tick
