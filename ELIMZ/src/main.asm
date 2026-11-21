@@ -105,6 +105,7 @@ start:
         ld a,36h                    ; counter 0: LSB/MSB, mode 3 square wave
         ld (CTRL),a
         call detect_vblank
+        call timer_init
         ld hl,vars_start
         ld de,vars_start+1
         ld bc,vars_end-vars_start-1

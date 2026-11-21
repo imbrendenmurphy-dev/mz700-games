@@ -33,10 +33,11 @@ To dock, fly straight into the slot on the station's front face. The station spi
 - **Rank** from kills: Cadet, Pilot, Gunner, Veteran, Ace, Hotshot, Legend.
 - **Hyperspace:** H starts a countdown, followed by a jump effect. You arrive with the new system's station ahead of you. Lawless systems spawn more pirates; orderly ones spawn more traders.
 
-Speed (simulator, no VRAM waits): 16.7 fps in open space, about 12 fps while turning, and about 8 fps with the whole station filling the view.
+Speed (simulator, no VRAM waits): 16.7 fps in open space, including while turning. With three ships close by it runs at about 10 fps.
+Frames are paced by 8253 counter 1, which counts scan lines, so a frame that misses a few vertical blanks no longer idles while waiting for the next one.
 
 ## Next steps
-Saving the pilot to tape, faster rendering of close-up fights (three ships near you run at about 7 fps), cargo canisters from destroyed ships, an attract mode with an AI demo pilot, and more speed (a faster line drawer, a reciprocal table for the projection).
+Saving the pilot to tape, cargo canisters from destroyed ships, an attract mode with an AI demo pilot, and more speed (a faster line drawer, a reciprocal table for the projection).
 
 ## Build and test
 ```

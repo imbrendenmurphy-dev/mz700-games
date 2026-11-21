@@ -88,21 +88,18 @@ div16u:
 .x:     ld h,a
         ld l,c
         ret
-.fast:  ld a,l                      ; 8 steps: remainder starts as H
+.fast:  ld a,l                      ; 8 steps, unrolled: remainder starts as H
         ld l,h
         ld h,0
-        ld b,8
-.fl:    add a,a
+        REPT 8
+        add a,a
         adc hl,hl
         sbc hl,de
-        jr nc,.fs
+        jr nc,$+5
         add hl,de
-        djnz .fl
-        ld l,a
-        ld h,0
-        ret
-.fs:    inc a
-        djnz .fl
+        jr $+3
+        inc a
+        ENDR
         ld l,a
         ld h,0
         ret

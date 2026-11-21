@@ -70,25 +70,53 @@ vblev:  cp 0                        ; VBLANK level (set by detect_vblank)
 
 ; wait for the start of the next game frame (FRAMEF fields after the last
 ; one, always at the start of a VBLANK)
-wait_frame:
-        ld a,(fieldcnt)
-        ld hl,lastframe
-        sub (hl)
-        cp FRAMEF
-        jr c,.w                     ; early: wait for the field count
-        ld hl,drops                 ; late: carry straight on
-        inc (hl)
-        ld a,(fieldcnt)
-        ld (lastframe),a
+; Frames are timed with 8253 counter 1, which counts scan lines (HSYNC)
+; down from 65536, so no time is lost however rarely poll runs.
+FRAME_LINES     equ FRAMEF*312
+CTR1            equ 0E005h
+
+timer_init:
+        ld a,74h                    ; counter 1: LSB/MSB, mode 2, binary
+        ld (CTRL),a
+        xor a
+        ld (CTR1),a
+        ld (CTR1),a
+        call read_ctr1
+        ld (last_ctr),hl
         ret
+
+; HL = counter 1 (latched)
+read_ctr1:
+        ld a,40h
+        ld (CTRL),a
+        ld a,(CTR1)
+        ld l,a
+        ld a,(CTR1)
+        ld h,a
+        ret
+
+wait_frame:
 .w:     call poll
-        ld a,(fieldcnt)
-        ld hl,lastframe
-        sub (hl)
-        cp FRAMEF
-        jr c,.w
-        ld a,(fieldcnt)
-        ld (hl),a
+        call read_ctr1
+        ex de,hl                    ; DE = now
+        ld hl,(last_ctr)
+        or a
+        sbc hl,de                   ; lines since the last frame
+        ld bc,FRAME_LINES
+        or a
+        sbc hl,bc
+        jr c,.w                     ; early: wait
+        or a
+        sbc hl,bc
+        jr nc,.late
+        ld hl,(last_ctr)            ; on time: keep a steady beat
+        or a
+        sbc hl,bc
+        ld (last_ctr),hl
+        ret
+.late:  ld (last_ctr),de            ; a frame or more behind: carry on
+        ld hl,drops
+        inc (hl)
         ret
 
 ; wait A fields

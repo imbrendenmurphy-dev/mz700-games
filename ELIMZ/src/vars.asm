@@ -7,6 +7,7 @@ vars_start:
 seed            ds 2
 fieldcnt        ds 1
 lastframe       ds 1
+last_ctr        ds 2
 drops           ds 1
 turbo           ds 1                ; test harness: no frame waits
 autoplay        ds 1                ; test harness: keys from demo_keys

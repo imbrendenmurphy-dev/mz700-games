@@ -829,6 +829,15 @@ obj_dist:
 ; pirate AI: roll the player above, pitch onto them, fire when lined up
 ; ---------------------------------------------------------------------
 ai_pirate:
+        push ix                         ; think on alternate frames (by slot)
+        pop hl
+        ld a,(frame)
+        rrca
+        rrca
+        rrca
+        xor l
+        and 20h
+        ret nz
         ld l,(ix+O_X)                   ; direction to the player = -pos
         ld h,(ix+O_X+1)
         call neg_hl
@@ -868,7 +877,7 @@ ai_pirate:
         or a
         jr z,.hunt
         dec (ix+O_EV)
-        ld a,4
+        ld a,3
         jp pitch_up                     ; loop away
 .hunt:  call obj_dist
         ld de,320
@@ -886,7 +895,7 @@ ai_pirate:
         jr c,.noroll
         ld a,(ai_ds+1)
         rla
-        ld a,4
+        ld a,3
         jr c,.rl
         call roll_to_side
         jr .noroll
@@ -900,13 +909,13 @@ ai_pirate:
         or a
         sbc hl,de
         jr c,.pnone
-        ld a,4
+        ld a,3
         call pitch_up
         jr .pnone
 .dn:    ; player below our wings: if they are behind us, keep looping up
         ld hl,(ai_dn)
         bit 7,h
-        ld a,4
+        ld a,3
         jr z,.dn2
         call pitch_up
         jr .pnone
@@ -914,7 +923,7 @@ ai_pirate:
         ld de,300
         add hl,de
         jr c,.pnone
-        ld a,4
+        ld a,3
         call pitch_down
 .pnone: ld a,(ix+O_AIM)                 ; a seeker to spare?
         or a
@@ -1761,6 +1770,8 @@ draw_obj:
         inc iy
         pop bc
         djnz .e
+        bit 0,(ix+O_FLAG)               ; firing: find our centre for the beam
+        ret z
         call obj_screen
         ret nc
 ; enemy laser beam from the ship to the bottom of the view
@@ -1962,15 +1973,13 @@ project:
         ld (ty),hl
         ld hl,(vz_)
         ld (tz),hl
-.norm:  ld hl,(tx)                      ; keep |x|, |y| < 1024
-        call abs_hl
-        ld a,h
-        cp 4
+.norm:  ld a,(tx+1)                     ; keep -1024 <= x, y < 1024
+        add a,4
+        cp 8
         jr nc,.sh
-        ld hl,(ty)
-        call abs_hl
-        ld a,h
-        cp 4
+        ld a,(ty+1)
+        add a,4
+        cp 8
         jr c,.go
 .sh:    ld hl,tx+1
         sra (hl)

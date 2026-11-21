@@ -93,6 +93,12 @@ title_text:
 
 ; big dotted STARHAUL in PIX cell rows 0..4 (each font dot = a full cell)
 stamp_title:
+        ld a,1                          ; rows 0..4 are in use
+        ld (PIX+63),a
+        ld (PIX+63+64),a
+        ld (PIX+63+128),a
+        ld (PIX+63+192),a
+        ld (PIX+63+256),a
         ld hl,TITLEFONT
         ld de,PIX+4                     ; column 4
         ld b,8

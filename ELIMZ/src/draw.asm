@@ -27,6 +27,10 @@ plot:
         add a,a
 .t:     or (hl)
         ld (hl),a
+        ld a,l                      ; mark the row used (spare byte 63)
+        or 3Fh
+        ld l,a
+        ld (hl),a
         ret
 
 ; plot with a bounds check: HL = x, DE = y (signed words).  Keeps BC.
@@ -53,12 +57,25 @@ plot_clip:
 ; ---------------------------------------------------------------------
 ; present: copy changed cells of PIX to VRAM rows 1..18, clear PIX
 ; ---------------------------------------------------------------------
+; Rows that were blank last frame and are blank now are skipped: byte 63
+; of each PIX row says "drawn this frame", of each SHD row "on screen".
 present:
-        ld hl,PIX
+        ld hl,PIX+63
         ld de,VIEW_VRAM
         ld c,18
-.row:   ld b,40
-        push hl
+.row:   push de
+        ld a,(hl)
+        ld (hl),0
+        set 3,h
+        ld b,(hl)
+        ld (hl),a
+        res 3,h
+        or b
+        jr z,.skip
+        ld a,l
+        and 0C0h
+        ld l,a
+        ld b,40
 .cell:  ld a,(hl)
         ld (hl),0
         set 3,h
@@ -76,10 +93,17 @@ present:
         inc l
         inc de
         djnz .cell
-.next:  call poll
-        pop hl
+.next:
+.skip:  call poll
+        pop de
+        ld a,e
+        add a,40
+        ld e,a
+        jr nc,$+3
+        inc d
         ld a,l
-        add a,64
+        or 3Fh
+        add a,40h
         ld l,a
         jr nc,$+3
         inc h
