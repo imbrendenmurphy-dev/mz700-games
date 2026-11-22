@@ -29,7 +29,19 @@ title_screen:
         or a
         jr nz,.s
         jr .t
-.go:    call snd_fl                     ; the waltz on the tracker: it needs
+.go:    ld c,SEP_ROW                    ; the panel's bezel
+        ld hl,0
+        call ui_rule
+        ld a,SEP_ROW+1
+        call ui_sides
+        ld bc,1C00h+24
+        ld e,1Dh
+        call ui_hline
+        ld hl,txt_tfoot
+        ld c,24
+        ld a,GREEN<<4
+        call ui_inset
+        call snd_fl                     ; the waltz on the tracker: it needs
         ld a,(trk_on)                   ; no CPU, so the ship spins every frame
         or a                            ; (it plays on through the attract
         ld hl,TRK_WALTZ                 ; screens)
@@ -79,7 +91,7 @@ title_screen:
         ld hl,330                       ; a fresh wait before the demo
         ld (att_t),hl
 .nj:    call read_flight
-        and K_FIRE
+        and K_FIRE+K_FAST               ; SPACE, A or the joystick's fire
         jr nz,.start
         ld hl,(att_t)
         dec hl
@@ -215,12 +227,12 @@ shimmer:
         ret
 
 title_text:
-        db SEP_ROW+1,WHITE<<4,"AN ORIGINAL SPACE TRADER FOR THE MZ-700",0
-        db SEP_ROW+2,CYAN<<4,"CURSORS PITCH/ROLL  SPACE FIRE",0
-        db SEP_ROW+3,CYAN<<4,"A/Z SPEED  H HYPERSPACE  DOCK: FLY IN",0
-        db SEP_ROW+4,GREEN<<4,"SPACE LAUNCH  L LOAD PILOT  J JOYSTICK",0
-        db SEP_ROW+5,BLUE<<4,"MUSIC: J. STRAUSS II - BLUE DANUBE",0
+        db SEP_ROW+1,WHITE<<4,"ORIGINAL SPACE TRADING FOR THE MZ-700",0
+        db SEP_ROW+2,CYAN<<4,"N/M ROLL  S/X DIVE  A FIRE  F1 HELP",0
+        db SEP_ROW+3,CYAN<<4,"SPACE/SHIFT SPEED   1-4 VIEWS",0
+        db SEP_ROW+4,BLUE<<4,"MUSIC: J. STRAUSS II - BLUE DANUBE",0
         db 0FFh
+txt_tfoot:      db "SPACE START  L LOAD  J JOYSTICK",0
 
 ; big dotted STARHAUL in PIX cell rows 0..4 (each font dot = a full cell)
 stamp_title:
@@ -266,10 +278,12 @@ stamp_title:
 
 ; ---------------------------------------------------------------------
 gameover_screen:
-        ld hl,SONG_OVER
-        call mus_play
-        ld a,WHITE<<4
-        call cls
+        ld hl,TRK_OVER
+        call trk_play
+        ld hl,txt_over
+        ld de,0
+        ld b,1
+        call ui_frame
         ld hl,txt_over
         ld c,8
         ld a,RED<<4

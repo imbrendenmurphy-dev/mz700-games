@@ -405,7 +405,7 @@ DEATH_FRAMES    equ 34
 FADE:           db WHITE,YELLOW,YELLOW,RED,RED,MAGENTA,BLUE,BLACK
 
 death_seq:
-        call snd_fe                     ; the big bang gets the mixer
+        call snd_fe
         ld hl,SFX_DEATH
         ld a,9
         call sfx

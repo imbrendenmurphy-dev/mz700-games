@@ -64,7 +64,7 @@ check('SPACE launches through the 3D tunnel', until(lambda: mem[S['tn_f']] > 0, 
 g.shot('flow_tunnel')
 check('flight after the tunnel', until(lambda: st() == 0 and mode() == 0, 400))
 mem[S['state']] = 1
-check('docked (through the tunnel): the waltz in the mixer', until(lambda: mode() == 1 and mem[S['mus_on']] == 1, 400))
+check('docked (through the tunnel): the tracker waltz', until(lambda: 'DOCKED' in g.screen_text() and mem[S['trk_on']] == 1, 400))
 g.run(30)
 g.shot('flow_docked')
 g.run(6, ['m'])
@@ -80,14 +80,14 @@ g.run(30)
 g.run(8, ['space'])
 check('launch again', until(lambda: st() == 0 and mode() == 0, 300))
 mem[S['state']] = 3
-check('hyperspace screen', until(lambda: mem[S['fx_n']] > 0 and mode() == 1, 100, 2))
+check('hyperspace screen', until(lambda: mem[S['fx_n']] > 0, 100, 2))
 g.shot('flow_hyper')
 check('arrival', until(lambda: st() == 0 and mode() == 0 and mem[S['arrive']] == 1, 400))
 mem[S['energy']] = 0
 mem[S['shield']] = 0
 for k in range(1, 8):
     mem[S['objects'] + 32 * k] = 0
-check('death sequence in the mixer', until(lambda: mode() == 1, 50, 2))
+check('death sequence', until(lambda: st() == 2 and mem[S['fx_ph']] > 0, 80, 2))
 g.run(30)
 g.shot('flow_death')
 check('back to the title after game over', until(lambda: mem[S['att_t'] + 1] == 1, 900))

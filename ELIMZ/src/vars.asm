@@ -13,35 +13,19 @@ turbo           ds 1                ; test harness: no frame waits
 autoplay        ds 1                ; test harness: keys from demo_keys
 demo_keys       ds 1
 snd_vars:                           ; cleared by snd_init
-snd_mode        ds 1                ; 1 mixer, 0 tone generator (flight)
+snd_mode        ds 1                ; always 0 now (one output)
 snd_mute        ds 1
-mus_on          ds 1
 noise_on        ds 1
 nz_seed         ds 1
 cur_div         ds 2
 hw_par          ds 1
 snd_clk         ds 2
 snd_ph          ds 1
-snd_seed        ds 2
-mx_left         ds 1
-mx_accA         ds 2
-mx_accB         ds 2
-mx_accC         ds 2
-mx_stepA        ds 2
-mx_stepB        ds 2
-mx_stepC        ds 2
-mx_tout         ds 2
 trk_on          ds 1
 trk_rep         ds 1
 trk_cur         ds 1
 trk_ptr         ds 2
 trk_start       ds 2
-mvoice0         ds MV_SIZE
-mvoice1         ds MV_SIZE
-mvoice2         ds MV_SIZE
-mslot0          ds SL_SIZE
-mslot1          ds SL_SIZE
-mslot2          ds SL_SIZE
 hslot0          ds HS_SIZE
 hslot1          ds HS_SIZE
 snd_vars_end:
@@ -96,9 +80,9 @@ target_sys      ds 1
 arrive          ds 1
 hyper_t         ds 1
 hkey            ds 1
-cargo           ds 10
-stock           ds 10
-price           ds 20
+cargo           ds NGOODS+1             ; (the last: fuel, for the market)
+stock           ds NGOODS+1
+price           ds 2*(NGOODS+1)
 mkt_sel         ds 1
 mk_row          ds 1
 mk_attr         ds 1
@@ -119,6 +103,7 @@ has_pod         ds 1
 has_booster     ds 1
 has_scoop       ds 1
 has_autodock    ds 1
+has_fscoop      ds 1                ; (the has_* flags run on: equipment 1..7)
 holdmax         ds 1
 legal           ds 1
 mkey            ds 1
@@ -209,6 +194,28 @@ f_m0            ds 1
 f_m1            ds 1
 f_e             ds 1
 f_s             ds 1
+pz_mute         ds 1
+hull            ds 1                ; ships.asm: the hull we fly
+max_fuel        ds 1                ; its figures (apply_hull):
+max_speed       ds 1
+seek_max        ds 1
+armour          ds 1
+sh_step         ds 1
+hull_rank       ds 1
+fuel_price      ds 1
+fuel_stock      ds 1
+fb_amt          ds 1
+yd_p            ds 2
+sun_d           ds 2
+temp            ds 1
+sun_msg         ds 1
+sun_dbl         ds 1
+jk_note         ds 1
+ui_t            ds 2
+ui_f            ds 2
+ui_s            ds 1
+hp_timed        ds 1
+ui_buf          ds 32
 view            ds 1                ; 0 front, 1 rear, 2 left, 3 right
 fk_prev         ds 1
 xf_m            ds 1

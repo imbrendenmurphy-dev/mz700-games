@@ -276,8 +276,14 @@ ai_seeker:
 .hit:   ld a,(ix+O_AIM)
         cp 0FFh
         jr nz,.obj
-        ld a,(energy)                   ; it got us
-        sub 40
+        ld a,(armour)                   ; it got us (armour halves it)
+        or a
+        ld a,40
+        jr z,$+3
+        rra
+        ld b,a
+        ld a,(energy)
+        sub b
         jr nc,$+3
         xor a
         ld (energy),a
@@ -471,25 +477,24 @@ txt_copshot:    db "YOU FIRED ON THE POLICE!",0
 ; ---------------------------------------------------------------------
 ; equipment shop (from the docked menu)
 ; ---------------------------------------------------------------------
-NEQUIP          equ 7
+NEQUIP          equ 8
 
 equip_screen:
-        ld a,WHITE<<4
-        call cls
-        ld b,0
-        ld c,1
-        ld a,(YELLOW<<4)+BLUE
-        call clear_rows
         ld hl,txt_equip
-        ld c,0
-        ld a,(YELLOW<<4)+BLUE
-        call print_centre
+        ld a,(cur_sys)
+        call ui_title2
+        ld de,txt_sdone
+        ld b,1
+        call ui_frame
         ld hl,txt_ehead
-        ld bc,1*256+2
-        ld a,CYAN<<4
+        ld bc,2*256+2
+        ld a,UI_LABEL
         call print_at
+        ld c,13
+        ld hl,txt_s_ship
+        call ui_rule
         ld hl,txt_ehelp
-        ld c,21
+        ld c,20
         ld a,GREEN<<4
         call print_centre
         xor a
@@ -506,9 +511,9 @@ equip_screen:
         ld b,14
         ld c,1
         ld a,WHITE<<4
-        call clear_rows
+        call clear_in
         ld hl,txt_credits2
-        ld bc,1*256+14
+        ld bc,2*256+14
         ld a,CYAN<<4
         call print_at
         ld c,WHITE<<4
@@ -557,8 +562,10 @@ eq_status:
         ld a,e
         or a
         jr nz,.flag
-        ld a,(seekers)                  ; seekers: up to 3
-        cp MAXSEEK
+        ld a,(seek_max)                 ; seekers: as many as the racks
+        ld b,a
+        ld a,(seekers)
+        cp b
         ld a,2
         jr nc,.nz
         xor a
@@ -601,9 +608,7 @@ eq_buy:
         add hl,de
         ld (hl),1
         cp 3                            ; cargo pod: a bigger hold
-        jr nz,.ok
-        ld a,HOLDMAX+15
-        ld (holdmax),a
+        call z,apply_hull
 .ok:    ld hl,SFX_BUY
         ld a,3
         jp sfx
@@ -627,7 +632,7 @@ eq_row:
         ld b,a
         ld c,1
         ld a,(mk_attr)
-        call clear_rows
+        call clear_in
         pop bc
         push bc
         ld a,b
@@ -636,7 +641,7 @@ eq_row:
         push hl
         ld a,(mk_row)
         ld c,a
-        ld b,1
+        ld b,2
         call vaddr
         pop hl
         ld a,(mk_attr)
@@ -657,7 +662,7 @@ eq_row:
         push hl
         ld a,(mk_row)
         ld c,a
-        ld b,19
+        ld b,20
         call vaddr
         pop hl
         ld a,(mk_attr)
@@ -677,7 +682,7 @@ eq_row:
 .p:     push hl
         ld a,(mk_row)
         ld c,a
-        ld b,28
+        ld b,29
         call vaddr
         pop hl
         ld a,(mk_attr)
@@ -689,7 +694,7 @@ eq_row:
         ret nz
         ld a,(mk_row)                   ; seekers carried
         ld c,a
-        ld b,37
+        ld b,38
         call vaddr
         ld a,(seekers)
         add a,20h
@@ -705,14 +710,15 @@ EQ_NAMES:
         db "SHIELD BOOSTER",0
         db "CARGO SCOOP",0
         db "AUTO-DOCK",0
+        db "FUEL SCOOP",0
 EQ_COST:
-        dw SEEKER_COST,600,1500,800,1200,900,2500
+        dw SEEKER_COST,600,1500,800,1200,900,2500,1000
 EQ_TECH:
-        db 2,4,7,3,9,3,6
+        db 2,4,7,3,9,3,6,5
 
-txt_equip:      db "EQUIPMENT",0
+txt_equip:      db "EQUIPMENT - ",0
 txt_ehead:      db "ITEM              PRICE    STATUS",0
-txt_ehelp:      db "UP/DOWN CHOOSE  RIGHT BUY  SPACE DONE",0
+txt_ehelp:      db "UP/DOWN CHOOSE   RIGHT BUY",0
 txt_eqok:       db "FOR SALE",0
 txt_eqtech:     db "NOT HERE",0
 txt_eqhave:     db "FITTED",0

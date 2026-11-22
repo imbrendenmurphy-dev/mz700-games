@@ -179,9 +179,11 @@ new_game:
         ld (has_autodock),a
         inc a
         ld (seekers),a
-        ld a,HOLDMAX
-        ld (holdmax),a
-        ld a,MAXFUEL
+        xor a                       ; the Kestrel, no fuel scoop
+        ld (hull),a
+        ld (has_fscoop),a
+        call apply_hull
+        ld a,(max_fuel)
         ld (fuel),a
         ld a,START_SYS
         ld (cur_sys),a
@@ -203,6 +205,8 @@ new_game:
         include "joy.asm"
         include "hidden.asm"
         include "views.asm"
+        include "ui.asm"
+        include "ships.asm"
 
 ; ---------------------------------------------------------------- data
         include "../build/gen_tables.inc"

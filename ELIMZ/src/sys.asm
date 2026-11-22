@@ -66,19 +66,12 @@ vblev:  cp 0                        ; VBLANK level (set by detect_vblank)
         call nz,joy_poll
         ld hl,fieldcnt
         inc (hl)
-        ld a,(snd_mode)
-        or a
-        jr z,.clk
-        call snd_tick               ; the mixer screens: a tick a field
-        jr .x
+        jr .clk
 .half:  ld a,(joy_on)               ; the picture starts: joystick buttons
         or a
         call nz,joy_btns
-        ld a,(snd_mode)
-        or a
-        jr nz,.x
-.clk:   call snd_clock              ; flight: ticks by the scan-line clock
-.x:     pop hl
+.clk:   call snd_clock              ; sound ticks by the scan-line clock
+        pop hl
         pop de
         pop bc
         ret
@@ -111,9 +104,6 @@ read_ctr1:
         ret
 
 wait_frame:
-        ld a,(snd_mode)
-        or a
-        jr nz,mix_frame
 .w:     call poll
         call read_ctr1
         ex de,hl                    ; DE = now
@@ -137,29 +127,9 @@ wait_frame:
         inc (hl)
         ret
 
-; between flights: the mixer plays until FRAMEF fields after the last frame
-mix_frame:
-        ld a,(fieldcnt)
-        ld hl,lastframe
-        sub (hl)
-        ld b,a
-        ld a,FRAMEF
-        sub b
-        jr z,.late
-        jr nc,.ok
-.late:  ld a,1
-.ok:    ld b,a
-        call mix_wait
-        ld a,(fieldcnt)
-        ld (lastframe),a
-        ret
-
 ; wait A fields
 wait_fields:
         ld b,a
-        ld a,(snd_mode)
-        or a
-        jp nz,mix_wait
 .f:     ld a,(fieldcnt)
         ld c,a
 .w:     call poll

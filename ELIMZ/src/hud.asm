@@ -152,7 +152,7 @@ hud_labels:
         db 0,HUD_ROW+3,CYAN<<4,"LSR",0
         db 0,HUD_ROW+4,CYAN<<4,"FUEL",0
         db RIGHT_COL,HUD_ROW+0,CYAN<<4,"CR",0
-        db RIGHT_COL,HUD_ROW+1,CYAN<<4,"KILLS",0
+        db RIGHT_COL,HUD_ROW+1,CYAN<<4,"TMP",0
         db RIGHT_COL,HUD_ROW+2,CYAN<<4,"SKR",0
         db RIGHT_COL,HUD_ROW+3,CYAN<<4,"LEGAL",0
         db 0FFh
@@ -195,14 +195,11 @@ hud_update:
         ld de,VRAM+HUD_ROW*40+RIGHT_COL+2
         ld c,WHITE<<4
         call print_cr
-.nc:    ld a,(kills)
+.nc:    ld a,(temp)                     ; cabin temperature
+        ld de,VRAM+(HUD_ROW+1)*40+RIGHT_COL+3
         ld hl,bar_last+6
-        cp (hl)
-        jr z,.nk
-        ld (hl),a
-        ld de,VRAM+(HUD_ROW+1)*40+RIGHT_COL+6
-        ld c,WHITE<<4
-        call print_dec3
+        ld ix,COL_HEAT
+        call bar
 .nk:    ld a,(seekers)                  ; seekers: a row of missile icons
         ld hl,bar_last+7
         cp (hl)

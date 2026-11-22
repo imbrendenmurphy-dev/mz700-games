@@ -18,11 +18,26 @@ LCY             equ 0B500h              ; (LCX = FFh: off the map)
 
 ; A = the function keys newly pressed (FK_ bits)
 fkeys_new:
+        ld a,3                          ; I, O, P (as in Spectrum Elite)
+        ld (KEYPA),a
+        ld a,(KEYPB)
+        cpl
+        ld c,0
+        bit 7,a
+        jr z,$+4
+        set 6,c                         ; I: the galactic chart (F2)
+        bit 1,a
+        jr z,$+4
+        set 5,c                         ; O: the local chart (F3)
+        bit 0,a
+        jr z,$+4
+        set 4,c                         ; P: data on the system (F4)
         ld a,9
         ld (KEYPA),a
         ld a,(KEYPB)
         cpl
         and 0F0h
+        or c
         ld b,a
         ld a,(fk_prev)
         cpl
@@ -198,54 +213,75 @@ xf1:    push hl
         ret
 
 ; ---------------------------------------------------------------------
-; F1: help
+; F1: help - every key, as key caps.  The attract sequence shows it
+; too (handbook: until a key or a while; NZ on a key).
 ; ---------------------------------------------------------------------
+handbook:
+        ld a,1
+        jr help_show
 help_screen:
-        ld a,WHITE<<4
-        call cls
-        ld b,0
-        ld c,1
-        ld a,(YELLOW<<4)+BLUE
-        call clear_rows
-        ld hl,HELP_TEXT
-.l:     ld a,(hl)
+        xor a
+help_show:
+        ld (hp_timed),a
+        ld hl,txt_help
+        ld de,txt_anykey
+        ld b,1
+        call ui_frame
+        ld hl,HELP_RULES
+.r:     ld a,(hl)
         cp 0FFh
-        jr z,.w
+        jr z,.it
         ld c,a
         inc hl
-        ld a,(hl)
-        inc hl
         push hl
-        call print_centre
+        call ui_rule
         pop hl
 .s:     ld a,(hl)
         inc hl
         or a
         jr nz,.s
-        jr .l
-.w:     call wait_release
-.k:     call wait_field
+        jr .r
+.it:    inc hl
+        call ui_items
+        call wait_release
+        ld bc,450                       ; (the attract sequence: 9 s)
+.k:     push bc
+        call wait_field
         call anykey
+        pop bc
+        jr nz,.key
+        ld a,(hp_timed)
+        or a
         jr z,.k
-        jp wait_release
+        dec bc
+        ld a,b
+        or c
+        jr nz,.k
+        ret                             ; Z: timed out
+.key:   call wait_release
+        or 1
+        ret
 
-HELP_TEXT:
-        db 0,(YELLOW<<4)+BLUE,"PILOT'S HELP",0
-        db 2,CYAN<<4,"CURSORS   ROLL AND PITCH",0
-        db 3,CYAN<<4,"A / Z     FASTER / SLOWER",0
-        db 4,CYAN<<4,"SPACE     LASERS (FRONT VIEW)",0
-        db 5,CYAN<<4,"M  SEEKER    J  JAMMER",0
-        db 6,CYAN<<4,"H  HYPERSPACE TO THE TARGET",0
-        db 7,CYAN<<4,"D  AUTO-DOCK  P  PAUSE  S  SOUND",0
-        db 9,WHITE<<4,"1 FRONT  2 REAR  3 LEFT  4 RIGHT",0
-        db 11,GREEN<<4,"F1  THIS HELP",0
-        db 12,GREEN<<4,"F2  GALAXY CHART",0
-        db 13,GREEN<<4,"F3  NEARBY SYSTEMS",0
-        db 14,GREEN<<4,"F4  THIS SYSTEM",0
-        db 16,WHITE<<4,"DOCKED: M MARKET  E EQUIP  F FUEL",0
-        db 17,WHITE<<4,"C CHART  S SAVE  L LOAD",0
-        db 19,MAGENTA<<4,"JOYSTICK: J ON THE TITLE SCREEN",0
-        db 23,GREEN<<4,"ANY KEY TO GO ON",0
+txt_help:       db "PILOT'S HELP",0
+HELP_RULES:     db 1,"FLIGHT",0, 8,"VIEWS AND CHARTS",0, 13,"DOCKED",0
+                db 18,"PAUSED (CTRL)",0, 21,"JOYSTICK",0, 0FFh
+HELP_ITEMS:
+        db 3,2,"N M",0,"ROLL",0,        21,2,"S X",0,"DIVE CLIMB",0
+        db 3,3,"SPC",0,"FASTER",0,      21,3,"SHF",0,"SLOWER",0
+        db 3,4,"A",0,"LASERS",0,        21,4,"F",0,"SEEKER",0
+        db 3,5,"E",0,"ECM",0,           21,5,"C",0,"DOCK COMPUTER",0
+        db 3,6,"H",0,"HYPERSPACE",0,    21,6,"CTRL",0,"PAUSE",0
+        db 3,7,"J",0,"JUMP DRIVE",0
+        db 3,9,"1",0,"FRONT",0,         12,9,"2",0,"REAR",0
+        db 21,9,"3",0,"LEFT",0,         30,9,"4",0,"RIGHT",0
+        db 3,10,"I",0,"GALAXY",0,       21,10,"O",0,"LOCAL CHART",0
+        db 3,11,"P",0,"SYSTEM DATA",0,  21,11,"F1",0,"HELP",0
+        db 3,14,"1",0,"LAUNCH",0,       21,14,"2 3",0,"BUY SELL",0
+        db 3,15,"4",0,"EQUIP",0,        21,15,"F",0,"REFUEL",0
+        db 3,16,"S",0,"SAVE",0,         21,16,"L",0,"LOAD",0
+        db 3,17,"5",0,"SHIPYARD",0
+        db 3,19,"Q",0,"SOUND OFF",0,    21,19,"S",0,"SOUND ON",0
+        db 3,22,"J",0,"ON THE TITLE: ON OFF",0
         db 0FFh
 
 ; ---------------------------------------------------------------------
@@ -253,16 +289,8 @@ HELP_TEXT:
 ; those within reach, the fuel circle; cursors choose the jump target
 ; ---------------------------------------------------------------------
 local_screen:
-        ld a,WHITE<<4
-        call cls
-        ld b,0
-        ld c,1
-        ld a,(YELLOW<<4)+BLUE
-        call clear_rows
         ld hl,txt_local
-        ld c,0
-        ld a,(YELLOW<<4)+BLUE
-        call print_centre
+        call ui_mapframe
         ld a,(cur_sys)                  ; every system's place on this map
         ld l,a
         ld h,high SYS_GX
@@ -520,20 +548,15 @@ txt_local:      db "NEARBY SYSTEMS",0
 ; F4: this system - its planet and sun, and the facts
 ; ---------------------------------------------------------------------
 sysinfo_screen:
-        ld a,WHITE<<4
-        call cls
-        ld b,0
-        ld c,1
-        ld a,(YELLOW<<4)+BLUE
-        call clear_rows
-        ld hl,txt_sysdata
-        ld bc,1*256+0
-        ld a,(YELLOW<<4)+BLUE
-        call print_at
+        ld hl,txt_sysdata               ; the bezel; the picture above
         ld a,(cur_sys)
-        call sys_name
-        ld c,(YELLOW<<4)+BLUE
-        call print
+        call ui_title2
+        ld de,txt_anykey
+        ld b,20
+        call ui_frame
+        ld c,19
+        ld hl,txt_s_facts
+        call ui_rule
         ; the picture: the planet near, lit by its sun from its side
         ld hl,planet                    ; (kept, and put back after)
         ld de,si_save
@@ -575,7 +598,7 @@ sysinfo_screen:
         ldir
         ; the facts
         ld hl,txt_econ
-        ld bc,1*256+19
+        ld bc,2*256+20
         ld a,CYAN<<4
         call print_at
         ld a,(cur_sys)
@@ -587,7 +610,7 @@ sysinfo_screen:
         ld c,WHITE<<4
         call print
         ld hl,txt_gov
-        ld bc,1*256+20
+        ld bc,2*256+21
         ld a,CYAN<<4
         call print_at
         ld a,(cur_sys)
@@ -598,8 +621,8 @@ sysinfo_screen:
         call nth_str
         ld c,WHITE<<4
         call print
-        ld hl,txt_tech
-        ld bc,1*256+21
+        ld hl,txt_techs
+        ld bc,29*256+20
         ld a,CYAN<<4
         call print_at
         ld a,(cur_sys)
@@ -609,7 +632,7 @@ sysinfo_screen:
         ld c,WHITE<<4
         call print_dec3
         ld hl,txt_star
-        ld bc,1*256+22
+        ld bc,2*256+22
         ld a,CYAN<<4
         call print_at
         ld a,(sun_col)
@@ -618,7 +641,7 @@ sysinfo_screen:
         ld c,WHITE<<4
         call print
         ld hl,txt_world
-        ld bc,1*256+23
+        ld bc,2*256+23
         ld a,CYAN<<4
         call print_at
         ld a,(pl_col)
@@ -626,10 +649,6 @@ sysinfo_screen:
         call nth_str
         ld c,WHITE<<4
         call print
-        ld hl,txt_anykey
-        ld c,24
-        ld a,GREEN<<4
-        call print_centre
         call wait_release
 .k:     call wait_field
         call anykey
@@ -638,9 +657,11 @@ sysinfo_screen:
 
 SI_PLANET:      dw 3600,-2400,12000     ; near, below and right of centre
 txt_sysdata:    db "SYSTEM DATA - ",0
+txt_s_facts:    db "THE SYSTEM",0
 txt_star:       db "STAR        ",0
 txt_world:      db "WORLD       ",0
 txt_anykey:     db "ANY KEY TO GO ON",0
+txt_techs:      db "TECH ",0
 ; by colour number (0..7)
 STAR_NAMES:     db "-",0,"-",0,"RED DWARF",0,"-",0,"-",0,"BLUE GIANT",0
                 db "YELLOW DWARF",0,"WHITE STAR",0

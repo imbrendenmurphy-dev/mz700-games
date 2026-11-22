@@ -307,7 +307,7 @@ gen_market:
         ld a,(hl)
         cp NGOODS
         jp c,.g
-        ret
+        jp gen_fuel
 
 ; HL = HL + mk_i ; mk_get: A = (HL + mk_i)
 mk_ptr:
@@ -348,6 +348,7 @@ GOOD_NAMES:
         db "ARTWORK    ",0
         db "STIMS      ",0
         db "ARMS       ",0
+        db "FUEL LY    ",0
 GOOD_BASE:
         dw 60,90,110,200,320,450,700,900,280,600
 GOOD_SLOPE:
@@ -357,7 +358,7 @@ GOOD_QB:
 GOOD_QS:
         db -4,-3,-3,-2,2,2,2,0,0,1
 GOOD_ILL:
-        db 0,0,0,0,0,0,0,0,1,1
+        db 0,0,0,0,0,0,0,0,1,1,0
 
 ; ---------------------------------------------------------------------
 ; docked: the station menu
@@ -367,26 +368,29 @@ docked_screen:
         ld hl,SFX_DOCK
         ld a,9
         call sfx
-        ld hl,SONG_WALTZ
-        call mus_play
+        ld a,(trk_on)                   ; the waltz (on, if it plays already)
+        or a
+        ld hl,TRK_WALTZ
+        call z,trk_play
 .menu:  call wait_release
-        ld a,WHITE<<4
-        call cls
-        ld b,0
-        ld c,3
-        ld a,(YELLOW<<4)+BLUE
-        call clear_rows
-        ld hl,txt_dockedat
-        ld bc,2*256+1
-        ld a,(YELLOW<<4)+BLUE
-        call print_at
+        ld hl,txt_dockedat              ; the bezel: "DOCKED AT name"
         ld a,(cur_sys)
-        call sys_name
-        ld c,(YELLOW<<4)+BLUE
-        call print
+        call ui_title2
+        ld de,txt_dfoot
+        ld b,1
+        call ui_frame
+        ld c,6
+        ld hl,txt_s_cmdr
+        call ui_rule
+        ld c,12
+        ld hl,txt_s_target
+        call ui_rule
+        ld c,15
+        ld hl,txt_s_station
+        call ui_rule
         ; system facts
         ld hl,txt_econ
-        ld bc,2*256+4
+        ld bc,2*256+2
         ld a,CYAN<<4
         call print_at
         ld a,(cur_sys)
@@ -398,7 +402,7 @@ docked_screen:
         ld c,WHITE<<4
         call print
         ld hl,txt_gov
-        ld bc,2*256+5
+        ld bc,2*256+3
         ld a,CYAN<<4
         call print_at
         ld a,(cur_sys)
@@ -410,7 +414,7 @@ docked_screen:
         ld c,WHITE<<4
         call print
         ld hl,txt_tech
-        ld bc,2*256+6
+        ld bc,2*256+4
         ld a,CYAN<<4
         call print_at
         ld a,(cur_sys)
@@ -421,13 +425,13 @@ docked_screen:
         call print_dec3
         ; status
         ld hl,txt_credits2
-        ld bc,2*256+9
+        ld bc,2*256+7
         ld a,CYAN<<4
         call print_at
         ld c,WHITE<<4
         call print_cr
         ld hl,txt_fuel
-        ld bc,2*256+10
+        ld bc,2*256+8
         ld a,CYAN<<4
         call print_at
         ld a,(fuel)
@@ -439,7 +443,7 @@ docked_screen:
         ld c,WHITE<<4
         call print
         ld hl,txt_hold
-        ld bc,2*256+11
+        ld bc,2*256+9
         ld a,CYAN<<4
         call print_at
         call hold_used
@@ -450,7 +454,7 @@ docked_screen:
         ld a,(holdmax)
         call print_dec3
         ld hl,txt_kills2
-        ld bc,2*256+12
+        ld bc,2*256+10
         ld a,CYAN<<4
         call print_at
         ld a,(kills)
@@ -464,7 +468,7 @@ docked_screen:
         ld c,YELLOW<<4
         call print
         ld hl,txt_legal
-        ld bc,25*256+9
+        ld bc,24*256+7
         ld a,CYAN<<4
         call print_at
         call legal_level
@@ -483,16 +487,25 @@ docked_screen:
         jr z,$+4
         ld c,RED<<4
         call print
+        ld hl,txt_ship
+        ld bc,24*256+9
+        ld a,CYAN<<4
+        call print_at
+        ld a,(hull)
+        ld hl,HULL_NAMES
+        call nth_str
+        ld c,YELLOW<<4
+        call print
         ld hl,txt_seekers
-        ld bc,25*256+10
+        ld bc,24*256+8
         ld a,CYAN<<4
         call print_at
         ld a,(seekers)
         ld c,WHITE<<4
         call print_dec3
         ; target
-        ld hl,txt_target
-        ld bc,2*256+14
+        ld hl,txt_none
+        ld bc,2*256+13
         ld a,CYAN<<4
         call print_at
         ld a,(target_sys)
@@ -507,31 +520,27 @@ docked_screen:
         call print_tenths
         ld hl,txt_ly
         call print
-        ; menu
-        ld hl,menu_text
-.mt:    ld a,(hl)
-        cp 0FFh
-        jr z,.keys
-        ld c,a
-        inc hl
-        ld b,4
-        ld a,GREEN<<4
-        push hl
-        call print_at
-        pop hl
-.sk:    ld a,(hl)
-        inc hl
-        or a
-        jr nz,.sk
-        jr .mt
+        ld hl,menu_text                 ; the services, as key caps
+        call ui_items
 .keys:  call wait_field                 ; the mixer plays while we wait
         call fkeys_new                  ; F1 help, F2 chart, F3 nearby, F4 data
         or a
         jr z,.nofk
         call fk_screen
         jp .menu
-.nofk:  call getkey
+.nofk:  call digit_key                   ; Spectrum Elite: 1 launch, 2 buy,
+        cp 1                            ; 3 sell, 4 equip
+        jr z,.launch
+        cp 4
+        jr z,.equip
+        cp 5
+        jr z,.yard
+        or a
+        jr nz,.market
+        call getkey
         cp 'M'
+        jr z,.market
+        cp 'K'                          ; K: market prices
         jr z,.market
         cp 'C'
         jr z,.chart
@@ -544,8 +553,9 @@ docked_screen:
         cp 'L'
         jr z,.load
         call read_flight
-        and K_FIRE
+        and K_FIRE+K_FAST               ; SPACE launches too
         jr z,.keys
+.launch:
         call mus_stop
         jp wait_release
 .market:
@@ -555,25 +565,21 @@ docked_screen:
         jp .menu
 .equip: call equip_screen
         jp .menu
+.yard:  call shipyard_screen
+        jp .menu
 .save:  call menu_save
         jp .menu
 .load:  call menu_load
         call gen_market
         jp .menu
 .refuel:
+        ld a,(fuel)                     ; fill up at the local price
+        push af
+        call fuel_fill
+        pop bc
         ld a,(fuel)
-        ld b,a
-        ld a,MAXFUEL
-        sub b
-        jp z,.menu
-        ld l,a                          ; 0.2 credits per 0.1 ly
-        ld h,0
-        add hl,hl
-        ex de,hl
-        call cr_sub
-        jr c,.poor
-        ld a,MAXFUEL
-        ld (fuel),a
+        cp b
+        jr z,.poor                      ; none bought
         ld hl,SFX_BUY
         ld a,3
         call sfx
@@ -584,13 +590,40 @@ docked_screen:
         jp .menu
 
 menu_text:
-        db 17,"M  MARKET",0
-        db 18,"C  GALAXY CHART - CHOOSE A TARGET",0
-        db 19,"F  REFUEL (0.2 CR PER 0.1 LY)",0
-        db 20,"E  EQUIPMENT   S/L  SAVE/LOAD PILOT",0
-        db 21,"SPACE  LAUNCH   (H IN FLIGHT: JUMP)",0
-        db 22,"F1 HELP  F3 NEARBY  F4 SYSTEM DATA",0
+        db 3,16,"1",0,"LAUNCH",0
+        db 3,17,"2",0,"BUY CARGO",0
+        db 3,18,"3",0,"SELL CARGO",0
+        db 3,19,"4",0,"EQUIP SHIP",0
+        db 3,20,"F",0,"REFUEL",0
+        db 3,21,"5",0,"SHIPYARD",0
+        db 21,16,"I",0,"GALACTIC CHART",0
+        db 21,17,"O",0,"LOCAL CHART",0
+        db 21,18,"P",0,"DATA ON SYSTEM",0
+        db 21,19,"S",0,"SAVE",0
+        db 30,19,"L",0,"LOAD",0
+        db 21,20,"F1",0,"HELP",0
         db 0FFh
+txt_dfoot:      db "1 LAUNCH   F1 HELP",0
+txt_none:       db 0
+txt_ship:       db "SHIP    ",0
+txt_s_cmdr:     db "COMMANDER",0
+txt_s_target:   db "JUMP TARGET",0
+txt_s_station:  db "STATION SERVICES",0
+
+; A = 1..4 for the number key held (0: none)
+digit_key:
+        ld a,5
+        ld (KEYPA),a
+        ld a,(KEYPB)
+        cpl
+        and 0F8h                        ; 1..5
+        ret z
+        ld b,0
+.l:     inc b
+        rla
+        jr nc,.l
+        ld a,b
+        ret
 
 ; HL = the A'th 0-terminated string of a list
 nth_str:
@@ -614,7 +647,7 @@ txt_ly:         db " LY",0
 txt_hold:       db "CARGO HOLD  ",0
 txt_of20:       db " / ",0
 txt_kills2:     db "KILLS       ",0
-txt_target:     db "JUMP TARGET ",0
+txt_target:     db "SYSTEM      ",0
 txt_legal:      db "STATUS  ",0
 txt_seekers:    db "SEEKERS ",0
 
@@ -622,41 +655,37 @@ txt_seekers:    db "SEEKERS ",0
 ; market
 ; ---------------------------------------------------------------------
 market_screen:
-        ld a,WHITE<<4
-        call cls
-        ld b,0
-        ld c,1
-        ld a,(YELLOW<<4)+BLUE
-        call clear_rows
         ld hl,txt_market
-        ld bc,1*256+0
-        ld a,(YELLOW<<4)+BLUE
-        call print_at
         ld a,(cur_sys)
-        call sys_name
-        ld c,(YELLOW<<4)+BLUE
-        call print
+        call ui_title2
+        ld de,txt_sdone
+        ld b,1
+        call ui_frame
         ld hl,txt_mhead
-        ld bc,1*256+2
-        ld a,CYAN<<4
+        ld bc,2*256+2
+        ld a,UI_LABEL
         call print_at
+        ld c,15
+        ld hl,txt_s_ship
+        call ui_rule
         ld hl,txt_mhelp
-        ld c,21
+        ld c,20
         ld a,GREEN<<4
         call print_centre
         ld hl,txt_mhelp2
-        ld c,22
+        ld c,21
         ld a,GREEN<<4
         call print_centre
         xor a
         ld (mkt_sel),a
+        call fuel_sync
         ld b,0
 .all:   push bc
         call mkt_row
         pop bc
         inc b
         ld a,b
-        cp NGOODS
+        cp NGOODS+1                     ; the goods and fuel
         jr c,.all
         call mkt_footer
         call wait_release
@@ -676,7 +705,7 @@ market_screen:
         jr .mv
 .nu:    bit 3,c
         jr z,.nd
-        cp NGOODS-1
+        cp NGOODS
         jr nc,.nd
         inc a
 .mv:    ld (mkt_sel),a
@@ -691,7 +720,14 @@ market_screen:
         bit 0,c
         jr nz,.sell
         jr .loop
-.buy:   call stock_ptr
+.buy:   ld a,(mkt_sel)
+        cp NGOODS
+        jr nz,.good
+        call fuel_buy1                  ; fuel: a light year
+        jr c,.no
+        call fuel_sync
+        jr .done
+.good:  call stock_ptr
         ld a,(hl)
         or a
         jr z,.no
@@ -707,7 +743,10 @@ market_screen:
         call cargo_ptr
         inc (hl)
         jr .done
-.sell:  call cargo_ptr
+.sell:  ld a,(mkt_sel)
+        cp NGOODS
+        jr z,.no                        ; no selling fuel
+        call cargo_ptr
         ld a,(hl)
         or a
         jr z,.no
@@ -771,7 +810,7 @@ mkt_row:
         ld b,a
         ld c,1
         ld a,(mk_attr)
-        call clear_rows
+        call clear_in
         pop bc
         push bc
         ld a,b                          ; name
@@ -788,7 +827,7 @@ mkt_row:
         push hl
         ld a,(mk_row)
         ld c,a
-        ld b,1
+        ld b,2
         call vaddr
         pop hl
         ld a,(mk_attr)
@@ -805,7 +844,7 @@ mkt_row:
         jr z,.leg
         ld a,(mk_row)
         ld c,a
-        ld b,12
+        ld b,13
         call vaddr
         ld a,(mk_attr)
         and 0Fh
@@ -828,7 +867,7 @@ mkt_row:
         push hl
         ld a,(mk_row)
         ld c,a
-        ld b,15
+        ld b,16
         call vaddr
         pop hl
         ld a,(mk_attr)
@@ -844,7 +883,7 @@ mkt_row:
         push af
         ld a,(mk_row)
         ld c,a
-        ld b,24
+        ld b,25
         call vaddr
         pop af
         ld hl,mk_attr
@@ -860,7 +899,7 @@ mkt_row:
         push af
         ld a,(mk_row)
         ld c,a
-        ld b,32
+        ld b,33
         call vaddr
         pop af
         ld hl,mk_attr
@@ -873,15 +912,15 @@ mkt_footer:
         ld b,16
         ld c,2
         ld a,WHITE<<4
-        call clear_rows
+        call clear_in
         ld hl,txt_credits2
-        ld bc,1*256+16
+        ld bc,2*256+16
         ld a,CYAN<<4
         call print_at
         ld c,WHITE<<4
         call print_cr
         ld hl,txt_hold
-        ld bc,1*256+17
+        ld bc,2*256+17
         ld a,CYAN<<4
         call print_at
         call hold_used
@@ -895,26 +934,16 @@ mkt_footer:
 txt_market:     db "MARKET - ",0
 txt_mhead:      db "GOODS          PRICE    STOCK   HOLD",0
 txt_mhelp:      db "UP/DOWN CHOOSE  RIGHT BUY  LEFT SELL",0
-txt_mhelp2:     db "* CONTRABAND    SPACE: DONE",0
+txt_mhelp2:     db "* CONTRABAND",0
+txt_sdone:      db "SPACE DONE",0
+txt_s_ship:     db "YOUR SHIP",0
 
 ; ---------------------------------------------------------------------
 ; galaxy chart: pick a jump target
 ; ---------------------------------------------------------------------
 chart_screen:
-        ld a,WHITE<<4
-        call cls
-        ld b,VIEW_ROW
-        ld c,18
-        ld a,CYAN<<4
-        call clear_rows
-        ld b,0
-        ld c,1
-        ld a,(YELLOW<<4)+BLUE
-        call clear_rows
         ld hl,txt_chart
-        ld c,0
-        ld a,(YELLOW<<4)+BLUE
-        call print_centre
+        call ui_mapframe
         ld a,(target_sys)
         ld l,a
         ld h,high SYS_CX
@@ -1092,12 +1121,12 @@ nearest:
         ret
 
 chart_info:
-        ld b,SEP_ROW
-        ld c,6
+        ld b,20
+        ld c,4
         ld a,WHITE<<4
-        call clear_rows
+        call clear_in
         ld hl,txt_target
-        ld bc,1*256+20
+        ld bc,2*256+20
         ld a,CYAN<<4
         call print_at
         ld a,(target_sys)
@@ -1105,7 +1134,7 @@ chart_info:
         ld c,WHITE<<4
         call print
         ld hl,txt_dist
-        ld bc,1*256+21
+        ld bc,2*256+21
         ld a,CYAN<<4
         call print_at
         push de
@@ -1140,7 +1169,7 @@ chart_info:
         ld c,RED<<4
 .p:     call print
         ld hl,txt_econ
-        ld bc,1*256+22
+        ld bc,2*256+22
         ld a,CYAN<<4
         call print_at
         ld a,(target_sys)
@@ -1152,7 +1181,7 @@ chart_info:
         ld c,WHITE<<4
         call print
         ld hl,txt_gov
-        ld bc,1*256+23
+        ld bc,2*256+23
         ld a,CYAN<<4
         call print_at
         ld a,(target_sys)
@@ -1163,10 +1192,7 @@ chart_info:
         call nth_str
         ld c,WHITE<<4
         call print
-        ld hl,txt_chelp
-        ld c,24
-        ld a,GREEN<<4
-        jp print_centre
+        ret
 
 txt_chart:      db "GALAXY CHART",0
 txt_dist:       db "DISTANCE    ",0
@@ -1174,6 +1200,15 @@ txt_here:       db "YOU ARE HERE",0
 txt_inrange:    db "IN RANGE",0
 txt_outrange:   db "OUT OF RANGE",0
 txt_chelp:      db "CURSORS MOVE   SPACE DONE",0
+
+; the bezel for the map screens (the view is the map): title HL
+ui_mapframe:
+        ld de,txt_chelp
+        ld b,20
+        call ui_frame
+        ld c,19
+        ld hl,txt_s_target
+        jp ui_rule
 
 ; ---------------------------------------------------------------------
 ; hyperspace jump effect

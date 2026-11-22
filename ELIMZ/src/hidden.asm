@@ -1380,8 +1380,20 @@ sun_draw:
         call set_col                    ; as if the bright star had dazzled
         ld hl,SUN_RING                  ; the sensor
         ld b,16
+        xor a
+        ld (sun_dbl),a
         call .pts
-        call poll
+        ld hl,(sun_d)                   ; close in: a second ring, twice
+        ld de,4000                      ; the size - the sun swells
+        or a
+        sbc hl,de
+        jr nc,.far
+        ld a,1
+        ld (sun_dbl),a
+        ld hl,SUN_RING
+        ld b,16
+        call .pts
+.far:   call poll
         ld a,(sun_col)                  ; the corona: eight rays, each one
         add a,a                         ; or two dots long by turns, in
         add a,a                         ; this star's own colour
@@ -1428,7 +1440,14 @@ sun_draw:
         ld a,(hl)
         inc hl
         ld c,(hl)
-        call .pt
+        ld b,a
+        ld a,(sun_dbl)
+        or a
+        ld a,b
+        jr z,.p1
+        add a,a                         ; (doubled)
+        sla c
+.p1:    call .pt
         pop hl
         inc hl
         inc hl

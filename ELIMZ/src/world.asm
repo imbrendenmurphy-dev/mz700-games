@@ -158,7 +158,8 @@ world_init:
         ld (planet+2),hl
         ld hl,21000
         ld (planet+4),hl
-.pl:    ld a,(cur_sys)                  ; the sun, beyond the planet, on
+.pl:    call sun_reset
+        ld a,(cur_sys)                  ; the sun, beyond the planet, on
         and 3                           ; one of four sides by system
         ld e,a
         add a,a
@@ -297,7 +298,12 @@ sext_e:
         ret
 
 ; ---------------------------------------------------------------------
-; keyboard: cursor keys pitch / roll, SPACE fire, A faster, Z slower
+; flight keys, as in ZX Spectrum Elite (the space traders' standard):
+;   N / M roll left / right, S / X dive / climb (or the cursor keys)
+;   SPACE faster, SHIFT slower, A lasers, F seeker, E ECM (the jammer),
+;   C docking computer, H hyperspace, CTRL pause (1-4 views and I, O, P
+;   charts: flight_keys).  Joystick: SW1 lasers, SW2 seeker.
+; A = K_ bits; mkey: bit 0 pause, 2 docking computer, 3 seeker, 6 ECM
 ; ---------------------------------------------------------------------
 read_flight:
         ld a,(autoplay)
@@ -307,75 +313,73 @@ read_flight:
         ret
 .k:     ld hl,KEYPA
         ld c,0
-        ld (hl),7
-        inc l
-        ld a,(hl)
-        dec l
+        ld e,0
+        ld (hl),7                       ; cursors
+        call .row
         bit 5,a
-        jr nz,$+4
-        set 2,c                         ; up
+        jr z,$+4
+        set B_UP,c                      ; up: dive
         bit 4,a
-        jr nz,$+4
-        set 3,c                         ; down
+        jr z,$+4
+        set B_DOWN,c                    ; down: climb
         bit 2,a
-        jr nz,$+4
-        set 0,c                         ; left
+        jr z,$+4
+        set B_LEFT,c
         bit 3,a
-        jr nz,$+4
-        set 1,c                         ; right
-        ld (hl),6
-        inc l
-        ld a,(hl)
-        dec l
-        bit 4,a
-        jr nz,$+4
-        set 4,c                         ; space
-        ld (hl),4
-        inc l
-        ld a,(hl)
-        dec l
+        jr z,$+4
+        set B_RIGHT,c
+        ld (hl),2                       ; S dive, X climb
+        call .row
+        bit 5,a
+        jr z,$+4
+        set B_UP,c
+        bit 0,a
+        jr z,$+4
+        set B_DOWN,c
+        ld (hl),3                       ; N roll left, M roll right, J jump
+        call .row
+        ld b,a
+        and 40h
+        ld (jkey),a
+        ld a,b
+        bit 2,a
+        jr z,$+4
+        set B_LEFT,c
+        bit 3,a
+        jr z,$+4
+        set B_RIGHT,c
+        ld (hl),4                       ; A fire, C dock, E ECM, F seeker, H jump
+        call .row
         bit 7,a
-        jr nz,$+4
-        set 5,c                         ; A
+        jr z,$+4
+        set B_FIRE,c
+        bit 5,a
+        jr z,$+4
+        set 2,e
+        bit 3,a
+        jr z,$+4
+        set 6,e
+        bit 2,a
+        jr z,$+4
+        set 3,e
         and 1
-        xor 1
-        ld (hkey),a                     ; H
-        ld (hl),1
-        inc l
-        ld a,(hl)
-        dec l
+        ld (hkey),a
+        ld (hl),6                       ; SPACE faster
+        call .row
+        bit 4,a
+        jr z,$+4
+        set 5,c
+        ld (hl),8                       ; SHIFT slower, CTRL pause, BREAK
+        call .row
+        bit 0,a
+        jr z,$+4
+        set 6,c
         bit 6,a
-        jr nz,$+4
-        set 6,c                         ; Z
-        ld (hl),3
-        inc l
-        ld a,(hl)
-        dec l
-        cpl
-        and 49h                         ; J (bit 6), M (bit 3), P (bit 0)
-        ld b,a
-        ld (hl),2
-        inc l
-        ld a,(hl)
-        dec l
-        cpl
-        and 20h                         ; S -> bit 1
-        rrca
-        rrca
-        rrca
-        rrca
-        or b
-        ld b,a
-        ld (hl),4
-        inc l
-        ld a,(hl)
-        dec l
-        cpl
-        and 10h                         ; D -> bit 2
-        rrca
-        rrca
-        or b
-        ld b,a
+        jr z,$+4
+        set 0,e
+        bit 7,a
+        jr z,$+4
+        set 7,c
         call joy_read                   ; the joystick: SW2 fires a seeker
         or c
         ld c,a
@@ -383,28 +387,34 @@ read_flight:
         rlca
         rlca
         rlca
-        or b
+        or e
         ld (mkey),a
-        ld (hl),8
-        inc l
-        ld a,(hl)
-        bit 7,a
-        jr nz,$+4
-        set 7,c                         ; BREAK
         ld a,c
+        ret
+; A = the keys held on the row strobed at (HL) (1 = held)
+.row:   inc l
+        ld a,(hl)
+        dec l
+        cpl
         ret
 
 ; ---------------------------------------------------------------------
 ; controls: steering, speed, lasers
 ; ---------------------------------------------------------------------
 controls:
-        ld a,(autodock)
+        ld a,(jkey)                     ; J: the jump drive
+        or a
+        jr nz,.jd
+        ld (jk_note),a
+        jr .nj
+.jd:    call jump_step
+.nj:    ld a,(autodock)
         or a
         call nz,dock_pilot
         ld a,(hkey)
         or a
         call nz,hyper_start
-        ld a,(prevx)                    ; M / J: on the press only
+        ld a,(prevx)                    ; F / E: on the press only
         cpl
         ld hl,mkey
         and (hl)
@@ -468,8 +478,11 @@ controls:
         bit 5,a
         jr z,.ns
         ld a,(hl)
-        cp MAXSPEED
-        jr nc,.ns
+        ld b,a                          ; (this hull's top speed)
+        ld a,(max_speed)
+        cp b
+        jr z,.ns
+        jr c,.ns
         inc (hl)
 .ns:    ld a,(keys)
         bit 6,a
@@ -677,6 +690,7 @@ world_step:
         djnz .d
         call spawn
         call regen
+        call sun_step                   ; flying at the sun: heat, scooping
         call hyper_tick
         ld a,(state)
         or a
@@ -1410,8 +1424,9 @@ regen:
         ld a,(hl)
         cp 64
         ret nc
-        inc (hl)
-        inc (hl)
+        ld a,(sh_step)                  ; (by hull)
+        add a,(hl)
+        ld (hl),a
         ret
 
 ; ---------------------------------------------------------------------

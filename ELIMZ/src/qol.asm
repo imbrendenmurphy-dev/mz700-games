@@ -19,33 +19,58 @@ extra_keys:
         ret z
         jp toggle_autodock
 
-; A = 1 while P is held
-pkey:
-        ld a,3
+; NZ while CTRL is held
+ctrlkey:
+        ld a,8
         ld (KEYPA),a
         ld a,(KEYPB)
         cpl
-        and 1
+        and 40h
         ret
 
+; frozen (CTRL, as CAPS SHIFT on the Spectrum): Q sound off, S sound on,
+; CTRL or SPACE to go on
 do_pause:
         ld hl,txt_paused
         call message
         call sfx_stop
-        ld a,(snd_mute)                 ; the auto-dock waltz waits too
-        push af
-        ld a,1
+        ld a,(snd_mute)
+        ld (pz_mute),a
+        ld a,1                          ; quiet while frozen
         ld (snd_mute),a
 .r1:    call poll
-        call pkey
+        call ctrlkey
         jr nz,.r1
 .w:     call poll
-        call pkey
-        jr z,.w
-.r2:    call poll
-        call pkey
-        jr nz,.r2
-        pop af
+        ld a,2                          ; Q (bit 7), S (bit 5)
+        ld (KEYPA),a
+        ld a,(KEYPB)
+        cpl
+        bit 7,a
+        jr z,.nq
+        ld a,1
+        ld (pz_mute),a
+        ld hl,txt_sndoff
+        call message
+.nq:    ld a,2
+        ld (KEYPA),a
+        ld a,(KEYPB)
+        cpl
+        bit 5,a
+        jr z,.ns
+        xor a
+        ld (pz_mute),a
+        ld hl,txt_sndon
+        call message
+.ns:    call ctrlkey
+        jr nz,.go
+        ld a,6                          ; SPACE
+        ld (KEYPA),a
+        ld a,(KEYPB)
+        bit 4,a
+        jr nz,.w
+.go:    call wait_release
+        ld a,(pz_mute)
         ld (snd_mute),a
         ld hl,txt_resume
         jp message
@@ -63,7 +88,7 @@ toggle_sound:
         pop hl
         jp message
 
-txt_paused:     db "PAUSED - P TO CONTINUE",0
+txt_paused:     db "PAUSED: CTRL GOES ON  Q/S SOUND OFF/ON",0
 txt_resume:     db "AS YOU WERE",0
 txt_sndon:      db "SOUND ON",0
 txt_sndoff:     db "SOUND OFF",0
@@ -81,8 +106,8 @@ toggle_autodock:
         jp z,message
         ld a,1
         ld (autodock),a
-        ld hl,SONG_WALTZ
-        call mus_play
+        ld hl,TRK_WALTZ
+        call trk_play
         ld hl,txt_dockon
         jp message
 autodock_off:
@@ -142,7 +167,7 @@ WRINF           equ 0021h
 WRDAT           equ 0024h
 RDINF           equ 0027h
 RDDAT           equ 002Ah
-SAVE_LEN        equ 2+3+1+2+10+9+1
+SAVE_LEN        equ 2+3+1+2+10+10+1+1
 
 ; what goes into the save block: address, length
 SAVE_MAP:
@@ -155,8 +180,10 @@ SAVE_MAP:
         dw cargo
         db 10
         dw seekers
-        db 9
+        db 10
         dw kills
+        db 1
+        dw hull
         db 1
         dw 0
 
@@ -249,6 +276,7 @@ load_pilot:
         jr nz,.wrong
         ld a,1
         call pack_pilot
+        call apply_hull                 ; its ship's figures
         call tape_done
         or a
         ret

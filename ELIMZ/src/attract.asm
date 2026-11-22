@@ -239,16 +239,13 @@ steer:
 ; ---------------------------------------------------------------------
 gallery:
         call snd_fl                     ; the waltz plays on
-        ld a,WHITE<<4
-        call cls
-        ld b,0
-        ld c,1
-        ld a,(YELLOW<<4)+BLUE
-        call clear_rows
         ld hl,txt_gallery
-        ld c,0
-        ld a,(YELLOW<<4)+BLUE
-        call print_centre
+        ld de,txt_anykey
+        ld b,20
+        call ui_frame
+        ld c,19
+        ld hl,0
+        call ui_rule
         ld a,1
         ld (state),a
         ld hl,GALLERY
@@ -260,7 +257,7 @@ gallery:
         ld c,4
         ld a,WHITE<<4
         push hl
-        call clear_rows
+        call clear_in
         pop hl
         ld a,(hl)                       ; type
         inc hl
@@ -356,73 +353,3 @@ GALLERY:
         db 0
 
 txt_gallery:    db "SHIPS OF THE SPACELANES",0
-
-; ---------------------------------------------------------------------
-; handbook: controls and tips.  NZ on a key.
-; ---------------------------------------------------------------------
-handbook:
-        call snd_fl
-        ld a,WHITE<<4
-        call cls
-        ld b,0
-        ld c,1
-        ld a,(YELLOW<<4)+BLUE
-        call clear_rows
-        ld hl,HANDBOOK
-.l:     ld a,(hl)
-        cp 0FFh
-        jr z,.wait
-        ld c,a
-        inc hl
-        ld a,(hl)
-        inc hl
-        push hl
-        call print_centre
-        pop hl
-.s:     ld a,(hl)
-        inc hl
-        or a
-        jr nz,.s
-        jr .l
-.wait:  ld b,0
-.w:     push bc
-        call wait_field
-        call anykey
-        pop bc
-        jr nz,.key
-        djnz .w
-        ld b,150
-.w2:    push bc
-        call wait_field
-        call anykey
-        pop bc
-        jr nz,.key
-        djnz .w2
-        xor a
-        ret
-.key:   call wait_release
-        or 1
-        ret
-
-HANDBOOK:
-        db 0,(YELLOW<<4)+BLUE,"PILOT'S HANDBOOK",0
-        db 2,CYAN<<4,"CURSORS   ROLL AND PITCH",0
-        db 3,CYAN<<4,"A / Z     FASTER / SLOWER",0
-        db 4,CYAN<<4,"SPACE     LASERS (MIND THE HEAT)",0
-        db 5,CYAN<<4,"M         SEEKER AT THE TARGET",0
-        db 6,CYAN<<4,"J         JAMMER PULSE",0
-        db 7,CYAN<<4,"H         HYPERSPACE TO THE TARGET",0
-        db 8,CYAN<<4,"D         AUTO-DOCK (IF FITTED)",0
-        db 9,CYAN<<4,"P / S     PAUSE / SOUND ON-OFF",0
-        db 10,CYAN<<4,"1-4 VIEWS   F1 HELP  F2-F4 MAPS",0
-        db 11,WHITE<<4,"BUY LOW ON FARMWORLDS, SELL HIGH",0
-        db 12,WHITE<<4,"TO INDUSTRY - AND THE REVERSE.",0
-        db 13,WHITE<<4,"PIRATES PAY BOUNTIES.  TRADERS",0
-        db 14,WHITE<<4,"AND POLICE DO NOT - SHOOT THEM",0
-        db 15,WHITE<<4,"AND THE LAW WILL HUNT YOU.",0
-        db 17,GREEN<<4,"DOCK: LINE UP WITH THE SLOT AND",0
-        db 18,GREEN<<4,"FLY STRAIGHT IN, NOT TOO FAST.",0
-        db 20,MAGENTA<<4,"RANKS: CADET PILOT GUNNER VETERAN",0
-        db 21,MAGENTA<<4,"ACE HOTSHOT LEGEND",0
-        db 23,GREEN<<4,"PRESS SPACE TO LAUNCH",0
-        db 0FFh

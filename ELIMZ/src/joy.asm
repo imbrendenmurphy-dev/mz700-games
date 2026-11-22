@@ -373,6 +373,6 @@ joy_try:
         rrca
         ret
 
-txt_joyon:      db "  JOYSTICK ON - SW1 FIRE  SW2 SEEKER  ",0
-txt_joyoff:     db "     JOYSTICK OFF: KEYBOARD ONLY      ",0
-txt_joynone:    db "   NO JOYSTICK (CENTRE IT, THEN J)    ",0
+txt_joyon:      db " JOYSTICK ON - SW1 FIRE  SW2 SEEKER ",0
+txt_joyoff:     db "    JOYSTICK OFF: KEYBOARD ONLY     ",0
+txt_joynone:    db "  NO JOYSTICK (CENTRE IT, THEN J)   ",0

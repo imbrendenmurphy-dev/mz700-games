@@ -5,25 +5,51 @@ An original wireframe space-combat and trading game for the 64K Sharp MZ-700, in
 `release/STARHAUL.MZT` is for emulators and `release/STARHAUL.MZF` for UniCMT. Both load at 1200h. **Not yet tested on real hardware.**
 
 ## Controls
-| Key | Action |
-| --- | --- |
-| Cursor left / right | roll |
-| Cursor up / down | dive / climb |
-| A / Z | faster / slower |
-| SPACE | lasers, from the front view (watch the LSR heat bar) |
-| H | hyperspace to the target chosen on the galaxy chart (needs fuel) |
-| M | fire a seeker missile at the ship nearest the sights |
-| J | jammer pulse: destroys every seeker in flight (costs energy) |
-| D | auto-dock on/off (if fitted; it plays the waltz) |
-| P | pause |
-| S | sound on/off |
-| 1 / 2 / 3 / 4 | front / rear / left / right view |
-| F1 | help: every key |
-| F2 | galaxy chart (choose the jump target) |
-| F3 | nearby systems: a zoomed map with names, the fuel circle and a cursor for the target |
-| F4 | this system: a picture of its planet and sun, economy, government, tech level, star and world type |
+The keys follow ZX Spectrum Elite, the standard for space-trading players.
 
-A new game starts docked at the home station with 100 credits, so you can read the system data, trade, refuel and fit equipment before SPACE launches you. F1-F4 work when docked too.
+| Key | In flight |
+| --- | --- |
+| N / M (or cursor left / right) | roll left / right |
+| S / X (or cursor up / down) | dive / climb |
+| SPACE / SHIFT | faster / slower |
+| A | lasers, from the front view (watch the LSR heat bar) |
+| F | fire a seeker missile at the ship nearest the sights |
+| E | ECM: a jammer pulse destroys every seeker in flight (costs energy) |
+| C | docking computer on/off (if fitted; it plays the waltz) |
+| H | hyperspace to the chosen target (needs fuel) |
+| J | jump drive, held: rush ahead while nothing is near (MASS LOCKED near ships, the station or the planet) |
+| 1 / 2 / 3 / 4 | front / rear / left / right view |
+| I / O / P | galactic chart / local chart / data on the system (also F2 / F3 / F4) |
+| F1 | help: every key |
+| CTRL | freeze (the Spectrum's CAPS SHIFT); while frozen Q sound off, S sound on, CTRL or SPACE go on |
+
+| Key | Docked |
+| --- | --- |
+| 1 | launch (SPACE also) |
+| 2 / 3 | buy / sell cargo (the market; K also) |
+| 4 | equip ship |
+| F | fill the tank at this station's fuel price |
+| 5 | shipyard |
+| I / O / P | galactic chart / local chart / data on the system |
+| S / L | save / load the pilot |
+
+The galactic chart chooses the jump target with the cursor keys; the local chart is a zoomed map of the systems in reach, with their names and the fuel circle. Data on the system shows a picture of its planet and sun with its economy, government, tech level, star and world type.
+
+A new game starts docked at the home station with 100 credits in a Kestrel, so you can read the system data, trade, refuel and fit equipment before launching.
+
+### Fuel, the sun and ships
+- **Fuel is a good.** Every jump burns its distance in fuel, and each station sells it by the light year at its own price and stock: cheap at industrial, high-tech stations, dear on farm worlds and in lawless space, where it is sometimes sold out. It is the last row of the market (RIGHT buys a light year; it cannot be sold), and F fills the tank as far as credits and stock allow.
+- **The sun can be flown at.** Fly towards it and it swells. Inside its heat the cabin warms (the TMP meter on the console); with a **fuel scoop** fitted (equipment, 100 credits) skimming it fills the tank. Stay too long and the heat burns the shields and then the energy banks.
+- **Ships.** The shipyard (5 when docked) sells four hulls; the one you fly is traded in at 60%. Better hulls need a higher rank, which comes from kills, and the hold must take your cargo.
+
+| Hull | Price | Hold | Range | Top speed | Seeker racks | Notes | Rank |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Kestrel | 600 | 20 | 7.0 ly | 32 | 3 | the starter | Cadet |
+| Swift | 1100 | 12 | 12.0 ly | 44 | 2 | courier | Pilot |
+| Galleon | 1800 | 60 | 9.0 ly | 24 | 2 | armoured freighter | Gunner |
+| Warhawk | 2500 | 15 | 8.0 ly | 38 | 4 | armoured gunship, fast shields | Veteran |
+
+Armour halves laser and seeker damage. Every tank holds at least 7.0 ly, the range the galaxy was built for, so no ship can be stranded.
 
 On the title screen, L loads a saved pilot and J switches the joystick on or off.
 
@@ -41,6 +67,7 @@ To dock, fly straight into the slot on the station's front face. The station spi
 - **The planet and its sun:** every system has its own planet colour and star colour (`tools/galaxy.py`: farm worlds lean green, industrial ones yellow and red; stars are mostly yellow, some white, red or blue-white, each with one of four corona colours, so sixteen star looks in all), and the galaxy chart shows each star in its colour. The sun is a small ring with a burnt-out centre, as if the bright star had dazzled the sensor, and a corona of eight flickering rays, and it sits on one of four sides of the planet depending on the system. It is hidden behind ships and behind the planet's whole disc, night side included, so it can peek over the limb or be eclipsed. The planet is a back-lit crescent with its night side black against the stars, lit from the sun's direction. The lit part is the disc minus the same disc shifted away from the sun, which turns with the world, so the crescent stays true as you roll. Ships hide it: the planet is placed first but drawn after the ships, and while a ship over it is drawn, `plot` notes each dot row's span so the planet skips those dots. A cell a ship has drawn in keeps the ship's colour.
 - The universe rotates around the player with small-angle rotations that need only shifts. Multiplication uses quarter-square tables.
 - A hexagonal orbital hub that spins, a planet, star dust, Dart and Mantis pirates (the AI rolls, pitches, fires and breaks off when close), and Hauler traders.
+- **Info screens** share one look: a box-drawn bezel with the title set into its top line and the key hints into its bottom line, section rules with their own titles, labels and values in aligned columns, and menu entries as key caps (white on blue).
 - **The console:** a bezel across the top of the dashboard with the panel titles (SYSTEMS, SCANNER, STATUS) set into it, and dividers between the panels. Speed, shields, energy and laser heat are dot-matrix LED meters in the CG-ROM's quarter-block glyphs: two dots per cell, graded green, yellow and red, with the unlit dots in dim blue. The scanner is a blue scope whose blips take each ship's colour, seekers show as missile icons, and the station compass is a small scope of its own. A hit flashes the bezel red.
 - A title screen where each ship in turn spins in real time (64 steps a turn, 16.7 fps) over a drifting parallax starfield while the waltz plays, and a game-over screen.
 - **Galaxy:** 256 star systems generated at build time by `tools/galaxy.py`. Names come from my own syllable list, and each system has an economy, a government and a tech level. The build checks that every system can be reached on a full 7.0 ly tank.
@@ -60,10 +87,11 @@ To dock, fly straight into the slot on the station's front face. The station spi
 
 Speed (simulator, no VRAM waits): 16.7 fps in open space, including while turning. With three pirates close ahead of the planet and the sun in view it runs at 7.5 fps (`py tools/scene_fight.py`; 9 before the hidden lines, the filled crescent and the sun), and with three ships over a close planet at 6.7 (`tools/scene_planet.py`).
 ## Sound
-The MZ-700 has one tone generator (8253 counter 0) and a 1-bit speaker, so the game uses it in three ways:
-- **Tracker** for the title and the whole attract sequence (demo, gallery, handbook): one square-wave channel set once per 50 Hz tick, the way MZ-700 demos play music (Genesis Project's *Sharper* was the model). `tools/music.py` arranges the waltz for it at build time: every note starts with a one-tick octave pluck, each bar opens with a kick falling into the bass note, the two "pahs" are quick chord blips, held notes get a slow vibrato and gaps fill with a fading arpeggio of the chord. It packs into 851 bytes plus a 61-entry divisor table. The counter plays the note by itself, so the tracker needs almost no CPU and the screen can animate flat out. Effects take the channel in turns with the music, so the attract demo keeps its waltz under the laser fire.
-- **3-voice mixer** for the docked and menu screens, the launch tunnel, hyperspace, your death and the game-over tune. Writing an 8253 control word sets the speaker output at once (mode 0 low, mode 4 high). The mixer interleaves three pulse-width voices at about 16.4 kHz, as the VZ300 games and Dracula's Castle 2 here do. A voice's duty is its loudness, so notes pluck and fade and effects swell and die away. Voice 2 can play white noise. The waltz is arranged for melody with vibrato, an oom-pah-pah bass and a soft chord pad. The mixer only plays while the program waits for a frame, so these screens keep their per-frame work small. While the program works, the mixer times the gap on counter 1 and moves each voice's phase on by the time it missed, which keeps the pitch right.
-- **Tone generator** in flight, where the 3D view needs all the CPU. Counter 0 plays by itself, and two effect slots step about 100 times a second on a scan-line clock, so no ticks are lost while the view is drawn. When both slots are busy they take turns, so a laser sounds over an explosion. The auto-dock waltz plays its melody and bass in turns the same way. There are effects for the laser, hits, explosions, kills, seeker launches, the jammer, incoming-missile and low-energy alarms, collisions and the cargo scoop.
+One output for the whole game: 8253 counter 0 plays a square wave by itself, so sound costs almost no CPU and every screen can animate.
+- **Music is a tracker:** one channel set once per 50 Hz tick, the way MZ-700 demos play it (Genesis Project's *Sharper* was the model). `tools/music.py` arranges the waltz at build time: every note starts with a one-tick octave pluck, each bar opens with a kick falling into the bass note, the two "pahs" are quick chord blips, held notes get a slow vibrato and gaps fill with a fading arpeggio of the chord. The same waltz plays on the title, through the attract sequence, while docked and on every info screen, and with the docking computer; the game-over tune is arranged the same way.
+- **Effects:** two slots step about 100 times a second on a scan-line clock, so no ticks are lost while the view is drawn. When both are busy they take turns, so a laser sounds over an explosion; while either plays, the music waits. There are effects for the laser, hits, explosions, kills, seekers, the ECM, alarms, collisions, the scoop, buying, saving, docking, launching, hyperspace and your death.
+
+An earlier 3-voice software mixer was dropped: it only played while the program waited, so it broke up on screens that animate, and removing it freed about 2 KB.
 
 All the music and effects are defined in `tools/music.py`. `py tools/wav.py title|launch|dock|hyper|death|fight|over [seconds]` records a scene's speaker output from the simulator to `build/sound/*.wav`.
 
@@ -81,5 +109,5 @@ py build.py
 py tools/run.py 300 120,299 --keys "150:space,156:-"
 py tools/test_flow.py
 ```
-`tools/test_views.py` checks the views and the F1-F4 screens in flight and docked. `tools/test_joy.py` checks the joystick in both sockets and both polarities. `tools/test_flow.py` runs the whole game: the attract cycle, launching, docking, the market, hyperspace, death and game over.
+`tools/test_ships.py` checks fuel buying, the shipyard and skimming the sun. `tools/test_keys.py` checks the Spectrum key layout in flight and docked. `tools/test_views.py` checks the views and the F1-F4 screens in flight and docked. `tools/test_joy.py` checks the joystick in both sockets and both polarities. `tools/test_flow.py` runs the whole game: the attract cycle, launching, docking, the market, hyperspace, death and game over.
 `tools/run.py`, `mzsim.py` and `z80.py` are the shared Python MZ-700 simulator. Screenshots go to `build/shots/`. The CG-ROM image `rom/mz700fon.int` is not committed.

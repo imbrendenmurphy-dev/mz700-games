@@ -148,7 +148,7 @@ def scene(name, secs):
         mem[S['spawn_t']] = 255
         t0 = m.cpu.t
         for i in range(int(secs * 50) // 10):
-            g.run(10, ['space'] if i % 3 != 2 else [])
+            g.run(10, ['a'] if i % 3 != 2 else [])
         return m, t0
     elif name == 'demo':
         g.run(5)
