@@ -7,6 +7,7 @@ A '90s-style party demo by the (fictional) group SPRITELESS. It has 22 parts, ru
 | `release/SHARPEDG.MZT` | for emulators (MZ700onPC: `MZ700onPC.exe release\SHARPEDG.MZT`) |
 | `release/SHARPEDG.MZF` | the same bytes, for a real euro-spec MZ-700 through UniCMT |
 | `release/screens.png` | one frame from each part |
+| `showcase/` | `BLURB.md`, a still of every part and `sharpedges.gif` (made by `py tools/showcase.py`) |
 
 The tape file is packed: 39 KB of program plus 8 KB of high-RAM data become 31.8 KB. A stub shows `DECRUNCHING...`,
 unpacks the data into the RAM under VRAM, unpacks the program in place and starts it.
