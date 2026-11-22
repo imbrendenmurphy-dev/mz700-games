@@ -264,7 +264,7 @@ public sealed class MzMachine
 
     // ---------------------------------------------------------------- time helpers
     public long NowM { get { return Cpu.Cyc * 5; } }
-    long AccM { get { return (Cpu.Cyc - 2) * 5; } }                 // a bus access: ~2 T before the instruction ends
+    long AccM { get { return Cpu.AccessT * 5; } }                   // the bus access in progress (Z80 machine-cycle timing)
     public int Line { get { return (int)((NowM - FrameStartM) / LINE_M); } }
     public bool VBlankAt(long m) { return (m % FRAME_M) / LINE_M >= VIS; }
     public bool HBlankAt(long m) { return (m % LINE_M) >= DISP_M; }
@@ -277,7 +277,7 @@ public sealed class MzMachine
 
     int Mem(int a, bool peek)
     {
-        if (a < 0x1000) { if (RomIn) { if (!peek && RomWait) { Cpu.Cyc++; RomWaits++; } return Rom[a]; } return Ram[a]; }
+        if (a < 0x1000) { if (RomIn) { if (!peek && RomWait) { Cpu.Stall(1); RomWaits++; } return Rom[a]; } return Ram[a]; }
         if (a < 0xD000 || !IoIn) return Ram[a];
         if (Inhibit) return 0xFF;
         if (Pcg == PcgType.Mz1500 && PcgMap >= 0 && a < 0xF000)
@@ -296,13 +296,13 @@ public sealed class MzMachine
     {
         if (WriteHook != null) WriteHook(a, v);
         if (Tr != null) Tr.W(a, v);
-        if (a < 0x1000) { if (RomIn) { if (RomWait) { Cpu.Cyc++; RomWaits++; } } else Ram[a] = (byte)v; return; }
+        if (a < 0x1000) { if (RomIn) { if (RomWait) { Cpu.Stall(1); RomWaits++; } } else Ram[a] = (byte)v; return; }
         if (a < 0xD000 || !IoIn) { Ram[a] = (byte)v; return; }
         if (Inhibit) return;
         if (Pcg == PcgType.Mz1500 && PcgMap >= 0 && a < 0xF000)
         {
             VramAccess(a, true);
-            if (PcgMap > 0) { Plane[PcgMap - 1][a - 0xD000] = (byte)v; PcgWrites++; }
+            if (PcgMap > 0) { SyncVideo(); Plane[PcgMap - 1][a - 0xD000] = (byte)v; PcgWrites++; }
             return;
         }
         if (a < 0xE000) { VramAccess(a, true); SyncVideo(); Vram[a - 0xD000] = (byte)v; return; }
@@ -324,8 +324,8 @@ public sealed class MzMachine
         if (VramWait == VramWaitMode.Off) return;
         int wm = x < w0 ? w0 - x : LINE_M - x + w0;
         int wt = (wm + 4) / 5;
-        if (Tr != null) Tr.Wait(Cpu.Cyc - 2, wt);
-        Cpu.Cyc += wt; WaitT += wt; WaitTFrame += wt; WaitAccesses++;
+        if (Tr != null) Tr.Wait(Cpu.AccessT, wt);
+        Cpu.Stall(wt); WaitT += wt; WaitTFrame += wt; WaitAccesses++;
     }
 
     // ---------------------------------------------------------------- memory-mapped I/O (E000-E7FF)
@@ -498,8 +498,8 @@ public sealed class MzMachine
                 if (p15) PcgMap = -1;
                 else if (Inhibit) { Inhibit = false; IoIn = ioBeforeInhibit; }
                 break;
-            case 0xF0: if (p15) { SyncVideo(); PcgPriority = v; } break;
-            case 0xF1: if (p15) { SyncVideo(); Palette[(v >> 4) & 7] = v & 7; } break;
+            case 0xF0: if (p15) { SyncPixel(); PcgPriority = v; } break;
+            case 0xF1: if (p15) { SyncPixel(); Palette[(v >> 4) & 7] = v & 7; } break;
         }
     }
 
@@ -578,16 +578,16 @@ public sealed class MzMachine
         long rel = now - FrameStartM;
         if (rel >= FRAME_M)
         {
-            SyncVideo(); while (renderLine < VIS) RenderLine(renderLine++);
+            DrawTo(FrameStartM + FRAME_M);
             AudioTo(FrameStartM + FRAME_M);
             if (Tr != null) Tr.EndFrame();
-            FrameStartM += FRAME_M; Frames++; renderLine = 0;
+            FrameStartM += FRAME_M; Frames++; renderLine = 0; spanX = 0;
             WaitTFrame = 0; ContendedFrame = 0;
             return false;
         }
         if (FloppyOn && Fdc.Active) Fdc.Sync(now);
         SyncPit(now);
-        while (renderLine < VIS && rel >= (long)renderLine * LINE_M + DISP_M) RenderLine(renderLine++);
+        if (renderLine < VIS && rel >= (long)renderLine * LINE_M + DISP_M) DrawTo(now);   // a line is finished when the beam leaves it
         CurPc = Cpu.PC;
         if (FastTape && RomIn && Cass.File != null && (CurPc == 0x04D8 || CurPc == 0x04F8) && Rom[0x27] == 0xC3)
         {
@@ -614,18 +614,43 @@ public sealed class MzMachine
     // ---------------------------------------------------------------- video
     public static readonly int[] Rgb = { 0x000000, 0x0000FF, 0xFF0000, 0xFF00FF, 0x00FF00, 0x00FFFF, 0xFFFF00, 0xFFFFFF };
     static readonly int[] Grey = { 0x000000, 0x1D1D1D, 0x4C4C4C, 0x696969, 0x969696, 0xB3B3B3, 0xE2E2E2, 0xFFFFFF };
-    void SyncVideo() { }   // lines are drawn as the beam leaves the picture; nothing to flush
+    // Pixel-exact video: the picture is drawn as the beam goes, 2 master clocks (0.4 T) a pixel from T 0 of each
+    // line. Anything that changes the picture first draws every pixel the beam has already passed, using the old
+    // state. Character, attribute and character-generator data is latched per 8-pixel cell, so a change takes
+    // effect from the next cell; the MZ-1500 palette and priority act on the pixel itself.
+    int spanX;                                                     // pixels of renderLine already drawn
 
-    void RenderLine(int ln)
+    /// <summary>Draws the picture up to master clock m (absolute).</summary>
+    void DrawTo(long m) { DrawTo(m, false); }
+    void DrawTo(long m, bool cell)
     {
+        long rel = m - FrameStartM;
+        if (rel < 0) return;
+        int ln = rel >= FRAME_M ? LINES : (int)(rel / LINE_M);
+        while (renderLine < VIS && renderLine < ln) { RenderSpan(renderLine, spanX, 320); renderLine++; spanX = 0; }
+        if (renderLine >= VIS || ln != renderLine) return;
+        int x = (int)((rel % LINE_M) / 2);
+        if (cell) x = (x + 7) & ~7;
+        if (x > 320) x = 320;
+        if (x > spanX) { RenderSpan(renderLine, spanX, x); spanX = x; }
+    }
+    /// <summary>Before a change to anything on screen at the access in progress.</summary>
+    void SyncVideo() { DrawTo(AccM, true); }
+    void SyncPixel() { DrawTo(AccM, false); }
+
+
+    void RenderSpan(int ln, int x0, int x1)
+    {
+        if (x1 <= x0) return;
         int row = ln >> 3, y = ln & 7;
         int[] pal = Mono ? Grey : Rgb;
         int o = (BY + ln) * FBW + BX;
         bool p7 = Pcg700On;
         bool p15 = Pcg == PcgType.Mz1500 && (PcgPriority & 1) != 0;
         int cells = 0;
-        for (int col = 0; col < 40; col++)
+        for (int col = x0 >> 3; col <= (x1 - 1) >> 3; col++)
         {
+            int i0 = Math.Max(0, x0 - col * 8), i1 = Math.Min(8, x1 - col * 8);
             int idx = row * 40 + col;
             int code = Vram[idx], at = Vram[0x800 + idx];
             int gi = ((at & 0x80) << 4) | (code << 3) | y;
@@ -633,12 +658,12 @@ public sealed class MzMachine
             int fg = (at >> 4) & 7, bg = at & 7;
             if (p15 && (Vram[0xC00 + idx] & 8) != 0)
             {
-                cells++;
+                if (i0 == 0) cells++;
                 int pat = Vram[0x400 + idx], pat2 = Vram[0xC00 + idx];
                 int pc = (pat << 3) | ((pat2 & 0xC0) << 5) | y;
                 int b = Plane[0][pc], r = Plane[1][pc], g = Plane[2][pc];
                 bool over = (PcgPriority & 2) != 0;
-                for (int i = 0; i < 8; i++)
+                for (int i = i0; i < i1; i++)
                 {
                     int msk = 0x80 >> i;
                     int pcgc = ((b & msk) != 0 ? 1 : 0) | ((r & msk) != 0 ? 2 : 0) | ((g & msk) != 0 ? 4 : 0);
@@ -653,10 +678,10 @@ public sealed class MzMachine
             if (Pcg == PcgType.Mz1500) { fg = Palette[fg]; bg = Palette[bg]; }
             int f = pal[fg], bk = pal[bg];
             int d = o + col * 8;
-            for (int i = 0; i < 8; i++) Fb[d + i] = (bits & (0x80 >> i)) != 0 ? f : bk;
+            for (int i = i0; i < i1; i++) Fb[d + i] = (bits & (0x80 >> i)) != 0 ? f : bk;
         }
-        if (p15) PcgCells = ln == 0 ? cells : PcgCells + cells;
-        if (Tr != null) Tr.Line(ln);
+        if (p15) PcgCells = ln == 0 && x0 == 0 ? cells : PcgCells + cells;
+        if (x1 >= 320 && Tr != null) Tr.Line(ln);
     }
 
     /// <summary>The current picture: 320x200, or 384x256 with the (black) border.</summary>

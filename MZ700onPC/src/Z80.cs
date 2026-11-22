@@ -1,6 +1,11 @@
 // Z80 CPU core (C# 5 / .NET Framework csc). Originally written for the VZ game
 // test harnesses (Override, Crownfall); used by VZonPC.
 // T-state tables follow the usual documented timings.
+// Bus timing: Cyc is advanced by whole instructions, but every memory and I/O access is also stamped with its
+// own time, AccessT, from the Z80's machine cycles: M1 opcode fetch 4 T, memory read / write 3 T, I/O 4 T
+// (with its automatic wait state), plus the documented internal cycles. The stamp is the T2/T3 boundary of the
+// cycle for memory (+2 T) and the end of TW for I/O (+3 T). Wait states inserted by the machine go through
+// Stall(), which also moves every later access in the same instruction.
 using System;
 
 public sealed class Z80
@@ -14,6 +19,11 @@ public sealed class Z80
     public int IM;
     public int EiDelay;
     public long Cyc;
+    public long InsT;        // T at the start of the current instruction (plus any waits so far)
+    public long AccessT;     // when the bus access in progress happens
+    int bt;                  // T into the instruction where the next machine cycle starts
+    /// <summary>WAIT states: the instruction and every later access in it take n T longer.</summary>
+    public void Stall(int n) { Cyc += n; InsT += n; AccessT += n; }
     public int IntData = 0xFF;
 
     public Func<int, int> Rd;
@@ -52,24 +62,28 @@ public sealed class Z80
     int DE { get { return (D << 8) | E; } set { D = (value >> 8) & 255; E = value & 255; } }
     int HL { get { return (H << 8) | L; } set { H = (value >> 8) & 255; L = value & 255; } }
 
-    int rb(int a) { return Rd(a & 0xFFFF); }
-    void wb(int a, int v) { Wr(a & 0xFFFF, v & 255); }
+    int rb(int a) { AccessT = InsT + bt + 2; bt += 3; return Rd(a & 0xFFFF); }
+    void wb(int a, int v) { AccessT = InsT + bt + 2; bt += 3; Wr(a & 0xFFFF, v & 255); }
+    int ioIn(int port) { AccessT = InsT + bt + 3; bt += 4; return In(port); }
+    void ioOut(int port, int v) { AccessT = InsT + bt + 3; bt += 4; Out(port, v); }
+    int m1() { AccessT = InsT + bt + 2; bt += 4; int v = (Fetch ?? Rd)(PC); PC = (PC + 1) & 0xFFFF; return v; }
     int rw(int a) { return rb(a) | (rb(a + 1) << 8); }
     void ww(int a, int v) { wb(a, v); wb(a + 1, v >> 8); }
-    int nb() { int v = (Fetch ?? Rd)(PC); PC = (PC + 1) & 0xFFFF; return v; }
+    int nb() { AccessT = InsT + bt + 2; bt += 3; int v = (Fetch ?? Rd)(PC); PC = (PC + 1) & 0xFFFF; return v; }
     int nw() { int v = rw(PC); PC = (PC + 2) & 0xFFFF; return v; }
-    void push(int v) { SP = (SP - 2) & 0xFFFF; ww(SP, v); }
+    void push(int v) { SP = (SP - 1) & 0xFFFF; wb(SP, v >> 8); SP = (SP - 1) & 0xFFFF; wb(SP, v); }
     int pop() { int v = rw(SP); SP = (SP + 2) & 0xFFFF; return v; }
     void incR() { R = (R & 0x80) | ((R + 1) & 0x7F); }
 
     // ---- interrupts
     public bool IntLine;   // level-sensitive INT input
-    public void Nmi() { Halted = false; IFF1 = false; push(PC); PC = 0x66; Cyc += 11; }
+    public void Nmi() { InsT = Cyc; bt = 5; Halted = false; IFF1 = false; push(PC); PC = 0x66; Cyc += 11; }
 
     bool TryInt()
     {
         if (!IntLine || !IFF1 || EiDelay > 0) return false;
         Halted = false; IFF1 = IFF2 = false; incR();
+        InsT = Cyc; bt = 7;                       // interrupt acknowledge: M1 with two wait states
         if (IM == 2) { push(PC); PC = rw((I << 8) | (IntData & 0xFF)); Cyc += 19; }
         else { push(PC); PC = 0x38; Cyc += 13; }
         return true;
@@ -79,9 +93,10 @@ public sealed class Z80
     {
         if (TryInt()) return;
         if (EiDelay > 0) EiDelay--;
+        InsT = Cyc; bt = 0;
         if (Halted) { Cyc += 4; incR(); return; }
         incR();
-        int op = nb();
+        int op = m1();
         Exec(op);
     }
 
@@ -187,7 +202,7 @@ public sealed class Z80
     int r8p(int r) { if (r == 4) return H; if (r == 5) return L; return r8(r); }
     void w8p(int r, int v) { if (r == 4) H = v & 255; else if (r == 5) L = v & 255; else w8(r, v); }
     int memAddr() { return idx == 0 ? HL : ((getIdx() + disp) & 0xFFFF); }
-    void fetchDisp() { if (idx != 0) { int d = nb(); disp = d < 128 ? d : d - 256; } }
+    void fetchDisp() { if (idx != 0) { int d = nb(); disp = d < 128 ? d : d - 256; bt += 5; } }
 
     int rp(int p) { switch (p) { case 0: return BC; case 1: return DE; case 2: return idx == 0 ? HL : getIdx(); default: return SP; } }
     void wrp(int p, int v)
@@ -220,20 +235,20 @@ public sealed class Z80
             while (true)
             {
                 incR();
-                op = nb();
+                op = m1();
                 if (op == 0xDD || op == 0xFD) { Cyc += 4; pre = op; continue; }
                 break;
             }
             idx = pre == 0xDD ? 1 : 2;
             if (op == 0xCB) { ExecIdxCB(); return; }
-            if (op == 0xED) { idx = 0; incR(); Cyc += 0; ExecED(nb()); return; }
+            if (op == 0xED) { idx = 0; incR(); Cyc += 0; ExecED(m1()); return; }
             Cyc += cyc00[op];
             ExecMain(op, true);
             idx = 0;
             return;
         }
-        if (op == 0xCB) { incR(); ExecCB(nb()); return; }
-        if (op == 0xED) { incR(); ExecED(nb()); return; }
+        if (op == 0xCB) { incR(); ExecCB(m1()); return; }
+        if (op == 0xED) { incR(); ExecED(m1()); return; }
         ExecMain(op, false);
     }
 
@@ -250,7 +265,7 @@ public sealed class Z80
                         {
                             case 0: break; // NOP
                             case 1: { int t; t = A; A = A_; A_ = t; t = F; F = F_; F_ = t; } break;
-                            case 2: { int d = nb(); B = (B - 1) & 255; if (B != 0) { PC = (PC + (d < 128 ? d : d - 256)) & 0xFFFF; Cyc += 5; } } break;
+                            case 2: { bt += 1; int d = nb(); B = (B - 1) & 255; if (B != 0) { PC = (PC + (d < 128 ? d : d - 256)) & 0xFFFF; Cyc += 5; } } break;
                             case 3: { int d = nb(); PC = (PC + (d < 128 ? d : d - 256)) & 0xFFFF; } break;
                             default: { int d = nb(); if (cc(y - 4)) { PC = (PC + (d < 128 ? d : d - 256)) & 0xFFFF; Cyc += 5; } } break;
                         }
@@ -276,15 +291,15 @@ public sealed class Z80
                         if (q == 0) wrp(p, rp(p) + 1); else wrp(p, rp(p) - 1);
                         break;
                     case 4:
-                        if (y == 6) { fetchDisp(); if (pref) Cyc += 8; int a = memAddr(); wb(a, inc8(rb(a))); }
+                        if (y == 6) { fetchDisp(); if (pref) Cyc += 8; int a = memAddr(); int v = rb(a); bt += 1; wb(a, inc8(v)); }
                         else w8(y, inc8(r8(y)));
                         break;
                     case 5:
-                        if (y == 6) { fetchDisp(); if (pref) Cyc += 8; int a = memAddr(); wb(a, dec8(rb(a))); }
+                        if (y == 6) { fetchDisp(); if (pref) Cyc += 8; int a = memAddr(); int v = rb(a); bt += 1; wb(a, dec8(v)); }
                         else w8(y, dec8(r8(y)));
                         break;
                     case 6:
-                        if (y == 6) { fetchDisp(); if (pref) Cyc += 5; int a = memAddr(); wb(a, nb()); }
+                        if (y == 6) { if (pref) { int d = nb(); disp = d < 128 ? d : d - 256; Cyc += 5; int n = nb(); bt += 2; wb(memAddr(), n); } else { int a = memAddr(); wb(a, nb()); } }
                         else w8(y, nb());
                         break;
                     case 7:
@@ -315,7 +330,7 @@ public sealed class Z80
             default:
                 switch (z)
                 {
-                    case 0: if (cc(y)) { PC = pop(); Cyc += 6; } break;
+                    case 0: bt += 1; if (cc(y)) { PC = pop(); Cyc += 6; } break;
                     case 1:
                         if (q == 0) wrp2(p, pop());
                         else switch (p)
@@ -331,21 +346,21 @@ public sealed class Z80
                         switch (y)
                         {
                             case 0: PC = nw(); break;
-                            case 2: Out((A << 8) | nb(), A); break;
-                            case 3: A = In((A << 8) | nb()); break;
-                            case 4: { int v = rw(SP); ww(SP, rp(2)); wrp(2, v); } break;
+                            case 2: { int n = nb(); ioOut((A << 8) | n, A); } break;
+                            case 3: { int n = nb(); A = ioIn((A << 8) | n); } break;
+                            case 4: { int lo = rb(SP), hi = rb((SP + 1) & 0xFFFF); bt += 1; int r = rp(2); wb((SP + 1) & 0xFFFF, r >> 8); wb(SP, r); wrp(2, lo | (hi << 8)); } break;
                             case 5: { int t = DE; DE = HL; HL = t; } break;
                             case 6: IFF1 = IFF2 = false; break;
                             case 7: IFF1 = IFF2 = true; EiDelay = 1; break;
                         }
                         break;
-                    case 4: { int a = nw(); if (cc(y)) { push(PC); PC = a; Cyc += 7; } } break;
+                    case 4: { int a = nw(); if (cc(y)) { bt += 1; push(PC); PC = a; Cyc += 7; } } break;
                     case 5:
-                        if (q == 0) push(rp2(p));
-                        else if (p == 0) { int a = nw(); push(PC); PC = a; }
+                        if (q == 0) { bt += 1; push(rp2(p)); }
+                        else if (p == 0) { int a = nw(); bt += 1; push(PC); PC = a; }
                         break;
                     case 6: alu(y, nb()); break;
-                    default: push(PC); PC = y * 8; break;
+                    default: bt += 1; push(PC); PC = y * 8; break;
                 }
                 break;
         }
@@ -367,6 +382,7 @@ public sealed class Z80
         int x = op >> 6, y = (op >> 3) & 7, z = op & 7;
         Cyc += (z == 6) ? (x == 1 ? 12 : 15) : 8;
         int v = r8(z);
+        if (z == 6) bt += 1;
         switch (x)
         {
             case 0: w8(z, rot(y, v)); break;
@@ -379,10 +395,10 @@ public sealed class Z80
     void ExecIdxCB()
     {
         int d = nb(); disp = d < 128 ? d : d - 256;
-        int op = nb();
+        int op = nb(); bt += 2;
         int x = op >> 6, y = (op >> 3) & 7, z = op & 7;
         int a = (getIdx() + disp) & 0xFFFF;
-        int v = rb(a);
+        int v = rb(a); bt += 1;
         Cyc += (x == 1 ? 16 : 19);   // + 4 for the prefix already counted = 20 / 23
         int r;
         switch (x)
@@ -403,8 +419,8 @@ public sealed class Z80
         {
             switch (z)
             {
-                case 0: { int v = In(BC); if (y != 6) w8(y, v); F = (F & CF) | SZP[v]; Cyc += 12; } break;
-                case 1: Out(BC, y == 6 ? 0 : r8(y)); Cyc += 12; break;
+                case 0: { int v = ioIn(BC); if (y != 6) w8(y, v); F = (F & CF) | SZP[v]; Cyc += 12; } break;
+                case 1: ioOut(BC, y == 6 ? 0 : r8(y)); Cyc += 12; break;
                 case 2: if (q == 0) sbc16(rp(p)); else adc16(rp(p)); Cyc += 15; break;
                 case 3: { int a = nw(); if (q == 0) ww(a, rp(p)); else wrp(p, rw(a)); Cyc += 20; } break;
                 case 4: { int v = A; A = 0; sub8(v, 0, true); Cyc += 8; } break;
@@ -417,8 +433,8 @@ public sealed class Z80
                         case 1: R = A; Cyc += 9; break;
                         case 2: A = I; F = (F & CF) | SZ[A] | (IFF2 ? PF : 0); Cyc += 9; break;
                         case 3: A = R; F = (F & CF) | SZ[A] | (IFF2 ? PF : 0); Cyc += 9; break;
-                        case 4: { int m = rb(HL); wb(HL, (A << 4) | (m >> 4)); A = (A & 0xF0) | (m & 0xF); F = (F & CF) | SZP[A]; Cyc += 18; } break;
-                        case 5: { int m = rb(HL); wb(HL, (m << 4) | (A & 0xF)); A = (A & 0xF0) | (m >> 4); F = (F & CF) | SZP[A]; Cyc += 18; } break;
+                        case 4: { int m = rb(HL); bt += 4; wb(HL, (A << 4) | (m >> 4)); A = (A & 0xF0) | (m & 0xF); F = (F & CF) | SZP[A]; Cyc += 18; } break;
+                        case 5: { int m = rb(HL); bt += 4; wb(HL, (m << 4) | (A & 0xF)); A = (A & 0xF0) | (m >> 4); F = (F & CF) | SZP[A]; Cyc += 18; } break;
                         default: Cyc += 8; break;
                     }
                     break;
@@ -452,13 +468,13 @@ public sealed class Z80
                     break;
                 case 2: // INI/IND
                     {
-                        int v = In(BC); wb(HL, v); HL = (HL + dlt) & 0xFFFF; B = (B - 1) & 255;
+                        bt += 1; int v = ioIn(BC); wb(HL, v); HL = (HL + dlt) & 0xFFFF; B = (B - 1) & 255;
                         F = SZ[B] | NF; if (rep && B != 0) { PC = (PC - 2) & 0xFFFF; Cyc += 5; }
                     }
                     break;
                 default: // OUTI/OUTD
                     {
-                        int v = rb(HL); B = (B - 1) & 255; Out(BC, v); HL = (HL + dlt) & 0xFFFF;
+                        bt += 1; int v = rb(HL); B = (B - 1) & 255; ioOut(BC, v); HL = (HL + dlt) & 0xFFFF;
                         F = SZ[B] | NF; if (rep && B != 0) { PC = (PC - 2) & 0xFFFF; Cyc += 5; }
                     }
                     break;

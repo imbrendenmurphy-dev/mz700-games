@@ -21,6 +21,7 @@ also a good way to explore the classic demos and see how they pull their tricks.
 | ![Booting a floppy disk: the IPL loading Dracula 2, the floppy panel and track map bottom left](vis_disk_boot.png) | ![The MZ-1500 PSG: two SN76489 chips playing a chord loop](vis_psg.png) |
 | ![ROCKFALL: VRAM waits by line, the frame budget and hot spots](vis_rockfall.png) | ![ROBOGEDDON: sound, keyboard scanning and the beam](vis_robogeddon.png) |
 | ![STARHAUL: the wireframe engine at work](vis_starhaul.png) | ![ZENITH: the ray-cast landscape](vis_zenith.png) |
+| ![Pixel-exact: the palette switched every 12 T, mid-line, 30 pixels apart](vis_raster.png) | |
 
 ## The visualiser
 
@@ -56,7 +57,10 @@ also a good way to explore the classic demos and see how they pull their tricks.
 - 64K RAM, with the full bank switching of `OUT E0`–`E6`, including the `E5`/`E6` lock.
 - Runs the real 1Z-013A monitor when you supply it. Without it, a built-in stand-in runs machine-code programs.
 
-**Timing to the T-state**
+**Pixel-exact, timed to the T-state**
+- The picture is drawn as the beam goes, 0.4 T a pixel. Every memory and I/O access is timed to its own Z80
+  machine cycle, so a colour or character change made part-way along a line appears at the exact pixel the beam
+  had reached. Raster splits, mid-line palette tricks and HBLANK-timed code are drawn where the beam really was.
 - Lines are 227.2 T and a field is 312 lines (70886.4 T, 50 Hz). The picture is the first 128 T of lines
   0–199.
 - **VRAM wait states.** Outside each line's blanking window the CPU is held in WAIT. There are four models:

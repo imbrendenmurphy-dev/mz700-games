@@ -68,12 +68,12 @@ public sealed class MzTrace
     public MzTrace(MzMachine machine) { m = machine; sampleT = rnd.Next(FT); }
 
     int RelOf(long t) { long r = (t * 5 - m.FrameStartM) / 5; return r < 0 ? 0 : r >= FT ? FT - 1 : (int)r; }
-    int Rel { get { return RelOf(m.Cpu.Cyc - 2); } }
+    int Rel { get { return RelOf(m.Cpu.AccessT); } }
     int LineNow { get { int l = (int)((m.NowM - m.FrameStartM) / MzMachine.LINE_M); return l < 0 ? 0 : l >= LINES ? LINES - 1 : l; } }
 
     bool Contend()
     {
-        long pos = ((m.Cpu.Cyc - 2) * 5) % MzMachine.FRAME_M; int x = (int)(pos % MzMachine.LINE_M);
+        long pos = (m.Cpu.AccessT * 5) % MzMachine.FRAME_M; int x = (int)(pos % MzMachine.LINE_M);
         return x < m.WaitW0 * 5 || x >= m.WaitW1 * 5;
     }
 

@@ -4,7 +4,9 @@ An emulator for the **Sharp MZ-700** (European PAL model) for Windows, built for
 folder. It is the MZ-700 sibling of VZonPC: the same visualiser, the same kind of headless runner, the same build.
 
 - **Machine:** Z80 at 3.546895 MHz, 64K RAM, bank switching (`OUT E0`–`E6`), the 1Z-013A monitor.
-- **Video:** 40×25 colour text from the CG-ROM. Lines are drawn as the beam leaves the picture.
+- **Video:** 40×25 colour text from the CG-ROM, **pixel-exact**. The picture is drawn as the beam goes, and every
+  memory and I/O access is timed to its own Z80 machine cycle. A colour or character change made part-way along a
+  line appears at the pixel the beam had reached.
 - **VRAM wait states:** the CPU is held in WAIT outside each line's blanking window. Four models are available (see below).
 - **Sound:** the 8253's counter 0 into the speaker, through the PC's sound card. Pulse-width and control-word mixers come out right.
 - **Character generators (optional):**
@@ -33,7 +35,7 @@ It builds with the C# compiler that comes with Windows (`build.bat`). There is n
 | `roms\` | `1z013a.rom` (monitor, 4K), `mz700fon.int` (European CG-ROM), `mz700fon.jpn` (Japanese), optionally `mz1e05.rom` (the floppy interface ROM). Not in git. |
 | `tools\mkmzt.py` | wraps a raw binary in an MZT header: `py tools\mkmzt.py game.bin GAME.MZT 0x1200` |
 | `tools\fdipl.asm`, `tools\mkipl.ps1` | the built-in floppy boot ROM, and the script that rebuilds `src\FdIpl.cs` from it |
-| `test\` | test programs: `pcg700.asm`, `pcg1500.asm`, `psgtest.asm` (PSG tones and noise, measured), `psgdemo.asm` (a chord loop on both PSGs), `fdctest.asm` (every FDC command) |
+| `test\` | test programs: `rastest.asm` (pixel timing), `pcg700.asm`, `pcg1500.asm`, `psgtest.asm` (PSG tones and noise, measured), `psgdemo.asm` (a chord loop on both PSGs), `fdctest.asm` (every FDC command) |
 | `showcase\` | `BLURB.md` (the pitch and tech specs) and fullscreen visualiser screenshots |
 | `mz700onpc.ini` | settings, written on exit |
 
@@ -103,6 +105,32 @@ Where these come from: Takeda Toshiya's Common Source Code Project (eMZ-700), MA
   is 312 lines (70886.4 T).
 - The picture takes the first 128 T of lines 0–199. /VBLK (`E002` bit 7) is low on lines 200–311.
 - `E008` bit 7 is 0 during HBLANK, from T 128 to the end of the line. This is CSP's polarity; MAME has it the other way.
+
+**Pixel-exact video**
+- **Bus timing.** Every memory and I/O access is stamped with its own time inside the instruction, from the Z80's
+  machine cycles, rather than with the end of the instruction.
+  - M1 opcode fetch 4 T, memory read and write 3 T, I/O 4 T (with its automatic wait state), plus the documented
+    internal cycles: `(IX+d)` +5, `PUSH`/`RST`/`CALL` +1, `INC (HL)` +1, `OUTI`/`INI` +1, `RRD` +4 and so on.
+  - Memory accesses happen at T2/T3 of their cycle and I/O at the end of TW.
+  - VRAM and ROM wait states push the rest of the instruction back.
+  - This places 8253, `E002`/`E008` polling, VRAM waits and port writes within a fraction of a T. Before, an access
+    could be several T off, and `OUT (C),r` and the other ED-prefixed I/O about 12 T early.
+- **The beam.** A pixel is 2 master clocks (0.4 T). Pixel x of a line is drawn at master clock 2x from the start of
+  that line, so the picture spans T 0–128.
+  - Before anything that changes the picture, every pixel the beam has passed is drawn with the old state.
+  - The MZ-1500 palette (`OUT F1`) and priority (`OUT F0`) act on the pixel itself.
+  - Character, attribute and character-generator data (VRAM, PCG-700, MZ-1500 PCG planes) is latched for each
+    8-pixel cell, so a change shows from the next cell. A write that lands in HBLANK, as every VRAM write does with
+    the accurate wait model, affects the next line.
+- **Test.** `test\rastest.asm` switches MZ-1500 palette entry 0 with back-to-back `OUT (C),r`, 12 T apart. Every
+  colour boundary lands exactly 30 pixels after the previous one, part-way along the line. Each line is 227.2 T,
+  so the pattern moves 2 pixels from one line to the next. A line-at-a-time renderer shows solid lines.
+- **Caveats.**
+  - Where the 320 pixels sit relative to HSYNC, and how far ahead the hardware fetches each cell, aren't
+    documented. The emulator puts the first pixel at T 0 of the line, the same frame the wait window uses, and
+    fetches a cell's data at its first pixel.
+  - Effects measured against other effects in the same picture are exact. Their absolute position against a real
+    TV's edge hasn't been checked against hardware.
 
 **VRAM wait states** (Machine → VRAM wait states)
 - **Accurate (default):** an access to `D000`–`DFFF` outside T 128–208 of its line waits until T 128. This applies on
@@ -340,7 +368,7 @@ settings. Other options: `--type "L\r"`, `--tape FILE`, `--fasttape 0`, `--scale
 
 | | |
 |---|---|
-| `src\Z80.cs`, `src\Z80Dis.cs` | CPU and disassembler (shared with VZonPC) |
+| `src\Z80.cs`, `src\Z80Dis.cs` | CPU and disassembler (from VZonPC; this copy adds per-access bus timing) |
 | `src\Machine.cs` | memory map, banks, 8255, `E008`, VRAM waits, video, PCGs, joysticks, sound, MZT loading, tape traps |
 | `src\Pit.cs` | the 8253 |
 | `src\Psg.cs` | the SN76489AN |
@@ -361,5 +389,4 @@ C# 5 only: no string interpolation or `?.`.
 - Stereo: the PSGs' left and right chips are mixed to mono.
 - The MZ-800's own modes.
 - Hardware scrolling. The MZ-700 has none.
-- Where the 320 pixels sit within the line relative to HSYNC isn't documented. Mid-line colour changes are drawn per
-  line, not per pixel.
+- Where the 320 pixels sit within the line relative to HSYNC isn't documented (see Pixel-exact video).
