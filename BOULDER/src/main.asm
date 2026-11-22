@@ -29,6 +29,7 @@ QUEUE           equ CAVE            ; (end of the variables)
 STACKTOP        equ 0CFF0h
 VARBASE         equ (end_of_program+255) & 0FF00h
 
+SLIME_RATE      equ 40              ; chance in 256 a tick that a rock seeps through slime
 FRAMEF          equ 2               ; fields per display frame (25 fps)
 
 ; input bits
@@ -68,9 +69,21 @@ start:
 attract:
         call title_screen           ; NZ = start a game
         jr nz,.play
+        ld hl,attract_n             ; two tours of the front end, in turn
+        ld a,(hl)
+        xor 1
+        ld (hl),a
+        jr nz,.b
+        call story_page
+        jr nz,.play
         call guide_page
         jr nz,.play
-        call hiscore_page
+        jr .s
+.b:     call wings_page
+        jr nz,.play
+        call guide2_page
+        jr nz,.play
+.s:     call hiscore_page
         jr nz,.play
         ld a,1
         ld (demo),a
@@ -86,6 +99,7 @@ attract:
         ld (demo),a
         call game
         call hiscore_entry
+        call mus_stop               ; the title starts its own tune
         jr attract
 
 init_once:
@@ -106,6 +120,7 @@ init_once:
         include "render.asm"
         include "game.asm"
         include "screens.asm"
+        include "attract.asm"
         include "text.asm"
 
 ; ---------------------------------------------------------------- data
@@ -114,6 +129,7 @@ init_once:
         include "../build/gen_caves.inc"
         include "../build/gen_music.inc"
         include "../build/gen_logo.inc"
+        include "../build/gen_pics.inc"
 
 end_of_program:
         ASSERT end_of_program <= VARBASE

@@ -23,7 +23,7 @@ import engine as EN  # noqa: E402
 W = EN.W                      # map row stride
 DIRKEY = {-1: EN.K_LEFT, 1: EN.K_RIGHT, -W: EN.K_UP, W: EN.K_DOWN}
 NAMEKEY = {'L': EN.K_LEFT, 'R': EN.K_RIGHT, 'U': EN.K_UP, 'D': EN.K_DOWN}
-CREATURES = set(range(EN.FIRE0, EN.AMOEBA))
+CREATURES = set(range(EN.FIRE0, EN.AMOEBA)) | {EN.SHADE}
 LOOK = 10                     # ticks to survive standing still after a move
 
 
@@ -34,7 +34,7 @@ class Stuck(Exception):
 def danger_cells(g):
     d = set()
     for i, v in enumerate(g.g):
-        if (v & 31) in CREATURES:
+        if (v & 63) in CREATURES:
             for o in (0, -1, 1, -W, W):
                 d.add(i + o)
                 for o2 in (-1, 1, -W, W):
@@ -44,8 +44,8 @@ def danger_cells(g):
 
 
 def passable(g, i):
-    m = g.g[i] & 31
-    if m in (EN.SPACE, EN.DIRT, EN.DIAMOND):
+    m = g.g[i] & 63
+    if m in (EN.SPACE, EN.DIRT, EN.DIAMOND, EN.KEY):
         return True
     return m == EN.EXITO
 
@@ -62,7 +62,7 @@ def bfs(g, avoid):
                 continue
             prev[n] = i
             order.append(n)
-            if (g.g[n] & 31) != EN.EXITO:
+            if (g.g[n] & 63) != EN.EXITO:
                 q.append(n)
     return prev, order
 
@@ -81,10 +81,10 @@ def gem_count(g):
     n = g.got
     prev, order = bfs(g, set())
     for i in order:
-        if (g.g[i] & 31) == EN.DIAMOND:
+        if (g.g[i] & 63) == EN.DIAMOND:
             n += 1
     for v in g.g:
-        m = v & 31
+        m = v & 63
         if m == EN.DIAMONDF or EN.DEX1 <= m <= EN.DEX4:
             n += 1
     return n
@@ -142,7 +142,7 @@ class Bot:
         self.keys.append(k)
 
     def born(self):
-        while self.g.inbox_time or (self.g.g[self.g.pl_addr] & 31) != EN.PLAYER:
+        while self.g.inbox_time or (self.g.g[self.g.pl_addr] & 63) != EN.PLAYER:
             self.tick()
 
     # ---------------------------------------------------------------- script
@@ -159,20 +159,53 @@ class Bot:
             elif op == 'wait':
                 for _ in range(step[1]):
                     self.tick()
+            elif op == 'drop':
+                self.drop_at(step[1] + step[2] * W, step[3] if len(step) > 3 else 1)
             if self.g.pl_dead:
                 raise Stuck('script killed the player at %r' % (step,))
 
-    def go(self, target):
+    def go(self, target, keep=()):
+        """walk to target, never through the cells in keep"""
         for _ in range(200):
             if self.g.pl_addr == target:
                 return
-            prev, _ = bfs(self.g, danger_cells(self.g))
+            prev, _ = bfs(self.g, danger_cells(self.g) | set(keep))
             if target in prev:
                 r = walk(self.g, path_to(prev, target))
                 if r:
                     return self.commit(*r)
             self.wait()
         raise Stuck('cannot reach %d,%d' % (target % W, target // W))
+
+    def drop_at(self, site, side, waits=80, settle=30):
+        """stand beside the earth plug at `site` (on side -1 or 1), wait for
+        the right moment, snap it so the rock drops onto a creature, and
+        step clear of the burst"""
+        self.go(site + side, keep=(site, site - W, site + W, site + W + side))
+        g = self.g
+        before = gem_count(g)
+        snap = DIRKEY[-side] | EN.K_FIRE
+        for wait in range(waits):
+            s = g.clone()
+            for _ in range(wait):
+                s.tick(0)
+            if s.pl_dead:
+                break
+            s.tick(snap)
+            for esc in (DIRKEY[side], EN.K_UP, EN.K_DOWN, 0):
+                e = s.clone()
+                ekeys = [esc] * 2 if esc else []
+                for k in ekeys:
+                    e.tick(k)
+                t = e.clone()
+                for _ in range(settle):
+                    t.tick(0)
+                    if t.pl_dead:
+                        break
+                if t.pl_dead or gem_count(t) <= before:
+                    continue
+                return self.commit([0] * wait + [snap] + ekeys, e)
+        raise Stuck('no drop at %d,%d' % (site % W, site // W))
 
     # ---------------------------------------------------------------- moves
     def wait(self):
@@ -193,14 +226,15 @@ class Bot:
         danger = danger_cells(g)
         # first try paths that leave the rocks where they are (earth holding
         # up a rock is a contraption: don't waste it by walking through)
-        plugs = {i for i, v in enumerate(g.g) if (v & 31) == EN.DIRT
-                 and (g.g[i - W] & 31) in (EN.BOULDER, EN.DIAMOND)}
+        plugs = {i for i, v in enumerate(g.g) if (v & 63) == EN.DIRT
+                 and (g.g[i - W] & 63) in (EN.BOULDER, EN.DIAMOND)}
         for avoid in (danger | plugs, danger):
             prev, order = bfs(g, avoid)
             if g.exit_open:
-                targets = [i for i in order if (g.g[i] & 31) == EN.EXITO]
+                targets = [i for i in order if (g.g[i] & 63) == EN.EXITO]
             else:
-                targets = [i for i in order if (g.g[i] & 31) == EN.DIAMOND][:16]
+                targets = [i for i in order if (g.g[i] & 63) == EN.KEY]
+                targets += [i for i in order if (g.g[i] & 63) == EN.DIAMOND][:16]
             for t in targets:
                 r = walk(g, path_to(prev, t))
                 if r:
@@ -215,8 +249,8 @@ class Bot:
             return
         # bring a rock down: earth with a resting rock or diamond on top
         if self.idle >= 3:
-            sites = [i for i in order if (g.g[i] & 31) == EN.DIRT
-                     and (g.g[i - W] & 31) in (EN.BOULDER, EN.DIAMOND)]
+            sites = [i for i in order if (g.g[i] & 63) == EN.DIRT
+                     and (g.g[i - W] & 63) in (EN.BOULDER, EN.DIAMOND)]
             for t in sites[:12]:
                 p = path_to(prev, t)
                 r = walk(g, p)
@@ -243,7 +277,7 @@ class Bot:
         best = None
         tried = 0
         for site in order:
-            if (g.g[site] & 31) != EN.DIRT or (g.g[site - W] & 31) not in (EN.BOULDER, EN.DIAMOND):
+            if (g.g[site] & 63) != EN.DIRT or (g.g[site - W] & 63) not in (EN.BOULDER, EN.DIAMOND):
                 continue
             for side in (-1, 1):
                 a = site + side                     # stand here, snap towards the site
@@ -269,19 +303,29 @@ class Bot:
                     if not ok:
                         break
                     s.tick(k)
-                    if (s.g[site] & 31) == EN.DIRT:
+                    if (s.g[site] & 63) == EN.DIRT:
                         continue                    # the snap did not happen
-                    t = s.clone()
-                    for _ in range(settle):
-                        t.tick(0)
-                        if t.pl_dead:
-                            ok = False
-                            break
-                    if not ok or not survives(t):
-                        continue
-                    gain = gem_count(t) - before
-                    if gain > 0 and (best is None or gain > best[0]):
-                        best = (gain, keys0 + [0] * wait + [k], s)
+                    # stay put, or snap and run: step away from the drop
+                    for esc in (0, DIRKEY[side], EN.K_UP, EN.K_DOWN):
+                        e = s.clone()
+                        ekeys = []
+                        if esc:
+                            for _ in range(2):
+                                e.tick(esc)
+                                ekeys.append(esc)
+                        t = e.clone()
+                        good = not t.pl_dead
+                        for _ in range(settle):
+                            if not good:
+                                break
+                            t.tick(0)
+                            good = not t.pl_dead
+                        if not good or not survives(t):
+                            continue
+                        gain = gem_count(t) - before
+                        if gain > 0 and (best is None or gain > best[0]):
+                            best = (gain, keys0 + [0] * wait + [k] + ekeys, e)
+                        break
                 if tried >= 16:
                     break
             if tried >= 16:
@@ -305,7 +349,8 @@ class Bot:
 
 SHOWCH = {EN.SPACE: ' ', EN.DIRT: '.', EN.BRICK: '#', EN.MAGIC: 'M', EN.STEEL: '%', EN.EXIT: 'X',
           EN.EXITO: 'x', EN.BOULDER: 'o', EN.BOULDERF: 'O', EN.DIAMOND: '*', EN.DIAMONDF: '+',
-          EN.AMOEBA: 'a', EN.PLAYER: 'P', EN.EXPWALL: '=', EN.INBOX: 'I', EN.SHOWER: 'v'}
+          EN.AMOEBA: 'a', EN.PLAYER: 'P', EN.EXPWALL: '=', EN.INBOX: 'I', EN.SHOWER: 'v',
+          EN.GEODE: 'g', EN.LOCK: 'L', EN.KEY: 'k', EN.SLIME: 's', EN.SHADE: 'S'}
 
 
 def show(g):
@@ -313,8 +358,8 @@ def show(g):
     for y in range(g.h):
         r = ''
         for x in range(g.w):
-            m = g.g[y * W + x] & 31
-            r += SHOWCH.get(m, 'F' if EN.FIRE0 <= m < EN.BUTT0 else 'B' if m < EN.AMOEBA else '!')
+            m = g.g[y * W + x] & 63
+            r += SHOWCH.get(m, 'F' if EN.FIRE0 <= m < EN.BUTT0 else 'B' if EN.BUTT0 <= m < EN.AMOEBA else '!')
         rows.append(r)
     return '\n'.join(rows)
 

@@ -15,7 +15,7 @@ import caves  # noqa: E402
 E = caves.E
 CODE = {' ': 'SPACE', '.': 'DIRT', '#': 'BRICK', 'M': 'MAGIC', '%': 'STEEL', 'X': 'EXIT', 'x': 'EXITO',
         '@': 'BOULDER', 'D': 'DIAMOND', 'F': 'FIRE0', 'B': 'BUTT3', 'a': 'AMOEBA', 'P': 'PLAYER',
-        '=': 'EXPWALL'}
+        '=': 'EXPWALL', 'g': 'GEODE', 'L': 'LOCK', 'k': 'KEY', 's': 'SLIME', 'S': 'SHADE'}
 SHOW = {v: k for k, v in CODE.items()}
 
 
@@ -27,7 +27,7 @@ def started():
         g.run(1)
         if g.rb('inbox_time') == 0 and g.rb('pl_dead') == 0:
             pa = g.rw('pl_addr')
-            if g.m.mem[pa] & 0x1F == E['PLAYER']:
+            if g.m.mem[pa] & 0x3F == E['PLAYER']:
                 return g
     raise RuntimeError('player never appeared')
 
@@ -57,7 +57,7 @@ def setup(g, rows, need=None):
 
 
 def at(g, x, y):
-    v = g.m.mem[S['CAVE'] + (y + 1) * 64 + x + 1] & 0x1F
+    v = g.m.mem[S['CAVE'] + (y + 1) * 64 + x + 1] & 0x3F
     return caves.ELEMS[v]
 
 
@@ -217,8 +217,56 @@ def t_rest_safe():
     check('resting boulder does not kill', g.rb('pl_dead') == 0 and at(g, 4, 0) == 'BOULDER', g)
 
 
+def t_geode():
+    g = started()
+    setup(g, ['P   @    ', '         ', '    g    ', '.........'])
+    ticks(g, 5)
+    check('falling rock cracks a geode', at(g, 4, 2) == 'DIAMOND' and
+          not any(at(g, x, y) == 'GEODE' for x in range(9) for y in range(4)), g)
+    g = started()
+    setup(g, ['P   @    ', '    g    ', '.... ....'])
+    ticks(g, 5)
+    check('resting rock rolls off a geode', at(g, 4, 1) == 'GEODE' and at(g, 4, 0) == 'SPACE', g)
+
+
+def t_slime():
+    g = started()
+    setup(g, ['P   @    ', '    s    ', '         ', '         ', '.........'])
+    ticks(g, 60)
+    check('rock seeps through slime', at(g, 4, 0) == 'SPACE' and at(g, 4, 3) == 'BOULDER'
+          and at(g, 4, 1) == 'SLIME', g)
+
+
+def t_key():
+    g = started()
+    setup(g, ['Pk.L.....', '...L.....', '.........'])
+    ticks(g, 2, ['right'])
+    check('key taken', g.rb('key_got') == 1, g)
+    ticks(g, 2)
+    check('locks open', at(g, 3, 0) == 'SPACE' and at(g, 3, 1) == 'SPACE', g)
+
+
+def t_shade():
+    g = started()
+    setup(g, ['P        S', '..........'])
+    ticks(g, 30)
+    check('shade hunts the player', g.rb('pl_dead') == 1, g)
+    g = started()
+    setup(g, ['P.......  ', '.......  S', '..........'])
+    ticks(g, 12)
+    check('shade keeps to empty space', at(g, 8, 1) == 'SHADE' or at(g, 7, 1) == 'SHADE'
+          or at(g, 8, 0) == 'SHADE', g)
+    check('shade cannot dig', g.rb('pl_dead') == 0, g)
+    g = started()
+    setup(g, ['P   @    ', '         ', '         ', '   #S#   ', '#########'])
+    ticks(g, 5)
+    check('falling rock turns a shade to gems', any(at(g, x, y) in ('DIAMOND', 'DIAMONDF', 'DEX1', 'DEX2', 'DEX3', 'DEX4')
+          for x in range(3, 6) for y in range(1, 4)), g)
+
+
 TESTS = [t_fall, t_roll, t_collect, t_snap, t_exit, t_push, t_firefly_crush, t_butterfly, t_death,
-         t_magic, t_amoeba, t_expwall, t_timeout, t_fall_kills, t_rest_safe]
+         t_magic, t_amoeba, t_expwall, t_timeout, t_fall_kills, t_rest_safe,
+         t_geode, t_slime, t_key, t_shade]
 
 if __name__ == '__main__':
     want = sys.argv[1:]

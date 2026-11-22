@@ -153,15 +153,17 @@ h_player:
         ex de,hl                    ; DE = target
         pop hl                      ; HL = player
         ld a,(de)
-        and 1Fh
+        and 3Fh
         cp E_DIRT+1
         jr c,.dig
+        cp E_KEY
+        jp z,.key
         cp E_DIAMOND
         jr z,.gem
         cp E_DIAMONDF
         jr z,.gem
         cp E_EXITO
-        jr z,.exit
+        jp z,.exit
         cp E_BOULDER
         ret nz
         ; push a boulder sideways: it goes on the second tick of pushing
@@ -208,6 +210,18 @@ h_player:
         push de
         push hl
         call got_diamond
+        pop hl
+        pop de
+        pop bc
+        jr .take
+.key:   ld a,1                      ; the key: every lock opens
+        ld (key_got),a
+        push bc
+        push de
+        push hl
+        ld hl,SFX_KEY
+        ld a,3
+        call sfx
         pop hl
         pop de
         pop bc

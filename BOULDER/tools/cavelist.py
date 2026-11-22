@@ -1,4 +1,5 @@
-"""cavelist.py - the 20 caves of ROCKFALL, in five wings of four.
+"""cavelist.py - the caves of ROCKFALL: five wings of four here, wings VI-VII and the
+bonus caves in wings67.py.
 
 Each wing teaches one idea, varies it, shows it off in a picture cave and
 ends in a jewel shower, a collect-em-up where spouts in the ceiling rain
@@ -431,8 +432,14 @@ def t_core():
     return c
 
 
-CAVES = [a_first_light, b_rolling_stones, c_mountain, d_jewel_shower,
-         e_lanterns, f_butterfly_pens, g_moth, h_sparkfall,
-         i_magic_wall, j_alchemy_shafts, k_hourglass, l_rock_rain,
-         m_amoeba, n_creeping_walls, o_tree, p_ruby_rain,
-         q_gauntlet, r_twin_vaults, s_treasure_storm, t_core]
+from wings67 import (b1_crystal_rain, b2_butterfly_garden, b3_alchemists_vat, b4_honeycomb,  # noqa: E402
+                     b5_geode_field, b6_treasure_vault, u_geodes, v_seeping_halls, w_crystal_vault,
+                     x_shades, y_catacombs, z_heart)
+
+CAVES = [a_first_light, b_rolling_stones, c_mountain, d_jewel_shower, b1_crystal_rain,
+         e_lanterns, f_butterfly_pens, g_moth, h_sparkfall, b2_butterfly_garden,
+         i_magic_wall, j_alchemy_shafts, k_hourglass, l_rock_rain, b3_alchemists_vat,
+         m_amoeba, n_creeping_walls, o_tree, p_ruby_rain, b4_honeycomb,
+         q_gauntlet, r_twin_vaults, s_treasure_storm, t_core, b5_geode_field,
+         u_geodes, v_seeping_halls, w_crystal_vault, b6_treasure_vault,
+         x_shades, y_catacombs, z_heart]

@@ -22,7 +22,7 @@ game:
         jr z,.sc
         ld a,(demo_cave)            ; the demo visits a different cave each time
         inc a
-        and 7
+        and DEMO_N-1
         ld (demo_cave),a
         ld e,a
         ld d,0
@@ -43,12 +43,16 @@ game:
         ret nz                      ; the demo plays one attempt
         ld a,(cave_result)
         or a
-        jr nz,.lost
+        jr z,.next
+        call is_bonus               ; a bonus cave costs no life
+        jr z,.lost
+.next:
         ; cave done: next one
         ld a,(cave_no)
         inc a
         cp NCAVES
         jr c,.nc
+        call ending                 ; out of the mountain at daybreak
         ld a,(level)
         cp 4
         jr nc,.nl
@@ -237,8 +241,6 @@ cave_play:
         ld (cave_result),a
         ret
 
-demo_caves:                         ; a tour of the wings: shower, moth, hourglass...
-        db 3,6,10,5,11,14,18,4      ; D, G, K, F, L, O, S, E
 
 msg_show_none:
         ld hl,0
@@ -375,10 +377,11 @@ cave_intro:
         ld c,17
         ld a,BLUE
         call clear_rows
-        ; which wing of the mountain
-        ld a,(cave_no)
-        srl a
-        srl a
+        ; which wing of the mountain (its theme), or a bonus cave
+        ld hl,(cave_hdr)
+        ld de,CH_THEME
+        add hl,de
+        ld a,(hl)
         add a,a
         ld e,a
         ld d,0
@@ -393,11 +396,15 @@ cave_intro:
         call print_centre
         ; big "CAVE X" in the bold second-bank letters
         ld de,VRAM+6*40+17
+        call is_bonus
         ld hl,txt_cave_big
-        ld c,YELLOW*16+BLUE+80h
+        jr z,.cb
+        ld de,VRAM+6*40+16
+        ld hl,txt_bonus_big
+.cb:    ld c,YELLOW*16+BLUE+80h
         call print
         ld a,(cave_no)
-        inc a
+        call letter_of
         ld c,WHITE*16+BLUE+80h
         call putc
         ; name and hint
@@ -476,7 +483,19 @@ cave_intro:
         ld c,23
         ld a,MAGENTA*16+BLUE
         call print_centre
-.nd:    ld hl,SONG_CAVE
+.nd:    ld hl,(cave_hdr)            ; the wing's own jingle
+        ld de,CH_THEME
+        add hl,de
+        ld a,(hl)
+        add a,a
+        ld e,a
+        ld d,0
+        ld hl,WINGSONGS
+        add hl,de
+        ld a,(hl)
+        inc hl
+        ld h,(hl)
+        ld l,a
         call mus_play
         call fe_reset
         ld b,125                    ; 2.5 s or a key

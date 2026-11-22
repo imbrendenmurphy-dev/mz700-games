@@ -30,6 +30,7 @@ class Pair:
         z.wb('start_cave', index)
         z.wb('turbo', 1)
         z.run(10, ['space'])
+        z.m.held = set()                    # let go, or a front-end page (the ending) waits forever
         self.z = z
         self.until_hook(2000)
         self.p = engine.Game(index)

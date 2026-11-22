@@ -84,7 +84,7 @@ class Game:
     def cave(self):
         """the cave as element codes, cave_h rows of cave_w"""
         base = S['CAVE']
-        return [[self.m.mem[base + y * 64 + x] & 0x1F for x in range(self.rb('cave_w'))] for y in range(self.rb('cave_h'))]
+        return [[self.m.mem[base + y * 64 + x] & 0x3F for x in range(self.rb('cave_w'))] for y in range(self.rb('cave_h'))]
 
 
 def parse_keys(spec):

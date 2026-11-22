@@ -3,12 +3,20 @@
 A cave-digging game for the **Sharp MZ-700** (64K, PAL, stock European
 character ROM, no PCG), loaded from tape or a UniCMT USB cassette emulator.
 
-Deep under the mountain lie twenty caves in five wings, each wing in its own stone and colours, and most caves bigger than the screen: the view stays still until you near its edge, then glides after you. Dig through the
-earth, gather enough diamonds to open the exit, and get out before the clock
-runs down. Boulders fall when you dig beneath them and roll off anything
-round. Fireflies explode at a touch, butterflies burst into diamonds, the
-amoeba grows, the magic wall turns falling rocks into gems, and spouts in
-the ceiling rain jewels.
+Deep under the mountain lie twenty-six caves in seven wings, each wing in
+its own stone and colours, with a hidden bonus chamber between each wing
+and the next. Most caves are bigger than the screen: the view stays still
+until you near its edge, then glides after you.
+
+Dig through the earth, gather enough diamonds to open the exit, and get out
+before the clock runs down:
+- Boulders fall when you dig beneath them and roll off anything round.
+- Fireflies explode at a touch, and butterflies burst into diamonds.
+- The amoeba grows, the magic wall turns falling rocks into gems, and
+  spouts in the ceiling rain jewels.
+- Deeper down, a falling rock cracks a geode open into a gem, rocks seep
+  through slime, a key opens every lock in its cave, and shades, ghosts
+  that hunt you through your own tunnels, wait to be crushed.
 
 ![Title](docs/title.png) ![Cave B](docs/cave.png)
 ![Cave card](docs/intro.png) ![Guide](docs/guide.png)
@@ -30,7 +38,7 @@ sound chip.
 |---|---|
 | Cursor keys or Q / A / O / P | move and dig |
 | SPACE + direction | grab earth or a diamond next to you without moving |
-| LEFT / RIGHT on the title | choose the starting wing (cave A, E, I, M or Q) |
+| LEFT / RIGHT on the title | choose the starting wing (cave A, E, I, M, Q, U or X) |
 | J on the title | switch the MZ-1X03 joystick on or off |
 | CR | pause |
 | BREAK | give up |
@@ -73,13 +81,36 @@ one-line hint. The caves grow through the first wing, from 48 x 24 to 64 x 32 (o
 | IV Green Caverns | M The Amoeba: gather before it spreads | N Creeping Walls | O The Tree: fruit in the crown, amoeba at the roots | P Ruby Rain: catch the rain before the amoeba |
 | V The Core | Q Gauntlet: firefly tunnels | R Twin Vaults: feed the magic roofs | S Treasure Storm: under a crown of pegs | T The Core: everything you have learned |
 
+The last two wings have three caves each, and bring in four new things:
+
+| Wing | Teach | Vary | Finale |
+|---|---|---|---|
+| VI Crystal Vaults | U Geodes: geodes hang under rock columns; free the rock and it cracks one open | V Seeping Halls: rocks seep through slime floors onto the geodes and butterflies below | W The Crystal Vault: a giant locked crystal; the key waits under slime far away |
+| VII The Haunted Deep | X Shades: lure each shade out of its crypt under a rock, snap the plug and run | Y Catacombs: shades walk the old passages between locked tombs | Z Heart of the Mountain: a locked heart of gems and geodes; the key lies far below, and its keepers wait in crypts |
+
+**Hidden chambers.** Between one wing and the next lies a one-screen bonus
+cave with a short clock, in gold. Dying or running out of time there costs
+no life; the game just goes on to the next wing.
+
+| | Bonus cave | |
+|---|---|---|
+| 1 | Crystal Rain | spouts rain only gems |
+| 2 | Butterfly Garden | drop a rock into every pen |
+| 3 | The Alchemist's Vat | feed rocks to a magic floor |
+| 4 | The Honeycomb | gems in brick cells; mind the ones above you |
+| 5 | Geode Field | a first taste of geodes |
+| 6 | The Treasure Vault | one key opens every vault |
+
+Clear cave Z and you climb out of the mountain at daybreak; then the caves
+start again at the next level, with less time and faster physics.
+
 **Every cave is proven completable.** A solving bot plays each cave on an
 exact Python model of the rules. It plans paths, tries them in a copy of the
 world, and keeps a move only if it survives. It also times rock drops onto
 creatures: it waits beside an earth plug and snaps it away at the moment
 that frees the most gems. Each winning run is stored in
 `tools/solutions.py`, and each cave's clock is set from it (twice the bot's
-time plus 40 s). `build.py` refuses to build if any solution stops winning.
+time plus 40 s; a bonus cave gets a third over the bot's time plus 10 s). `build.py` refuses to build if any solution stops winning.
 `tools/verify.py` plays every solution on the real Z80 program in the
 simulator and compares the whole cave with the model after every tick.
 
@@ -102,17 +133,28 @@ simulator and compares the whole cave with the model after every tick.
 - **Spouts** (the domes in the ceiling) rain gems, and in later wings rocks
   too, until they run dry.
 - Remaining time is added to your score when you leave a cave. An extra life
-  every 500 points. After cave T the caves start again at the next level,
+  every 500 points. After cave Z the caves start again at the next level,
   with less time and faster physics.
 
 ## Attract mode
 
-Title screen with music, a colour-cycling logo, a little digger tunnelling
-along the bottom and a scroller. Then come a guide to what lives in the
-caves, the high-score table and a **demo**. The demo replays a cave's
-recorded solution, a different cave each time: the jewel shower, the moth,
-the hourglass and more. The rules are deterministic, so the replay plays out
-exactly as it did for the bot. Press any key to leave the demo.
+The title screen has its music, a colour-cycling logo, a little digger
+tunnelling along the bottom and a scroller. After it come two tours, in
+turn:
+- **The Legend:** the mountain by night, to a slow hymn. Stars twinkle,
+  lanterns flicker in the caves, a miner walks home into the mountain, and
+  the story types itself out. Then the guide to what lives in the caves.
+- **The Seven Wings:** each wing's stone and gems, animated, beside its
+  name. Then the guide to what waits deeper: geodes, slime, keys, locks and
+  shades.
+
+Both tours end with the high-score table and a **demo**. The demo replays a
+cave's recorded solution, a different cave each time across all seven wings
+and the hidden chambers. The rules are deterministic, so the replay plays
+out exactly as it did for the bot. Press any key to leave the demo.
+
+Each wing's cave card plays its own jingle. Clearing cave Z brings the
+ending, "Daybreak", and a new high score is entered to its own tune.
 
 ## Building
 
@@ -131,6 +173,8 @@ py tools/scrollshot.py C R      walk through a cave on the Z80 build and screens
 py tools/themeshots.py          one in-game screenshot per wing (build/wings.png)
 py tools/perf.py T 500 all [joy] game speed in a cave (walking right, so it scrolls) under the VRAM wait model
 py tools/wav.py 40              render the title music to build/title_music.wav
+py tools/pictures.py            preview the story and ending pictures (build/pic_*.png)
+py tools/showcase.py            screenshots and the animated GIF for showcase/ (about 10 minutes)
 ```
 
 The simulator needs the MZ-700 character ROM as `rom/mz700fon.int` (not
@@ -143,13 +187,16 @@ included).
 | `src/player.asm` | controls, the player's move, scoring, demo replay |
 | `src/render.asm` | cave view, reveal / cover dissolve, HUD |
 | `src/game.asm` | game flow, the tick and clock, cave cards, game over |
-| `src/screens.asm` | title, guide, high scores |
+| `src/screens.asm` | title, guide pages, high scores |
+| `src/attract.asm` | the story, the seven wings, the ending: pictures, walkers, typewriter |
 | `src/sound.asm` | one-voice music player and effects |
-| `tools/cavelist.py` | the 20 cave designs, wing by wing |
+| `tools/cavelist.py` | the designs of wings I-V, and the play order |
+| `tools/wings67.py` | wings VI-VII and the six bonus caves |
+| `tools/pictures.py` | the story and ending pictures (`py tools/pictures.py` previews them) |
 | `tools/caves.py` | element codes, tile looks, drawing brushes |
 | `tools/engine.py` | the rules in Python, tick for tick like the Z80 |
 | `tools/bot.py`, `tools/tune.py`, `tools/solutions.py` | the solver, the tuner, the solutions |
-| `tools/music.py` | the songs and sound effects |
+| `tools/music.py` | the songs (title, hymn, daybreak, name entry, a jingle per wing) and sound effects |
 
 ## How it works
 
@@ -159,13 +206,18 @@ included).
   that moves right or down is written with a "moved" bit so the scan skips
   it. Falling and rolling, explosions, firefly/butterfly wall following,
   amoeba growth, the magic wall and the spouts all work this way.
-- **Deterministic.** Amoeba growth and the spouts draw on the cave's own
+- **Shades** step towards the player every other tick, along the longer
+  distance first, but only into empty space: they follow the tunnels you
+  dig. A rock that falls on one turns it into nine gems.
+- **Deterministic.** Amoeba growth, slime and the spouts draw on the cave's own
   random sequence: a xorshift seeded per cave, never the Z80's R register.
   A push succeeds on the second tick of pushing. Every timer counts ticks.
   So the same keys always give the same game, which is what makes the
   recorded solutions and the demo replays possible.
-- **Rendering.** Each element maps through a phase table to a display index
-  (so diamonds sparkle and fireflies spin), and only cells whose display
+- **Rendering.** A cell's low 6 bits are its element (up to 64), bit 7
+  marks it as moved this tick. Each element maps through a table of four
+  animation phases to a display index (so diamonds sparkle and fireflies
+  spin), and only cells whose display
   index changed are written to VRAM. Under the VRAM wait model, VRAM waits
   take about 3% of the CPU, even while the window scrolls.
-- **Caves** are painted in Python with brushes (boxes, ellipses, stamps, pegs, spouts, rock drops over earth plugs) on a seeded random fill, and stored Huffman-coded: a per-cave code tree plus a bit stream, about 350 bytes for a full 64 x 32 cave, 7K for all twenty.
+- **Caves** are painted in Python with brushes (boxes, ellipses, stamps, pegs, spouts, rock drops over earth plugs) on a seeded random fill, and stored Huffman-coded: a per-cave code tree plus a bit stream, about 350 bytes for a full 64 x 32 cave, under 11K for all thirty-two.

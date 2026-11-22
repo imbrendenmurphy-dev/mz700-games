@@ -18,8 +18,10 @@ EXIT, EXITO, BOULDER, BOULDERF = E['EXIT'], E['EXITO'], E['BOULDER'], E['BOULDER
 DIAMOND, DIAMONDF, FIRE0, BUTT0 = E['DIAMOND'], E['DIAMONDF'], E['FIRE0'], E['BUTT0']
 AMOEBA, PLAYER, EXPWALL, INBOX = E['AMOEBA'], E['PLAYER'], E['EXPWALL'], E['INBOX']
 EXP1, EXP4, DEX1, DEX4, SHOWER = E['EXP1'], E['EXP4'], E['DEX1'], E['DEX4'], E['SHOWER']
-ROUND = (BOULDER, DIAMOND, BRICK, EXPWALL)
-SOLID_SKIP = (STEEL, EXIT, EXITO, INBOX, SHOWER)
+GEODE, LOCK, KEY, SLIME, SHADE = E['GEODE'], E['LOCK'], E['KEY'], E['SLIME'], E['SHADE']
+ROUND = (BOULDER, DIAMOND, BRICK, EXPWALL, GEODE)
+SOLID_SKIP = (STEEL, EXIT, EXITO, INBOX, SHOWER, LOCK, KEY)
+SLIME_RATE = 40                      # chance in 256 per tick that a rock seeps through slime
 
 
 class Game:
@@ -51,7 +53,7 @@ class Game:
         self.amoeba_slow = c.amoeba
         self.amoeba_fast = 1 if c.amoeba == 0 else 0
         self.shower_rate, self.shower_haz, self.shower_left = c.shrate, c.shhaz, c.shmax
-        self.cseed = (0x5A01 + index * 0x101) & 0xFFFF
+        self.cseed = (0x5A01 + c.seed_ix * 0x101) & 0xFFFF
         self.got = self.exit_open = self.magic_state = self.amoeba_conv = 0
         self.pl_dead = self.pl_exit = self.pl_frozen = self.timeout = 0
         self.pl_push = 0
@@ -63,6 +65,8 @@ class Game:
         self.keys = 0
         self.amoeba_cnt = self.amoeba_grow = 0
         self.scan_ptr = 0
+        self.key_got = 0
+        self.shade_ph = 0
 
     # ---------------------------------------------------------------- random
     def crand(self):
@@ -111,6 +115,7 @@ class Game:
         g = self.g
         self.amoeba_cnt = 0
         self.amoeba_grow = 0
+        self.shade_ph ^= 1
         for i in self.scan_cells:
             v = g[i]
             if v == 0:
@@ -138,8 +143,11 @@ class Game:
             g[i] = 0
             g[i + W] = (c + 1) | 0x80
             return
-        if (below & 0x1F) in ROUND:
+        if (below & 0x3F) in ROUND:
             self.try_roll(i, c + 1)
+        elif below == SLIME and g[i + 2 * W] == 0 and self.crand() < SLIME_RATE:
+            g[i] = 0                                 # seeps through the slime
+            g[i + 2 * W] = (c + 1) | 0x80
 
     def try_roll(self, i, c):
         g = self.g
@@ -153,7 +161,7 @@ class Game:
     def h_fall(self, i):
         g = self.g
         c = g[i]
-        b = g[i + W] & 0x1F
+        b = g[i + W] & 0x3F
         if b == 0:
             g[i] = 0
             g[i + W] = c | 0x80
@@ -170,6 +178,12 @@ class Game:
             return self.explode(i + W, EXP1)
         elif b >= FIRE0 and b < AMOEBA:
             return self.explode(i + W, EXP1 if b < BUTT0 else DEX1)
+        elif b == SHADE:
+            return self.explode(i + W, DEX1)
+        elif b == GEODE and c == BOULDERF:
+            g[i + W] = DIAMOND | 0x80                # cracked open
+            g[i] = c - 1
+            return
         else:
             if b in (BOULDERF, DIAMONDF):
                 return
@@ -183,7 +197,7 @@ class Game:
         g = self.g
         c = g[i]
         for o in OFF:
-            n = g[i + o] & 0x1F
+            n = g[i + o] & 0x3F
             if n == PLAYER or n == AMOEBA:
                 return self.explode(i, EXP1 if c < BUTT0 else DEX1)
         if c < BUTT0:
@@ -262,12 +276,39 @@ class Game:
     def h_none(self, i):
         pass
 
+    def h_lock(self, i):
+        if self.key_got:
+            self.g[i] = 0
+
+    def h_shade(self, i):
+        """hunts the player through empty space, a step every other tick"""
+        g = self.g
+        for o in OFF:
+            if g[i + o] & 0x3F == PLAYER:
+                return self.explode(i, EXP1)
+        if not self.shade_ph:
+            return
+        p = self.pl_addr
+        dx = p % W - i % W
+        dy = p // W - i // W
+        h = (2 if dx > 0 else 0) if dx else None
+        v = (3 if dy > 0 else 1) if dy else None
+        order = (h, v) if abs(dx) >= abs(dy) else (v, h)
+        for d in order:
+            if d is None:
+                continue
+            t = i + OFF[d]
+            if g[t] == 0:
+                g[t] = SHADE | (0x80 if d & 2 else 0)
+                g[i] = 0
+                return
+
     def explode(self, centre, stage):
         g = self.g
         for r in (-W, 0, W):
             for c in (-1, 0, 1):
                 j = centre + r + c
-                m = g[j] & 0x1F
+                m = g[j] & 0x3F
                 if m in SOLID_SKIP:
                     continue
                 if m == PLAYER:
@@ -297,11 +338,13 @@ class Game:
             b = 2
         fire = keys & K_FIRE
         t = i + OFF[b]
-        m = g[t] & 0x1F
+        m = g[t] & 0x3F
         if m <= DIRT:
             pass
         elif m in (DIAMOND, DIAMONDF):
             self.got_diamond()
+        elif m == KEY:
+            self.key_got = 1
         elif m == EXITO:
             if fire:
                 return
@@ -357,7 +400,7 @@ class Game:
         return not self.pl_dead and not self.timeout
 
     def at(self, x, y):
-        return self.g[y * W + x] & 0x1F
+        return self.g[y * W + x] & 0x3F
 
     def player_xy(self):
         return self.pl_addr % W, self.pl_addr // W
@@ -369,7 +412,7 @@ class Game:
         return n
 
 
-HANDLERS = [Game.h_none] * 32
+HANDLERS = [Game.h_none] * 64
 for _n in ('BOULDER', 'DIAMOND'):
     HANDLERS[E[_n]] = Game.h_rest
 for _n in ('BOULDERF', 'DIAMONDF'):
@@ -385,3 +428,5 @@ HANDLERS[PLAYER] = Game.h_player
 HANDLERS[EXPWALL] = Game.h_expwall
 HANDLERS[INBOX] = Game.h_inbox
 HANDLERS[SHOWER] = Game.h_shower
+HANDLERS[LOCK] = Game.h_lock
+HANDLERS[SHADE] = Game.h_shade

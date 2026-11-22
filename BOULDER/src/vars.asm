@@ -70,6 +70,22 @@ life_acc        ds 2
 lives           ds 1
 level           ds 1
 start_cave      ds 1
+start_sel       ds 1                ; which wing the title starts in
+attract_n       ds 1                ; which tour of the front end is next
+pic_t           ds 1                ; picture pages: field counter
+wk_tab          ds 2                ; the walker: its path, step, look
+wk_i            ds 1
+wk_glyph        ds 1
+wk_attr         ds 1
+wk_prev         ds 2                ; the cell it stands on (0 = none) and what was there
+wk_sch          ds 1
+wk_sat          ds 1
+tw_ptr          ds 2                ; the typewriter
+tw_de           ds 2
+tw_row          ds 1
+ge_tab          ds 2                ; the guide page being shown
+ge_ctl          ds 2
+ge_title        ds 2
 cave_no         ds 1
 cave_hdr        ds 2
 cave_result     ds 1
@@ -120,6 +136,8 @@ pl_moved        ds 1
 pl_dead         ds 1
 pl_exit         ds 1
 pl_frozen       ds 1
+key_got         ds 1                ; the cave's key is taken: locks open
+shade_ph        ds 1                ; shades move when 1 (every other tick)
 
 ; demo replay
 demo_ptr        ds 2

@@ -14,15 +14,7 @@
 ; ---------------------------------------------------------------------
 cave_load:
         ld a,(cave_no)
-        add a,a
-        ld e,a
-        ld d,0
-        ld hl,CAVETAB
-        add hl,de
-        ld a,(hl)
-        inc hl
-        ld h,(hl)
-        ld l,a
+        call cave_hdr_of
         ld (cave_hdr),hl
         push hl
         pop ix
@@ -46,7 +38,7 @@ cave_load:
         ld (shower_left),a
         ld a,(ix+CH_THEME)          ; the wing's rock type and colours
         call set_theme
-        ld a,(cave_no)              ; the cave's own random sequence
+        ld a,(ix+CH_SEED)           ; the cave's own random sequence
         ld l,a
         ld h,a
         ld de,5A01h
@@ -95,6 +87,8 @@ cave_load:
         ld (pl_dead),a
         ld (pl_exit),a
         ld (pl_frozen),a
+        ld (key_got),a
+        ld (shade_ph),a
         ld (pl_face),a
         ld (pl_moved),a
         ld (latch),a
@@ -154,7 +148,7 @@ cave_load:
 .rd:    ld a,(ix+0)
         or a
         jp p,.walk                  ; an inner node
-        and 1Fh
+        and 3Fh
         ld (de),a
         inc de
         ld a,(unp_cols)
@@ -190,10 +184,50 @@ cave_load:
         ld (hud_dirty),a
         jp view_init
 
+; cave_hdr_of: A = cave index -> HL = its header
+cave_hdr_of:
+        add a,a
+        ld e,a
+        ld d,0
+        ld hl,CAVETAB
+        add hl,de
+        ld a,(hl)
+        inc hl
+        ld h,(hl)
+        ld l,a
+        ret
+
+; letter_of: A = cave index -> A = display code of its letter (A-Z, or
+; 1-6 for a bonus cave); keeps BC, DE
+letter_of:
+        push de
+        call cave_hdr_of
+        ld de,CH_LETTER
+        add hl,de
+        ld l,(hl)
+        ld h,high ATOD
+        ld a,(hl)
+        pop de
+        ret
+
+; is_bonus: NZ if the current cave is a bonus cave (keeps BC, DE)
+is_bonus:
+        push de
+        ld hl,(cave_hdr)
+        ld de,CH_FLAGS
+        add hl,de
+        bit 0,(hl)
+        pop de
+        ret
+
 ; ---------------------------------------------------------------------
 ; cave_scan: one tick of physics over rows 1..20
 ; ---------------------------------------------------------------------
 cave_scan:
+        ld hl,shade_ph              ; shades move every other tick
+        ld a,(hl)
+        xor 1
+        ld (hl),a
         ld hl,0
         ld (amoeba_cnt),hl
         xor a
@@ -285,10 +319,30 @@ h_rest:
         ld (hl),a
         ret
 .notfall:
-        and 1Fh
+        and 3Fh
         call is_round
+        jr z,.roll
+        cp E_SLIME
         ret nz
+        push hl                     ; on slime: seeps through now and then
+        ld de,2*CAVEW
+        add hl,de
+        ld a,(hl)
+        or a
+        jr nz,.nos
+        call crand
+        cp SLIME_RATE
+        jr nc,.nos
         ld a,c
+        inc a
+        or 80h
+        ld (hl),a
+        pop hl
+        ld (hl),0
+        ret
+.nos:   pop hl
+        ret
+.roll:  ld a,c
         inc a
         ld c,a                      ; rolls as a falling object
         jp try_roll
@@ -301,7 +355,7 @@ h_fall:
         push hl
         add hl,de
         ld a,(hl)
-        and 1Fh
+        and 3Fh
         ex de,hl                    ; DE = below
         pop hl
         or a
@@ -315,18 +369,33 @@ h_fall:
         jp z,.magic
         cp E_PLAYER
         jr z,.boom
+        cp E_SHADE
+        jr z,.dex
+        cp E_GEODE
+        jr z,.geode
         cp E_FIRE0
         jr c,.solid
         cp E_BUTT0
         jr c,.boom
         cp E_AMOEBA
         jr nc,.solid
-        ex de,hl                    ; crushed a butterfly: diamonds
+.dex:   ex de,hl                    ; crushed a butterfly: diamonds
         ld b,E_DEX1
         jp explode
 .boom:  ex de,hl
         ld b,E_EXP1
         jp explode
+.geode: ld a,c                      ; a rock cracks a geode open
+        cp E_BOULDERF
+        ld a,E_GEODE
+        jr nz,.solid
+        ld a,E_DIAMOND+80h
+        ld (de),a
+        dec c
+        ld (hl),c
+        ld hl,SFX_CRACK
+        ld a,2
+        jp sfx
 .solid: cp E_BOULDERF
         ret z                       ; resting on another falling object: wait
         cp E_DIAMONDF
@@ -384,6 +453,8 @@ is_round:
         cp E_BRICK
         ret z
         cp E_EXPWALL
+        ret z
+        cp E_GEODE
         ret
 
 ; roll the object at HL left or right if both the side and the cell
@@ -442,7 +513,7 @@ h_fly:
         ld h,a
         ld a,(hl)
         pop hl
-        and 1Fh
+        and 3Fh
         cp E_PLAYER
         jr z,.boom
         cp E_AMOEBA
@@ -655,6 +726,138 @@ h_inbox:
 h_none:
         ret
 
+; lock: opens (vanishes) once the key is taken
+h_lock:
+        ld a,(key_got)
+        or a
+        ret z
+        ld (hl),0
+        ret
+
+; shade: hunts the player through empty space, a step every other tick:
+; along the longer distance first (across on a tie), else the other way
+h_shade:
+        ld de,DIROFF
+        ld b,4
+.chk:   push hl
+        ld a,(de)
+        inc de
+        add a,l
+        ld l,a
+        ld a,(de)
+        inc de
+        adc a,h
+        ld h,a
+        ld a,(hl)
+        pop hl
+        and 3Fh
+        cp E_PLAYER
+        jr z,.boom
+        djnz .chk
+        ld a,(shade_ph)
+        or a
+        ret z
+        push hl
+        call cell_xy
+        push de
+        ld hl,(pl_addr)
+        call cell_xy
+        pop bc                      ; B, C = the shade's x, y
+        pop hl
+        ld a,d
+        sub b
+        ld b,a                      ; B = dx
+        ld a,e
+        sub c
+        ld c,a                      ; C = dy
+        ld d,0FFh                   ; D = across (0 left, 2 right), FFh none
+        ld a,b
+        or a
+        jr z,.nh
+        ld d,0
+        jp m,.nh
+        ld d,2
+.nh:    ld e,0FFh                   ; E = up / down (1, 3), FFh none
+        ld a,c
+        or a
+        jr z,.nv
+        ld e,1
+        jp m,.nv
+        ld e,3
+.nv:    ld a,b
+        or a
+        jp p,$+5
+        neg
+        ld b,a                      ; |dx|
+        ld a,c
+        or a
+        jp p,$+5
+        neg                         ; A = |dy|
+        cp b
+        jr c,.hf
+        jr z,.hf
+        ld a,d                      ; further up or down: that way first
+        ld d,e
+        ld e,a
+.hf:    ld a,d
+        call .try
+        ret z
+        ld a,e
+.try:   cp 0FFh                     ; A = dir: Z if the shade moved
+        jr z,.no
+        push de
+        ld c,a
+        add a,a
+        add a,low DIROFF
+        ld e,a
+        ld d,high DIROFF
+        ld a,(de)
+        ld b,a
+        inc e
+        ld a,(de)
+        ld d,a
+        ld e,b
+        push hl
+        add hl,de
+        ld a,(hl)
+        or a
+        jr nz,.nt
+        ld a,c
+        and 2                       ; right or down: not scanned yet
+        rrca
+        rrca
+        or E_SHADE
+        ld (hl),a
+        pop hl
+        ld (hl),0
+        pop de
+        xor a
+        ret
+.nt:    pop hl
+        pop de
+.no:    or 1
+        ret
+.boom:  ld b,E_EXP1
+        jp explode
+
+; cell_xy: HL = map cell -> D = x, E = y (keeps HL)
+cell_xy:
+        ld a,l
+        and CAVEW-1
+        ld d,a
+        ld a,h
+        sub high CAVE
+        add a,a
+        add a,a
+        ld e,a
+        ld a,l
+        rlca
+        rlca
+        and 3
+        or e
+        ld e,a
+        ret
+
 ; shower spout: while the shower lasts, drops a diamond (now and then a
 ; boulder) into the empty cell below it
 h_shower:
@@ -725,7 +928,11 @@ explode:
 .r:     push bc
         ld c,3
 .c:     ld a,(hl)
-        and 1Fh
+        and 3Fh
+        cp E_LOCK
+        jr z,.skip
+        cp E_KEY
+        jr z,.skip
         cp E_STEEL
         jr z,.skip
         cp E_EXIT

@@ -16,9 +16,12 @@ MW, MH = 64, 32               # the map in memory: the largest cave
 ELEMS = ['SPACE', 'DIRT', 'BRICK', 'MAGIC', 'STEEL', 'EXIT', 'EXITO', 'BOULDER', 'BOULDERF',
          'DIAMOND', 'DIAMONDF', 'FIRE0', 'FIRE1', 'FIRE2', 'FIRE3', 'BUTT0', 'BUTT1', 'BUTT2',
          'BUTT3', 'AMOEBA', 'PLAYER', 'EXPWALL', 'INBOX', 'EXP1', 'EXP2', 'EXP3', 'EXP4',
-         'DEX1', 'DEX2', 'DEX3', 'DEX4', 'SHOWER']
+         'DEX1', 'DEX2', 'DEX3', 'DEX4', 'SHOWER',
+         # 6-bit codes from 2.4 on
+         'GEODE', 'LOCK', 'KEY', 'SLIME', 'SHADE']
 E = {n: i for i, n in enumerate(ELEMS)}
-assert len(ELEMS) == 32
+assert len(ELEMS) <= 64
+PHASES = 4                    # animation phases (ANIMIDX = phase << 6 | element)
 
 # ---------------------------------------------------------------- packed (4-bit) cave codes
 PACK = ['SPACE', 'DIRT', 'BRICK', 'MAGIC', 'STEEL', 'EXIT', 'BOULDER', 'DIAMOND',
@@ -35,18 +38,23 @@ def cell(g, fg, bg=BLACK):
 
 
 def same(c):
-    return [c] * 8
+    return [c] * PHASES
 
 
 SPACE_C = cell(0x00, WHITE, BLACK)
-FIRE = [cell(0x1B1 if i % 2 == 0 else 0x1B2, YELLOW if i // 2 % 2 == 0 else RED) for i in range(8)]
-BUTT = [cell(0xCB if i % 2 == 0 else 0xCC, MAGENTA if i // 2 % 2 == 0 else CYAN) for i in range(8)]
+FIRE = [cell(0x1B1 if i % 2 == 0 else 0x1B2, YELLOW if i < 2 else RED) for i in range(4)]
+BUTT = [cell(0xCB if i % 2 == 0 else 0xCC, MAGENTA if i < 2 else CYAN) for i in range(4)]
 EXP = [cell(0x6B, YELLOW, RED), cell(0x1B3, WHITE, RED), cell(0x1B3, YELLOW), cell(0x19F, RED)]
 DEX = [cell(0x6B, WHITE, MAGENTA), cell(0x1B3, WHITE, MAGENTA), cell(0x1B3, CYAN), cell(0x44, WHITE, BLUE)]
 PL_IDLE = cell(0x144, YELLOW)
-PL_LEFT = [cell(0x143, YELLOW) if i % 2 == 0 else cell(0x144, YELLOW) for i in range(8)]
-PL_RIGHT = [cell(0x145, YELLOW) if i % 2 == 0 else cell(0x144, YELLOW) for i in range(8)]
-PL_TAP = [PL_IDLE] * 4 + [cell(0x144, WHITE)] * 4
+PL_LEFT = [cell(0x143, YELLOW) if i % 2 == 0 else cell(0x144, YELLOW) for i in range(4)]
+PL_RIGHT = [cell(0x145, YELLOW) if i % 2 == 0 else cell(0x144, YELLOW) for i in range(4)]
+PL_TAP = [PL_IDLE] * 2 + [cell(0x144, WHITE)] * 2
+GEODE_C = [cell(0x18E, MAGENTA), cell(0x18E, MAGENTA), cell(0x18E, WHITE), cell(0x18E, MAGENTA)]
+KEY_C = [cell(0x1FE, YELLOW), cell(0x1FE, YELLOW), cell(0x1FE, WHITE), cell(0x1FE, YELLOW)]
+LOCK_C = same(cell(0x1B9, YELLOW))
+SLIME_C = [cell(0xD4, CYAN), cell(0xD3, CYAN), cell(0xD4, GREEN), cell(0xD3, GREEN)]
+SHADE_C = [cell(0x136, WHITE), cell(0x139, WHITE), cell(0x136, CYAN), cell(0x139, CYAN)]
 
 # ---------------------------------------------------------------- themes
 # Every wing has its own rock type: earth, wall, steel frame, boulders,
@@ -74,7 +82,20 @@ THEMES = [
          dirt=cell(0x1EF, YELLOW, RED), brick=cell(0x1F6, WHITE, BLACK), steel=cell(0x1FA, YELLOW, RED),
          rock=cell(0x14F, WHITE), gem=(0x44, (CYAN, CYAN, WHITE, WHITE, CYAN, CYAN, GREEN, WHITE), CYAN),
          amoeba=(GREEN, BLACK), cover=cell(0x1B2, RED)),
+    dict(name='ICE',                                             # VI Crystal Vaults
+         dirt=cell(0x1EE, CYAN), brick=cell(0x176, WHITE, CYAN), steel=cell(0x18F, CYAN, BLUE),
+         rock=cell(0x14F, WHITE), gem=(0x44, (MAGENTA, MAGENTA, WHITE, YELLOW, MAGENTA, MAGENTA, WHITE, WHITE), MAGENTA),
+         amoeba=(GREEN, BLACK), cover=cell(0x1B2, CYAN)),
+    dict(name='BONE',                                            # VII The Haunted Deep
+         dirt=cell(0x1EF, MAGENTA), brick=cell(0x166, WHITE, BLUE), steel=cell(0x1B4, MAGENTA, BLUE),
+         rock=cell(0x14F, YELLOW), gem=(0x44, (GREEN, GREEN, WHITE, CYAN, GREEN, GREEN, YELLOW, WHITE), GREEN),
+         amoeba=(GREEN, BLACK), cover=cell(0x1B2, MAGENTA)),
+    dict(name='GOLD',                                            # the bonus caves
+         dirt=cell(0x1EE, YELLOW), brick=cell(0x1F6, YELLOW, RED), steel=cell(0x18A, YELLOW, BLUE),
+         rock=cell(0x14F, WHITE), gem=(0x44, (CYAN, CYAN, WHITE, MAGENTA, CYAN, CYAN, GREEN, WHITE), CYAN),
+         amoeba=(GREEN, BLACK), cover=cell(0x1B2, YELLOW)),
 ]
+BONUS_THEME = 7
 
 
 def theme_looks(t):
@@ -83,20 +104,22 @@ def theme_looks(t):
     steel, brick, rock = th['steel'], th['brick'], th['rock']
     sbg = steel[1] & 7
     glyph, cyc, fall = th['gem']
+    cyc = cyc[0::2]
     diam = [cell(glyph, c) for c in cyc]
-    diam[2] = cell(0x6B, WHITE)                     # sparkle
+    diam[1] = cell(glyph, WHITE)                    # a glint (a star every fourth frame was too much)
     afg, abg = th['amoeba']
-    amoeba = [cell(0x19F if i % 4 < 2 else 0x1B3, afg, abg) for i in range(8)]
-    exito = [cell(0x18B, WHITE, BLUE) if i % 2 == 0 else cell(0x18B, YELLOW, BLACK) for i in range(8)]
-    inbox = [cell(0x18B, WHITE, BLUE) if i % 2 == 0 else steel for i in range(8)]
-    magic_on = [cell(0x1F6, c, BLACK) for c in (WHITE, CYAN, BLUE, MAGENTA, RED, YELLOW, GREEN, CYAN)]
+    amoeba = [cell(0x19F if i % 2 == 0 else 0x1B3, afg, abg) for i in range(4)]
+    exito = [cell(0x18B, WHITE, BLUE) if i % 2 == 0 else cell(0x18B, YELLOW, BLACK) for i in range(4)]
+    inbox = [cell(0x18B, WHITE, BLUE) if i % 2 == 0 else steel for i in range(4)]
+    magic_on = [cell(0x1F6, c, BLACK) for c in (WHITE, CYAN, MAGENTA, YELLOW)]
     look = {
         'SPACE': same(SPACE_C), 'DIRT': same(th['dirt']), 'BRICK': same(brick), 'MAGIC': same(brick),
         'STEEL': same(steel), 'EXIT': same(steel), 'EXITO': exito, 'BOULDER': same(rock),
         'BOULDERF': same(rock), 'DIAMOND': diam, 'DIAMONDF': same(cell(glyph, fall)),
         'AMOEBA': amoeba, 'PLAYER': same(PL_IDLE), 'EXPWALL': same(brick), 'INBOX': inbox,
         'SHOWER': [cell(0x1BC, c, sbg if sbg != c else BLACK)
-                   for c in (fall, fall, WHITE, WHITE, fall, fall, YELLOW, YELLOW)],
+                   for c in (fall, WHITE, fall, YELLOW)],
+        'GEODE': GEODE_C, 'KEY': KEY_C, 'LOCK': LOCK_C, 'SLIME': SLIME_C, 'SHADE': SHADE_C,
     }
     for d in range(4):
         look['FIRE%d' % d] = FIRE
@@ -125,6 +148,9 @@ class Cave:
         self.magic, self.amoeba, self.speed = magic, amoeba, speed
         self.shrate, self.shhaz, self.shmax = 0, 0, 0
         self.w, self.h, self.theme = w, h, theme
+        self.flags = 1 if intermission else 0       # bit 0: bonus cave (no life lost)
+        # the cave's own random sequence: A-Z keep 0-25 (A-T as in 2.3), bonus caves 26+
+        self.seed_ix = ord(letter) - 65 if 'A' <= letter <= 'Z' else 26 + ord(letter) - 49
         self.g = [['DIRT'] * w for _ in range(h)]
         rnd = random.Random(seed)
         names = [n for n, _ in fill]
@@ -180,7 +206,8 @@ class Cave:
 
     LEGEND = {' ': 'SPACE', '.': 'DIRT', '#': 'BRICK', '%': 'STEEL', 'M': 'MAGIC', 'o': 'BOULDER',
               '*': 'DIAMOND', 'F': 'FIRE0', 'B': 'BUTT3', 'b': 'BUTT0', 'a': 'AMOEBA', '=': 'EXPWALL',
-              'X': 'EXIT', 'P': 'INBOX', 'v': 'SHOWER'}
+              'X': 'EXIT', 'P': 'INBOX', 'v': 'SHOWER', 'g': 'GEODE', 'L': 'LOCK', 'k': 'KEY',
+              's': 'SLIME', 'S': 'SHADE'}
 
     def stamp(self, x, y, rows):
         """draw a little picture; '~' leaves a cell as it is"""
@@ -266,7 +293,8 @@ class Cave:
     def check(self):
         assert self.count('INBOX') == 1, self.letter
         assert self.count('EXIT') == 1, self.letter
-        avail = self.count('DIAMOND') + 9 * (self.count('BUTT3') + self.count('BUTT0'))
+        avail = self.count('DIAMOND') + 9 * (self.count('BUTT3') + self.count('BUTT0') + self.count('SHADE'))
+        avail += self.count('GEODE')
         if self.count('MAGIC'):
             avail += self.count('BOULDER') // 2
         if self.count('AMOEBA'):
@@ -279,6 +307,12 @@ class Cave:
         return avail
 
 
+def wing(letter):
+    """0-6: A-D, E-H, I-L, M-P, Q-T, then U-W and X-Z"""
+    k = ord(letter) - 65
+    return k // 4 if k < 20 else 5 + (k - 20) // 3
+
+
 def caves():
     """the 20 caves, in play order (designs in tools/cavelist.py)"""
     import cavelist
@@ -289,7 +323,7 @@ def caves():
         SOLUTIONS = {}
     for i, c in enumerate(cs):
         if getattr(c, 'theme', None) is None:
-            c.theme = i // 4                         # one rock type per wing
+            c.theme = wing(c.letter)                 # one rock type per wing
         c.border()
         if c.letter in SOLUTIONS and not getattr(c, 'untuned', False):
             c.time = SOLUTIONS[c.letter]['time']
@@ -349,7 +383,7 @@ def unpack(c, data):
         pos += 1
         v = tree[node + b]
         if v & 0x80:
-            out.append(v & 0x1F)
+            out.append(v & 0x3F)
             node = 0
         else:
             node = v

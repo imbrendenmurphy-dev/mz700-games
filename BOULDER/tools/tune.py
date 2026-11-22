@@ -46,8 +46,10 @@ def load():
         return {}
 
 
-def clock_for(ticks, tps):
+def clock_for(ticks, tps, bonus=False):
     secs = ticks / tps
+    if bonus:                            # a bonus cave is a dash: a third over the bot's time
+        return max(30, min(120, int(math.ceil((secs * 1.35 + 10) / 5.0)) * 5))
     return max(60, min(250, int(math.ceil((secs * 2 + 40) / 10.0)) * 10))
 
 
@@ -91,7 +93,7 @@ def main():
             sols.pop(c.letter, None)
             failed.append(c.letter)
             continue
-        t = clock_for(len(res), g.tps)
+        t = clock_for(len(res), g.tps, c.flags & 1)
         sols[c.letter] = dict(time=t, ticks=len(res), keys=rle(res))
         print('%s %-18s %4d ticks -> clock %3d s, %d runs, %d/%d gems' % (
             c.letter, c.name, len(res), t, len(sols[c.letter]['keys']), g.got, c.need), flush=True)

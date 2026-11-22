@@ -128,15 +128,81 @@ def jingle(lead, bass, drums, speed=5, fx=None):
 
 SONGS = {}
 
+# one cave-card jingle per wing (and one for the hidden chambers): 16 rows + stop
+WING_JINGLES = [
+    # I The Shallows: bright E minor
+    ('E5 - B4 - E5 - G5 - F#5 - E5 - B5 - - - .', 'E2 - - - E3 - - - B2 - - - E2 - - - .',
+     'k . h . s . h . k . h . s . . . .', 5, None),
+    # II Firefly Deeps: A minor, a flicker on the top
+    ('A4 - C5 - E5 - A5 - G#5 - E5 - B5 - - - .', 'A2 - - - A2 - - - E2 - - - E2 - - - .',
+     'k . . . s . . . k . . . s . . . .', 5, [0] * 12 + [3] * 5),
+    # III Magic Halls: D dorian, sparkling arpeggios
+    ('D5 - F5 - A5 - D6 - C6 - A5 - E5 - - - .', 'D2 - - - D3 - - - A2 - - - A2 - - - .',
+     'k . h . s . h . k . h . s . h . .', 5, [1] * 16 + [0]),
+    # IV Green Caverns: G major, pastoral
+    ('G4 - B4 - D5 - G5 - E5 - D5 - G5 - - - .', 'G2 - - - G2 - - - C3 - - - G2 - - - .',
+     'k . . . h . . . k . . . s . . . .', 6, [0] * 12 + [2] * 5),
+    # V The Core: C minor, driving
+    ('C5 C5 EB5 - G5 - F5 EB5 - D5 - C5 G5 - - - .', 'C2 - C3 - C2 - C3 - AB1 - AB2 - G1 - G2 - .',
+     'k k s . k . s . k k s . s s s s .', 4, None),
+    # VI Crystal Vaults: F# minor, glassy and high
+    ('F#5 - A5 - C#6 - F#6 - E6 - C#6 - A5 - - - .', 'F#2 - - - - - - - D2 - - - C#2 - - - .',
+     'h . h . h . h . h . h . h . . . .', 5, [1] * 16 + [0]),
+    # VII The Haunted Deep: diminished, slow
+    ('B4 - - D5 - - F5 - - G#5 - - F5 - D5 . .', 'B1 - - - - - - - - - - - F2 - - - .',
+     'k . . . . . . . s . . . k . . . .', 7, [0] * 9 + [2] * 3 + [0] * 5),
+    # a hidden chamber: a quick fanfare
+    ('C5 E5 G5 C6 - G5 C6 E6 - - - - G6 - - - .', 'C2 - - - C3 - - - G2 - - - C3 - - - .',
+     'k . h . s . h . k k h . s s s s .', 3, [0] * 12 + [3] * 5),
+]
+
+# "Daybreak": the ending, out of the mountain into the sun (E major)
+DAYBREAK = [
+    ('B4 - - - E5 - - - G#5 - - - B5 - - -', 'E2', DR_C),
+    ('C#6 - - - B5 - - - G#5 - - - E5 - - -', 'A2', DR_C),
+    ('F#5 - - - G#5 - - - A5 - - - B5 - - -', 'B2', DR_C),
+    ('G#5 - - - - - - - E5 - - - - - - -', 'E2', DR_B),
+    ('E5 - G#5 - B5 - E6 - D#6 - B5 - G#5 - B5 -', 'C#3', DR_A),
+    ('A5 - C#6 - E6 - - - D#6 - C#6 - B5 - A5 -', 'A2', DR_A),
+    ('G#5 - B5 - E6 - - - F#6 - - - D#6 - B5 -', 'B2', DR_A),
+    ('E6 - - - - - - - . . . . . . . .', 'E2', DR_B),
+]
+
+# "Hymn of the Deep": slow and reverent, for the story pages (E minor)
+HYMN = [
+    ('E5 - - - - - - - B4 - - - - - - -', 'E2', 'k . . . . . . . . . . . . . . .'),
+    ('C5 - - - - - - - G5 - - - - - - -', 'C3', 'k . . . . . . . . . . . . . . .'),
+    ('A4 - - - - - - - D5 - - - - - - -', 'D3', 'k . . . . . . . . . . . . . . .'),
+    ('B4 - - - - - - - D#5 - - - - - - -', 'B2', 'k . . . . . . . s . . . . . . .'),
+    ('E5 - - - G5 - - - B5 - - - A5 - - -', 'E2', 'k . . . . . . . . . . . . . . .'),
+    ('G5 - - - F#5 - - - E5 - - - D5 - - -', 'G2', 'k . . . . . . . . . . . . . . .'),
+    ('C5 - - - E5 - - - D5 - - - B4 - - -', 'C3', 'k . . . . . . . s . . . . . . .'),
+    ('E5 - - - - - - - - - - - . . . .', 'E2', 'k . . . . . . . . . . . . . . .'),
+]
+
+# the name-entry tune: a bouncy loop (G major)
+CHEER = [
+    ('G5 - B5 - D6 - B5 - C6 - A5 - F#5 - D5 -', 'G2', DR_A),
+    ('E5 - G5 - C6 - B5 - A5 - G5 - F#5 - A5 -', 'C3', DR_A),
+    ('G5 - B5 - D6 - G6 - F#6 - D6 - B5 - G5 -', 'E2', DR_A),
+    ('A5 - C6 - B5 - A5 - G5 - - - D5 - - -', 'D3', DR_B),
+]
+
 
 def build_songs():
     SONGS['SONG_TITLE'] = title_song()
-    SONGS['SONG_CAVE'] = jingle('E5 - G5 - B5 - E6 - - - B5 - E6 - - - - - .',
-                                'E2 - - - E3 - - - E2 - - - E3 - - - - - .',
-                                'k . h . s . h . k . h . s . . . . . .', speed=5, fx=[0] * 12 + [2] * 7)
     SONGS['SONG_CLEAR'] = jingle('G5 - B5 - D6 - G6 - - - D6 - G6 - - - - - .',
                                  'G2 - - - D3 - - - G2 - - - - - - - - - .',
                                  'k . . . s . . . k . . . s . . . . . .', speed=4, fx=[0] * 12 + [1] * 7)
+    for k, (lead, bass, drums, speed, fx) in enumerate(WING_JINGLES):
+        SONGS['SONG_WING%d' % k] = jingle(lead, bass, drums, speed=speed, fx=fx)
+    SONGS['SONG_DAYBREAK'] = dict(speed=7, loop=True, loop_from=0, pats=[
+        pattern(lead, bass_bar(root, 0 if i < 4 else 1), dr, shimmer(lead)) for i, (lead, root, dr) in enumerate(DAYBREAK)])
+    SONGS['SONG_HYMN'] = dict(speed=10, loop=True, loop_from=0, pats=[
+        pattern(lead, ' '.join([root] + ['-'] * 7 + [root[:-1] + str(int(root[-1]) + 1)] + ['-'] * 7), dr, [2] * 16)
+        for lead, root, dr in HYMN])
+    SONGS['SONG_CHEER'] = dict(speed=5, loop=True, loop_from=0, pats=[
+        pattern(lead, bass_bar(root, 1), dr, shimmer(lead)) for lead, root, dr in CHEER])
     SONGS['SONG_GAMEOVER'] = jingle(
         'B4 - - - A4 - - - G4 - - - F#4 - - - E4 - - - D#4 - - - E4 - - - - - - - .',
         'E2 - - - D2 - - - C2 - - - B1 - - - C2 - - - B1 - - - E2 - - - - - - - .',
@@ -178,6 +244,8 @@ SFX = {
     'SFX_BONUS': [div(2093)],
     'SFX_REVEAL': [noise(i % 3) for i in range(16)],
     'SFX_CLICK': [div(3000)],
+    'SFX_CRACK': [noise(2), div(2637), div(3136), div(3520)],
+    'SFX_KEY': [div(1568), div(2093), div(2637), div(3136), div(4186)],
 }
 
 
@@ -200,6 +268,7 @@ def gen_asm():
             out.append('%s:' % n)
             for i in range(0, len(p), 16):
                 out.append('        db ' + ','.join('%d' % v for v in p[i:i + 16]))
+    out.append('WINGSONGS: dw ' + ','.join('SONG_WING%d' % k for k in range(len(WING_JINGLES))))
     for name, words in SFX.items():
         out.append('%s:' % name)
         out.append('        dw ' + ','.join('%d' % w for w in words) + ',0')

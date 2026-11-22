@@ -70,8 +70,8 @@ fe_elem:
         ld c,a
         ld a,(anim)
         rrca
-        and 7
         rrca
+        and 3
         rrca
         rrca
         or c
@@ -184,24 +184,30 @@ title_fx:
         ld b,40
         jp fill_attr
 
-; LEFT / RIGHT choose the starting cave: A, E, I or M
+; LEFT / RIGHT choose the starting wing: cave A, E, I, M, Q, U or X
 cave_select_keys:
         call fe_keys
         ld b,a
-        ld a,(start_cave)
+        ld a,(start_sel)
         bit B_LEFT,b
         jr z,.nl
-        sub 4
+        sub 1
         jr nc,.set
-        ld a,NCAVES-4
+        ld a,NSTARTS-1
         jr .set
 .nl:    bit B_RIGHT,b
         ret z
-        add a,4
-        cp NCAVES
+        inc a
+        cp NSTARTS
         jr c,.set
         xor a
-.set:   ld (start_cave),a
+.set:   ld (start_sel),a
+        ld e,a
+        ld d,0
+        ld hl,start_caves
+        add hl,de
+        ld a,(hl)
+        ld (start_cave),a
         ld hl,SFX_CLICK
         ld a,1
         call sfx
@@ -257,7 +263,9 @@ cave_select_draw:
         inc de
         inc de
         ld a,(start_cave)
-        inc a
+        push hl
+        call letter_of
+        pop hl
         ld c,YELLOW*16+80h          ; bold letter
         call putc
         inc de
@@ -445,10 +453,11 @@ patch_reset:
 patch_looks_pl:
         ld a,(anim)
         push af
-        ld b,8
+        ld b,4
 .l:     push bc
         ld a,b
-        dec a                       ; phases 7..0
+        dec a                       ; phases 3..0
+        add a,a
         ld (anim),a
         call patch_looks
         pop bc
@@ -461,6 +470,18 @@ patch_looks_pl:
 ; cave guide: what lives in the caves, and the controls
 ; ---------------------------------------------------------------------
 guide_page:
+        ld hl,guide_tab
+        ld de,guide_ctl
+        ld bc,txt_guide
+        jr guide_any
+guide2_page:
+        ld hl,guide2_tab
+        ld de,guide2_ctl
+        ld bc,txt_guide2
+guide_any:
+        ld (ge_tab),hl
+        ld (ge_ctl),de
+        ld (ge_title),bc
         ld a,BLACK
         call cls
         call patch_reset
@@ -470,11 +491,11 @@ guide_page:
         ld c,1
         ld a,WHITE*16+BLUE
         call clear_rows
-        ld hl,txt_guide
+        ld hl,(ge_title)
         ld c,0
         ld a,WHITE*16+BLUE
         call print_centre
-        ld hl,guide_tab
+        ld hl,(ge_tab)
         ld c,2
 .e:     ld a,(hl)
         cp 0FFh
@@ -519,7 +540,7 @@ guide_page:
         inc c
         inc c
         jr .e
-.ctl:   ld hl,guide_ctl
+.ctl:   ld hl,(ge_ctl)
         ld c,20
         jr .cl
 .cl2:   inc c
@@ -544,7 +565,7 @@ guide_page:
 ; animate the element glyphs
 guide_fx:
         call patch_looks_pl
-        ld hl,guide_tab
+        ld hl,(ge_tab)
         ld c,2
 .e:     ld a,(hl)
         cp 0FFh
@@ -701,7 +722,9 @@ hiscore_draw:
         ld bc,6
         add hl,bc
         ld a,(hl)                   ; cave
-        inc a
+        push hl
+        call letter_of
+        pop hl
         ld c,CYAN*16
         call putc
         inc de
@@ -787,7 +810,7 @@ hiscore_entry:
         inc hl
         ld a,(level)
         ld (hl),a
-        ld hl,SONG_TITLE
+        ld hl,SONG_CHEER
         call mus_play
         call hiscore_draw
         ld hl,txt_entername

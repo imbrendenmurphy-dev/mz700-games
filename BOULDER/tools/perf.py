@@ -10,6 +10,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from run import Game  # noqa: E402
+import caves as _C  # noqa: E402
+IDX = {c.letter: i for i, c in enumerate(_C.caves())}
 
 letter = sys.argv[1] if len(sys.argv) > 1 else 'C'
 fields = int(sys.argv[2]) if len(sys.argv) > 2 else 500
@@ -20,9 +22,9 @@ g.run(30)
 if joy:
     g.m.joy = [128, 128, 0, 0]
     g.wb('joy_on', 1)
-g.wb('start_cave', ord(letter) - 65)
+g.wb('start_cave', IDX[letter])
 g.run(10, ['space'])
-while not (g.rb('inbox_time') == 0 and g.rb('pl_dead') == 0 and g.rb('cave_no') == ord(letter) - 65):
+while not (g.rb('inbox_time') == 0 and g.rb('pl_dead') == 0 and g.rb('cave_no') == IDX[letter]):
     g.run(10)
 t0 = g.rw('ticks')
 w0 = g.m.waits

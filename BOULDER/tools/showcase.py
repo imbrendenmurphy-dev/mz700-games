@@ -9,8 +9,8 @@ writes showcase/:
     attract_scores.png   the high-score table
     attract_card.png     a cave card
     play_*.png           the demo replaying recorded solutions in six caves
-    rockfall.gif         the title, then the demo in cave A (scrolling) and
-                         two later caves
+    rockfall.gif         the title, the legend, the demo in cave A (scrolling),
+                         U, X, Z and a bonus cave, then the ending
 
 The gameplay is the attract demo: the program replaying a cave's recorded
 winning run, exactly as the bot played it.  To pick the cave, the script
@@ -30,7 +30,17 @@ OUT = os.path.join(ROOT, 'showcase')
 os.makedirs(OUT, exist_ok=True)
 STEP = 4                      # fields per GIF frame (12.5 frames a second)
 SCALE = 2
-DEMO_AT = S['attract'] + 15   # ld a,1 / ld (demo),a / call game
+
+
+def find_demo_entry():
+    """the attract loop's `ld a,1 / ld (demo),a` (where the demo starts)"""
+    code = open(os.path.join(ROOT, 'build', 'rockfall.bin'), 'rb').read()
+    pat = bytes([0x3E, 0x01, 0x32, S['demo'] & 0xFF, S['demo'] >> 8])
+    k = code.index(pat, S['attract'] - 0x1200)
+    return 0x1200 + k
+
+
+DEMO_AT = find_demo_entry()
 
 
 def frame(g):
@@ -63,7 +73,7 @@ def demo_of(cave):
     g = Game()
     g.run(30)
     g.m.mem[S['demo_caves']] = cave
-    g.wb('demo_cave', 7)          # the demo steps to entry 0 of its list
+    g.wb('demo_cave', S['DEMO_N'] - 1)   # the demo steps to entry 0 of its list
     c = g.m.cpu
     c.sp = S['STACKTOP']
     c.pc = DEMO_AT
@@ -81,27 +91,51 @@ def until_play(g, frames=None):
     g.run(STEP)
 
 
+IDX = {}
+
+
+def index_of(letter):
+    if not IDX:
+        import caves
+        IDX.update({c.letter: i for i, c in enumerate(caves.caves())})
+    return IDX[letter]
+
+
+def page_of(label, fields):
+    """a fresh machine sent straight to a front-end page (it returns to the
+    attract loop afterwards); runs `fields` into it"""
+    g = Game()
+    g.run(30)
+    c = g.m.cpu
+    c.sp = S['STACKTOP'] - 2
+    g.m.mem[c.sp] = S['attract'] & 0xFF
+    g.m.mem[c.sp + 1] = S['attract'] >> 8
+    c.pc = S[label]
+    g.run(fields)
+    return g
+
+
 def stills():
     g = Game()
     g.run(320)
     save(frame(g), 'attract_title')
-    # the title lasts about 21 s, then the guide (14 s), then the scores (8 s)
-    until_text(g, 'LIES')
-    g.run(300)
-    save(frame(g), 'attract_guide')
-    until_text(g, 'DIGGERS')
-    g.run(150)
-    save(frame(g), 'attract_scores')
-    while not g.rb('demo'):
-        g.run(10)
+    for label, fields, name in (('story_page', 700, 'attract_story'), ('wings_page', 200, 'attract_wings'),
+                                ('guide_page', 300, 'attract_guide'), ('guide2_page', 300, 'attract_guide2'),
+                                ('hiscore_page', 150, 'attract_scores'), ('ending', 900, 'ending')):
+        save(frame(page_of(label, fields)), name)
+    g = demo_of(index_of('X'))
     g.run(60)
     save(frame(g), 'attract_card')
 
-    # gameplay: (cave index, ticks into the solution, name)
-    for cave, ticks, name in ((0, 150, 'play_a_first_light'), (2, 70, 'play_c_the_mountain'),
-                              (6, 200, 'play_g_the_moth'), (10, 150, 'play_k_hourglass'),
-                              (14, 120, 'play_o_the_tree'), (19, 260, 'play_t_the_core')):
-        g = demo_of(cave)
+    # gameplay: (cave, ticks into the solution, name)
+    for letter, ticks, name in (('A', 150, 'play_a_first_light'), ('C', 70, 'play_c_the_mountain'),
+                                ('G', 200, 'play_g_the_moth'), ('K', 150, 'play_k_hourglass'),
+                                ('O', 120, 'play_o_the_tree'), ('T', 260, 'play_t_the_core'),
+                                ('U', 120, 'play_u_geodes'), ('V', 300, 'play_v_seeping_halls'),
+                                ('W', 200, 'play_w_crystal_vault'), ('X', 150, 'play_x_shades'),
+                                ('Y', 200, 'play_y_catacombs'), ('Z', 200, 'play_z_heart'),
+                                ('1', 50, 'bonus_1_crystal_rain'), ('3', 250, 'bonus_3_alchemists_vat')):
+        g = demo_of(index_of(letter))
         until_play(g)
         run_ticks(g, ticks)
         save(frame(g), name)
@@ -151,7 +185,13 @@ def gif():
         g.run(STEP)
         frames.append(frame(g))
     cuts = [len(frames)]
-    for cave, secs in ((0, 26), (10, 9), (19, 9)):  # First Light, Hourglass, The Core
+    g = page_of('story_page', 0)                   # the legend
+    for _ in range(int(7 * 50 / STEP)):
+        g.run(STEP)
+        frames.append(frame(g))
+    cuts.append(len(frames))
+    for letter, secs, skip in (('A', 18, 0), ('U', 7, 100), ('X', 7, 140), ('Z', 8, 160), ('1', 6, 30)):
+        cave = index_of(letter)
         g = demo_of(cave)
         g.run(25)                                  # the card is drawn
         for _ in range(int(2.5 * 50 / STEP)):      # hold the card
@@ -159,9 +199,9 @@ def gif():
             frames.append(frame(g))
         while not g.rb('inbox_time'):              # skip the rest of the card
             g.run(STEP)
-        if cave:
+        if skip:
             until_play(g)
-            run_ticks(g, {10: 110, 19: 200}[cave])  # straight into the action
+            run_ticks(g, skip)                     # straight into the action
         else:
             while g.rb('inbox_time'):              # cave A: the reveal
                 g.run(STEP)
@@ -172,6 +212,11 @@ def gif():
             if g.rb('pl_exit') or g.rb('pl_dead'):
                 break
         cuts.append(len(frames))
+    g = page_of('ending', 0)                       # daybreak
+    for _ in range(int(7 * 50 / STEP)):
+        g.run(STEP)
+        frames.append(frame(g))
+    cuts.append(len(frames))
     pal_img = Image.new('P', (1, 1))
     flat = []
     for c in PAL:

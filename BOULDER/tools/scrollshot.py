@@ -12,13 +12,15 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from crosscheck import Pair  # noqa: E402
 import engine  # noqa: E402
 from run import ROOT  # noqa: E402
+import caves as _C  # noqa: E402
+IDX = {c.letter: i for i, c in enumerate(_C.caves())}
 
 letter = sys.argv[1] if len(sys.argv) > 1 else 'C'
 key = {'L': engine.K_LEFT, 'R': engine.K_RIGHT, 'U': engine.K_UP, 'D': engine.K_DOWN}[
     sys.argv[2] if len(sys.argv) > 2 else 'R']
 step = int(sys.argv[3]) if len(sys.argv) > 3 else 12
 frames = int(sys.argv[4]) if len(sys.argv) > 4 else 4
-p = Pair(ord(letter) - 65)
+p = Pair(IDX[letter])
 ims = []
 for f in range(frames):
     for _ in range(step if f else 2):

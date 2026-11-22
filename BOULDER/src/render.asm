@@ -1,7 +1,7 @@
 ; =====================================================================
 ;  render.asm - cave view, cave reveal / cover, HUD and messages
 ;
-;  Every cave cell maps through ANIMIDX[(phase << 5) | element] to a
+;  Every cave cell maps through ANIMIDX[(phase << 6) | element] to a
 ;  display index, and DISP_CH / DISP_AT give its character and colour.
 ;  SHADOW holds the display index on screen, so only cells whose look
 ;  changed are written to VRAM (CAVE + 1000h is the cell's VRAM address).
@@ -16,13 +16,13 @@ INFOROW         equ 24
 ; player) at the right entries for this frame's phase
 ; ---------------------------------------------------------------------
 patch_looks:
-        ld a,(anim)
-        and 7
+        ld a,(anim)                 ; 4 phases, a new one every other frame
+        rrca
+        and 3
         ld c,a                      ; C = phase
         rrca
         rrca
-        rrca
-        ld b,a                      ; B = phase << 5
+        ld b,a                      ; B = phase << 6
         ; space (flashes white when the exit opens)
         ld a,(flash)
         and 1
@@ -93,15 +93,15 @@ set_theme:
 ; ---------------------------------------------------------------------
 ; render: diff the window onto the cave against the shadow.
 ; HL = cave cell, DE = shadow (its VRAM cell is + 1000h, colour + 1800h),
-; C = phase << 5, H' = high ANIMIDX (DISP_CH and DISP_AT are the next pages)
+; C = phase << 6, H' = high ANIMIDX (DISP_CH and DISP_AT are the next pages)
 ; ---------------------------------------------------------------------
         ASSERT high DISP_CH == high ANIMIDX + 1 && high DISP_AT == high ANIMIDX + 2
 render:
         call patch_looks
         call view_follow
         ld a,(anim)
-        and 7
         rrca
+        and 3
         rrca
         rrca
         ld c,a
@@ -115,7 +115,7 @@ render:
         push hl
         ld b,VIEWW
 .cell:  ld a,(hl)
-        and 1Fh
+        and 3Fh
         or c
         exx
         ld l,a
@@ -367,13 +367,13 @@ scr_cell:
 cell_draw:
         call scr_cell
         ld a,(anim)
-        and 7
         rrca
+        and 3
         rrca
         rrca
         ld c,a
         ld a,(de)
-        and 1Fh
+        and 3Fh
         or c
         ld e,a
         ld d,high ANIMIDX
@@ -550,7 +550,7 @@ hud_draw:
         inc de
         ; cave letter and level
         ld a,(cave_no)
-        inc a
+        call letter_of
         ld c,CYAN*16
         call putc
         inc de
@@ -599,8 +599,12 @@ info_draw:
         push hl
         ld de,txt_cave
         call strcpy
-        ld a,(cave_no)
-        add a,'A'
+        push hl
+        ld hl,(cave_hdr)
+        ld de,CH_LETTER
+        add hl,de
+        ld a,(hl)
+        pop hl
         ld (hl),a
         inc hl
         ld (hl),' '
