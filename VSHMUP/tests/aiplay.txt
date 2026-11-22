@@ -1,0 +1,27 @@
+sym build/novastrm.sym
+crash
+mzt release/NOVASTRM.MZT
+poke startpage 4
+frames 20
+poke {demotm} 255
+poke {demotm+1} 255
+poke lives 9
+frames 3000
+peek stage 1
+peek lives 1
+peek bossact 1
+peek power 1
+peek dist 2
+frames 3000
+peek stage 1
+peek lives 1
+peek bossact 1
+peek power 1
+peek bhp 2
+frames 3000
+peek stage 1
+peek lives 1
+peek bossact 1
+peek bhp 2
+screen build/shots/ai.png 2
+peek drops 2

@@ -12,6 +12,7 @@ ROM, no PCG), loadable from tape or a UniCMT USB cassette emulator.
 | [Rockfall](BOULDER/) | 2.1: cave-digging game, 20 scrolling caves up to 64x32 in 5 wings, each with its own stone and colours, picture caves and jewel showers, every cave solved and verified on the Z80 build, title music, attract mode replaying the solutions (`release/ROCKFALL.MZT`) |
 | [Skink and the Sun Mosaic](REPTON/) | 1.0: Repton 2-style adventure, 14 linked caverns that remember everything, scrolling 2x2-character tiles, eggs, beasts, spirits, mould, switches, tape saves, verified solution (`release/SKINK.MZT`) |
 | [Circus 2](CIRCUS2/) | 1.0: conversion of the VZ300 seesaw-and-balloons game, 9 acts + encore, 2 bonus rounds, 7 power-ups, monkey and ring of fire, circus march, attract mode with AI demo, high-score entry (`release/CIRCUS2.MZT`) |
+| [Nova Storm](VSHMUP/) | 0.9: vertically scrolling space shoot-'em-up, 5 stages with scrolling scenery and a boss each, 7 power-ups, medals and formation bonuses, tracker music, attract mode with AI demo, high-score entry, joystick (`release/NOVASTRM.MZT`) |
 
 Each game folder has its source, a Python build script (no extra packages
 needed) and a ready-to-load `.MZF` in `release/`.

@@ -1,0 +1,11 @@
+sym build/novastrm.sym
+mzt release/NOVASTRM.MZT
+poke skipto 172
+frames 40
+tap SPACE
+frames 5
+poke godmode 1
+down SPACE
+wav build/sound/boss.wav
+rand 1250 4 LEFT,RIGHT
+wavend

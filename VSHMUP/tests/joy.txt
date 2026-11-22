@@ -1,0 +1,30 @@
+sym build/novastrm.sym
+crash
+mzt release/NOVASTRM.MZT
+frames 30
+tap J
+frames 10
+peek joyon 1
+peek joycx 2
+joy 1 0 0 1 0
+frames 8
+joy 1 0 0 0 0
+frames 30
+peek gstate 1
+peek px 2
+joy 1 1 0 0 0
+frames 40
+peek px 2
+peek joymv 1
+joy 1 -1 -1 0 0
+frames 40
+peek px 2
+peek py 2
+peek joymv 1
+joy 1 0 0 1 0
+frames 20
+peek firecd 1
+peek joyfire 1
+joy 1 0 0 0 0
+frames 10
+peek joymv 1

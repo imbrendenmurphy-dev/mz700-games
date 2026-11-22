@@ -1,0 +1,27 @@
+sym build/novastrm.sym
+crash
+mzt release/NOVASTRM.MZT
+frames 40
+tap SPACE
+frames 10
+poke lives 1
+poke {score+2} 2
+poke hudscore 1
+untilmem gstate 3 3000
+frames 340
+screen build/shots/o2.png 2
+tap Z
+frames 6
+tap A
+frames 6
+tap X
+frames 20
+tap DEL
+frames 10
+tap Q
+frames 10
+tap CR
+frames 60
+screen build/shots/o3.png 2
+peek page 1
+peek HISC 8

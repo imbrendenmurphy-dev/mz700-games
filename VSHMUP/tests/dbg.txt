@@ -1,0 +1,20 @@
+sym build/novastrm.sym
+mzt release/NOVASTRM.MZT
+frames 40
+tap SPACE
+frames 10
+poke lives 1
+poke {score+2} 2
+untilmem gstate 3 3000
+frames 340
+down Z
+frames 3
+peek kbuf 10
+peek kprev 10
+peek nidx 1
+regs
+frames 3
+up Z
+peek HISC 16
+peek nameptr 2
+peek nidx 1

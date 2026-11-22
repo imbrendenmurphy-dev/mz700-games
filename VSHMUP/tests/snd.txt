@@ -1,0 +1,13 @@
+sym build/novastrm.sym
+mzt release/NOVASTRM.MZT
+wav build/sound/title.wav
+frames 1100
+wavend
+tap SPACE
+frames 5
+poke godmode 1
+down SPACE
+wav build/sound/stage1.wav
+rand 1250 4 LEFT,RIGHT
+wavend
+up SPACE

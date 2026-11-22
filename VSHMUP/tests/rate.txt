@@ -1,0 +1,11 @@
+sym build/novastrm.sym
+mzt release/NOVASTRM.MZT
+poke startstage 5
+frames 40
+tap SPACE
+frames 5
+poke godmode 1
+down SPACE
+tmark framecnt
+rand 2600 5 LEFT,RIGHT,LEFT,RIGHT,UP,DOWN
+tstats

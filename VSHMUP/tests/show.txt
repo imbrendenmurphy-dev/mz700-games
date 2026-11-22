@@ -1,0 +1,14 @@
+sym build/novastrm.sym
+mzt release/NOVASTRM.MZT
+poke startstage 3
+frames 40
+tap SPACE
+frames 30
+screen build/shots/show_caption.png 2
+poke godmode 1
+poke power 4
+poke options 2
+down SPACE
+rand 700 11 LEFT,RIGHT,LEFT,RIGHT,UP
+screen build/shots/show_play.png 2
+shots build/shots/gif 60 2

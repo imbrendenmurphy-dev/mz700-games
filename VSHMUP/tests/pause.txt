@@ -1,0 +1,25 @@
+sym build/novastrm.sym
+crash
+mzt release/NOVASTRM.MZT
+frames 40
+tap SPACE
+frames 100
+tap M
+frames 10
+peek soundopt 1
+tap CR
+frames 30
+peek framecnt 1
+frames 30
+peek framecnt 1
+screen build/shots/pause.png 2
+tap CR
+frames 30
+peek framecnt 1
+tap CR
+frames 20
+tap Q
+frames 60
+peek page 1
+peek gameend 1
+text
