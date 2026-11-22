@@ -10,6 +10,7 @@ RZ_ROW0 equ 2                   ; letterbox: cell rows 2-22
 RZ_ROWS equ 21
 
 roto_init:
+        call gen_rotex
         call chunky_init
         ld hl,rz_cap1
         ld de,VCHR+0*40

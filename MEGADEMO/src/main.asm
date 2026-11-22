@@ -106,19 +106,46 @@ flash:  call wait_vbl
         jp wait_vbl
 
 ;            init         frame        until bar, more (0 = next part)
-script: dw intro_init,  intro_frame
+script:
+        dw intro_init, intro_frame
         db BAR_TITLE, 0
-        dw title_init,  title_frame
+        dw title_init, title_frame
         db BAR_PLASMA, 0
         dw plasma_init, plasma_frame
+        db BAR_STARS, 0
+        dw stars_init, stars_frame
         db BAR_ROTO, 0
-        dw roto_init,   roto_frame
+        dw roto_init, roto_frame
+        db BAR_FIRE, 0
+        dw fire_init, fire_frame
         db BAR_TUNNEL, 0
         dw tunnel_init, tunnel_frame
+        db BAR_VORTEX, 0
+        dw vortex_init, tunnel_frame
         db BAR_KEFRENS, 0
         dw kefrens_init, kefrens_frame
+        db BAR_TWIST, 0
+        dw twist_init, twist_frame
+        db BAR_SHADE, 0
+        dw shade_init, shade_frame
+        db BAR_MOIRE, 0
+        dw moire_init, moire_frame
+        db BAR_FLOOR, 0
+        dw floor_init, floor_frame
+        db BAR_CUBE, 0
+        dw cube_init, cube_frame
         db BAR_DOTS, 0
-        dw dots_init,   dots_frame
+        dw dots_init, dots_frame
+        db BAR_BARREL, 0
+        dw barrel_init, barrel_frame
+        db BAR_SDOTS, 0
+        dw sdots_init, sdots_frame
+        db BAR_EBOBS, 0
+        dw ebobs_init, ebobs_frame
+        db BAR_WOBBLE, 0
+        dw wobble_init, wobble_frame
+        db BAR_CRASH, 0
+        dw crash_init, crash_frame
         db BAR_GREETS, 0
         dw greets_init, greets_frame
         db BAR_END, 0
@@ -135,14 +162,37 @@ script_ptr: dw 0
         include "fx_roto.asm"
         include "fx_tunnel.asm"
         include "fx_kefrens.asm"
+        include "fx_stars.asm"
+        include "fx_fire.asm"
+        include "fx_twist.asm"
+        include "fx_shade.asm"
+        include "fx_moire.asm"
+        include "fx_floor.asm"
+        include "fx_barrel.asm"
+        include "fx_sdots.asm"
+        include "fx_ebobs.asm"
+        include "fx_wobble.asm"
+        include "fx_crash.asm"
+        include "fx_cube.asm"
+        include "speech.asm"
         include "fx_dots.asm"
         include "fx_greets.asm"
         include "fx_end.asm"
 
+        include "work.asm"
         include "../build/gen_data.inc"
 
 end_of_code:
         display "code+data end: ", /h, end_of_code
-        ASSERT end_of_code < 0D000h
+        ASSERT end_of_code <= WORK
 
         SAVEBIN "../build/megademo.bin", start, end_of_code - start
+
+; ---------------------------------------------------------------- high RAM
+        org 0D000h
+hi_start:
+        include "../build/gen_high.inc"
+hi_end:
+        display "high RAM end: ", /h, hi_end
+        ASSERT hi_end <= 10000h
+        SAVEBIN "../build/high.bin", hi_start, hi_end - hi_start

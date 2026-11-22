@@ -8,6 +8,7 @@ NDOTS   equ 64
 TROT    equ 0100h           ; rotation tables 0100-02FF
 
 dots_init:
+        call gen_proj
         call cls_black
         ld hl,DOTM
         xor a
@@ -16,7 +17,7 @@ dots_init:
         xor a
         call fill_buf
         ; start from a flat disc so the first shape grows out of it
-        ld hl,dot_shapes+NDOTS*3*(NSHAPES-1)
+        ld hl,DOTSHP+NDOTS*3*(NSHAPES-1)
         ld de,dot_cur
         ld bc,NDOTS*3
         ldir
@@ -85,7 +86,7 @@ dt_morph:
         add hl,hl
         add hl,hl
         add hl,hl               ; *192
-        ld de,dot_shapes
+        ld de,DOTSHP
         add hl,de
         ld de,dot_cur
         ld b,NDOTS*3

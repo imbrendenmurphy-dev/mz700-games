@@ -1,18 +1,21 @@
 ; ---------------------------------------------------------------------------
-; stub.asm - tape loader front end: moves the packed demo to the top of RAM,
-; unpacks it to 1200h (see tools/crunch.py) and starts it.
+; stub.asm - tape loader front end.  The file holds this stub, the packed
+; high-RAM data and the packed program (tools/crunch.py format).
+;  1. the unpacker goes to low RAM (under the switched-out monitor ROM)
+;  2. the packed program moves to the top of RAM (ending at D000h)
+;  3. the high data unpacks into the RAM under VRAM/IO (D000-FFFF)
+;  4. the program unpacks in place to 1200h and starts
 ; ---------------------------------------------------------------------------
         DEVICE NOSLOT64K
 
-PACK_TOP equ 0D000h             ; packed data ends here
-DEC_AT   equ 0C80h              ; the unpacker runs from RAM under the ROM
+PACK_TOP equ 0D000h
+DEC_AT   equ 0C80h
 
         org 1200h
 stub:   di
         out (0E0h),a            ; 0000-0FFF = RAM
         ld sp,0C80h
-        ; screen: "DECRUNCHING..." on black
-        ld hl,0D000h
+        ld hl,0D000h            ; "DECRUNCHING..." on black
         ld de,0D001h
         ld bc,999
         ld (hl),0
@@ -26,15 +29,25 @@ stub:   di
         ld de,0D000h+12*40+13
         ld bc,msg_len
         ldir
-        ; unpacker to low RAM, packed data to the top
         ld hl,dec_src
         ld de,DEC_AT
         ld bc,dec_len
         ldir
-        ld hl,packed_end-1
+        ld hl,main_end-1
         ld de,PACK_TOP-1
-        ld bc,packed_end-packed
+        ld bc,main_end-main_pk
         lddr
+        ; high data
+        out (0E1h),a
+        ld hl,high_pk
+        ld de,0D000h
+        call DEC_AT
+        out (0E3h),a
+        ; the program
+        ld hl,PACK_TOP-(main_end-main_pk)
+        ld de,1200h
+        ld bc,1200h
+        push bc                 ; unpack returns to the demo
         jp DEC_AT
 
 msg:    db 4,5,3,18,21,14,3,8,9,14,7,2Eh,2Eh,2Eh   ; DECRUNCHING...
@@ -42,12 +55,11 @@ msg_len equ $-msg
 
 dec_src:
         DISP DEC_AT
-        ld hl,PACK_TOP-(packed_end-packed)
-        ld de,1200h
+; HL = packed data, DE = output
 .lp:    ld a,(hl)
         inc hl
         cp 0FFh
-        jp z,1200h
+        ret z
         bit 7,a
         jr nz,.match
         ld c,a
@@ -76,9 +88,11 @@ dec_src:
         ENT
 dec_len equ $-dec_src
 
-packed:
+high_pk:
+        INCBIN "../build/high.pak"
+main_pk:
         INCBIN "../build/megademo.pak"
-packed_end:
+main_end:
 
-        ASSERT packed_end <= PACK_TOP
-        SAVEBIN "../build/stub.bin", stub, packed_end-stub
+        ASSERT main_end <= PACK_TOP
+        SAVEBIN "../build/stub.bin", stub, main_end-stub

@@ -30,6 +30,7 @@ KPREP_A equ 0A00h               ; row starting states, 26 bytes per row
 KPREP_B equ 1000h               ; (0A00-0B9F, 1000-119F)
 
 kefrens_init:
+        call kf_gen_prep
         di
         call cls_black
         ; the bar window: left-half characters on black
@@ -338,83 +339,51 @@ kf_rowv:
 .r = .r + 1
         EDUP
 
-; prep: pop 13 words per row into the window (SP = prep buffer)
-kf_prep_code:                   ; returns with jp (ix)
-.r = 0
-        DUP KROWS
-.c = 0
-        DUP KW/2
+; prep: pop 13 words per row into the window (SP = prep buffer).  The
+; unrolled code is generated into WORK at init: pop hl / ld (nn),hl ...
+kf_prep_code equ WORK
+
+kf_gen_prep:
+        ld de,kf_prep_code
+        ld hl,VATR + KR0*40 + KWX
+        ld c,KROWS
+.r:     ld b,KW/2
+        push hl
+.w:     ld a,0E1h               ; pop hl
+        ld (de),a
+        inc de
+        ld a,22h                ; ld (nn),hl
+        ld (de),a
+        inc de
+        ld a,l
+        ld (de),a
+        inc de
+        ld a,h
+        ld (de),a
+        inc de
+        inc hl
+        inc hl
+        djnz .w
         pop hl
-        ld (VATR + (KR0+.r)*40 + KWX + .c),hl
-.c = .c + 2
-        EDUP
-.r = .r + 1
-        EDUP
-        jp (ix)
+        push de
+        ld de,40
+        add hl,de
+        pop de
+        dec c
+        jr nz,.r
+        ld a,0DDh               ; jp (ix)
+        ld (de),a
+        inc de
+        ld a,0E9h
+        ld (de),a
+        ret
 
 ; the RASTER title (big font, full blocks)
 kf_title:
         ld hl,kf_word
         ld de,VCHR+1*40+2
-.ch:    ld a,(hl)
-        or a
-        ret z
-        push hl
-        push de
-        sub 32
-        ld l,a
-        ld h,0
-        ld b,h
-        ld c,l
-        add hl,hl
-        add hl,hl
-        add hl,bc
-        ld bc,big_font
-        add hl,bc                       ; 5 column bytes
-        ld c,5
-.col:   ld a,(hl)
-        push de
-        ld b,7
-.px:    rrca
-        jr nc,.n
-        ex de,hl
-        ld (hl),43h
-        set 3,h
-        push af
-        ld a,7
-        sub b
-        push hl
-        ld hl,kf_tink
-        add a,l
-        ld l,a
-        jr nc,.nc
-        inc h
-.nc:    ld a,(hl)
-        pop hl
-        ld (hl),a
-        pop af
-        res 3,h
-        ex de,hl
-.n:     push hl
-        ld hl,40
-        add hl,de
-        ex de,hl
-        pop hl
-        djnz .px
-        pop de
-        inc de
-        inc hl
-        dec c
-        jr nz,.col
-        pop de
-        pop hl
-        inc hl
-        ld a,e
-        add a,6
-        ld e,a
-        jr nc,.ch
-        inc d
-        jr .ch
+        ld ix,kf_tink
+        jp big_word
 
 kf_word:    db "RASTER", 0
 kf_tink:    db 20h, 20h, 60h, 60h, 70h, 50h, 10h

@@ -44,7 +44,7 @@ TITLE_SCROLL = ('    WELCOME TO SHARP EDGES ... THE FIRST MEGADEMO BY SPRITELESS
                 'THE MUSIC IS ONE 8253 TIMER DOING ITS BEST ... '
                 'GRAB A DRINK AND TURN IT UP!      ')
 
-GREETS = ('      GREETINGS TO ... GENESIS PROJECT ... FUTURE CREW ... '
+GREETS = ('      JUST KIDDING!  ...  GREETINGS TO ... GENESIS PROJECT ... FUTURE CREW ... '
           'EVERY SHARP MZ CODER, PAST AND PRESENT ... THE VZ200 GANG ... '
           'ALL SPECCY, CPC AND MSX SCENERS ... AND YOU, FOR WATCHING ON A '
           'MACHINE WITH NO SPRITES!      ')
@@ -71,6 +71,10 @@ CREDITS = [
     '',
     '- THE END -',
 ]
+
+BARREL1 = ' SHARP EDGES ... ROLLING ROUND AND ROUND ON A 3.5 MHZ Z80 ...  '
+BARREL2 = ' NO SPRITES WERE HARMED IN THE MAKING OF THIS DEMO ...  '
+CRASH = ['SOFTWARE FAILURE.   PRESS BREAK.', 'GURU MEDITATION #00000700.0000BEEF']
 
 DOT_NAMES = ['SPHERE', 'CUBE', 'TORUS', 'DOUBLE HELIX', 'MZ', 'STAR']
 
@@ -220,7 +224,7 @@ def qsq():
     return [v & 0xFF for v in q] + [v >> 8 for v in q]
 
 
-def palette(bands):
+def _unused_palette(bands):
     out = []
     for col, w in bands:
         out += [col] * w
@@ -236,20 +240,17 @@ PALETTES = [
 ]
 
 
-def rotex():
-    pages = []
+def rotex_tile():
+    out = []
     for v in range(16):
-        row = []
         for u in range(16):
             c = 1 if ((u >> 3) ^ (v >> 3)) & 1 else 0
             if u % 8 == 0 or v % 8 == 0:
                 c = 5
             if u % 8 in (3, 4) and v % 8 in (3, 4):
                 c = 6 if c == 1 else 3
-            row.append(c)
-        pages.append(row * 16)
-    top = [c << 4 for p in pages for c in p]
-    return top + [c for p in pages for c in p]
+            out.append(c)
+    return out
 
 
 def tunnel():
@@ -263,25 +264,22 @@ def tunnel():
             d = int(160.0 / r)
             v = (int(a * 32) & 31) << 3 | (d & 7)
             idx[((y // 2) * 40 + x) * 2 + (y & 1)] = v
-    tex = []
-    for p in range(8):
-        page = []
-        for v in range(256):
-            ang, dep = v >> 3, (v + p) & 7       # depth shifted by p
-            c = 1 if ((ang >> 2) ^ (dep >> 2)) & 1 else 0
-            if dep == 0:
-                c = 5
-            if ang % 4 == 0 and c == 1:
-                c = 3
-            page.append(c)
-        tex += [c << 4 for c in page] + page
+    t0 = []
+    for v in range(256):
+        ang, dep = v >> 3, v & 7
+        c = 1 if ((ang >> 2) ^ (dep >> 2)) & 1 else 0
+        if dep == 0:
+            c = 5
+        if ang % 4 == 0 and c == 1:
+            c = 3
+        t0.append(c)
     hole = []
     for dr in range(-2, 3):
         for dc in range(-4, 4):
             if (dc + 0.5) ** 2 / 16.0 + dr ** 2 / 6.25 <= 1.0:
                 hole.append('ABUF+%d' % ((12 + dr) * 40 + 20 + dc))
     hole.append('8000h')
-    return idx, tex, hole
+    return idx, t0, hole
 
 
 def shapes():
@@ -358,6 +356,85 @@ def shapes():
     return out, proj, len(S)
 
 
+def speech_bits():
+    import wave
+    import struct
+    w = wave.open(os.path.join(TOOLS, 'speech.wav'))
+    sr = w.getframerate()
+    raw = w.readframes(w.getnframes())
+    x = [v / 32768.0 for v in struct.unpack('<%dh' % (len(raw) // 2), raw)]
+    # trim silence
+    th = 0.02
+    a = next(i for i, v in enumerate(x) if abs(v) > th)
+    b = len(x) - next(i for i, v in enumerate(reversed(x)) if abs(v) > th)
+    x = x[max(0, a - 200):b + 200]
+    # resample to the player's rate (227 T per bit)
+    rate = 3546895 / 227.0
+    n = int(len(x) * rate / sr)
+    y = []
+    for i in range(n):
+        p = i * sr / rate
+        k = int(p)
+        f = p - k
+        v = x[k] * (1 - f) + (x[k + 1] if k + 1 < len(x) else 0) * f
+        y.append(v)
+    # remove DC, normalise, a little compression
+    m = sum(y) / len(y)
+    y = [v - m for v in y]
+    pk = max(abs(v) for v in y)
+    y = [max(-1.0, min(1.0, 1.6 * v / pk)) for v in y]
+    # first-order sigma-delta to 1 bit
+    bits = []
+    e = 0.0
+    for v in y:
+        q = 1.0 if v + e > 0 else -1.0
+        e = v + e - q
+        bits.append(1 if q > 0 else 0)
+    while len(bits) % 8:
+        bits.append(0)
+    out = []
+    for i in range(0, len(bits), 8):
+        out.append(sum(bits[i + j] << (7 - j) for j in range(8)))
+    return out
+
+
+def sky():
+    """12 cell rows of the sunset, as half-block attributes."""
+    grad = [0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 3, 1, 3, 3, 3, 3, 2, 3, 2, 2, 2, 2, 6, 2]
+    px = [[grad[y]] * 40 for y in range(24)]
+    for y in range(24):
+        for x in range(40):
+            dx = (x - 19.5) * 2.0
+            dy = (y - 19.0)
+            if dx * dx + dy * dy <= 15 * 15:
+                c = 6 if y < 13 else (2 if y < 18 else 3)
+                if y >= 13 and (y - 13) % 3 == 2:
+                    c = grad[y]               # the stripes through the sun
+                px[y][x] = c
+    out = []
+    for r in range(12):
+        for x in range(40):
+            out.append(px[2 * r][x] << 4 | px[2 * r + 1][x])
+    return out
+
+
+def floor_rows():
+    out = []
+    for j in range(26):
+        z = 256.0 / (j + 1.2)
+        step = int(z * 3.0)
+        if j < 5:
+            cols = 0x10
+        elif j < 11:
+            cols = 0x31
+        elif j < 18:
+            cols = 0x51
+        else:
+            cols = 0x71
+        out += [step & 255, step >> 8, int(z) & 255, cols]
+    return out
+
+
 def centre(text, width=40):
     pad = (width - len(text)) // 2
     return ' ' * pad + text + ' ' * (width - len(text) - pad)
@@ -375,6 +452,7 @@ def gen():
 
     m = music.build()
     L = []
+    H = ['; generated by build.py - high RAM (D000-FFFF)']
     w = L.append
     w('; generated by build.py - do not edit')
     for name, bar in m['starts']:
@@ -388,15 +466,27 @@ def gen():
     w('        ALIGN 256')
     w('SINE:'); w(db(sine()))
     w('QSQ:'); w(db(qsq()))
-    w('PALS:')
+    kpos = [int(round(11.5 + 11.5 * math.sin(i * 2 * math.pi / 256))) for i in range(256)]
+    kpos2 = [int(round(11.5 + 11.5 * math.sin(i * 2 * math.pi / 128))) for i in range(256)]
+    assert max(kpos) + max(kpos2) <= 46
+    w('KPOS:'); w(db(kpos)); w(db(kpos2))
+    srow = []
+    for a in range(256):
+        sv = int(round(127 * math.sin(a * 2 * math.pi / 256)))
+        srow.append(40 * [1, 1, 2, 3, 3, 4, 5, 5][(sv + 128) >> 5])
+    w('TI_SROW:'); w(db([v & 255 for v in srow])); w(db([v >> 8 for v in srow]))
+    # ---- sources for the tables built in WORK at part start
+    w('pal_bands:')
     for p in PALETTES:
-        w(db(palette(p)))
-    w('ROTEX:'); w(db(rotex()))
-    w('ROTEXB equ ROTEX+4096')
-    idx, ttex, hole = tunnel()
-    w('TUNTEX:'); w(db(ttex))
-    w('TUNIDX:'); w(db(idx))
+        assert sum(n for _, n in p) == 256
+        w(db([v for c, n in p for v in (c, n & 255)]))
+    w('rz_tile:'); w(db(rotex_tile()))
+    idx, t0, hole = tunnel()
+    w('tun_t0:'); w(db(t0))
     w('tun_hole:'); w(dw(hole))
+    pf = [int(round(64 * 220.0 / (220 + zb * 8 - 60))) for zb in range(16)]
+    w('proj_f:'); w(db(pf))
+    H.append('hi_tunidx:'); H.append(db(idx))
 
     # ---- logo + texts
     lm, ink = logo(tri)
@@ -432,28 +522,83 @@ def gen():
 
     # ---- dots
     sh, proj, n = shapes()
+    w('st_cap:'); w(db(disp(centre('- 3D STARFIELD -')) + [0xFF]))
+    w('st_pr:'); w(db([min(127, int(round(32 * 64.0 / max(z, 1)))) for z in range(256)]))
+    w('tw_cap:'); w(db(disp(centre('- THE TWISTER -')) + [0xFF]))
+    w('sh_cap:'); w(db(disp(centre('- SHADEBOBS -')) + [0xFF]))
+    disc = ['%d' % (dy * 40 + dx) for dy in range(-4, 5) for dx in range(-4, 5)
+            if (dx * 2.0) ** 2 + dy * dy <= 4.2 * 4.2]
+    w('sh_disc:'); w(dw(disc + ['8000h']))
+    w('br_cap:'); w(db(disp(centre('- ROLLING BARRELS -')) + [0xFF]))
+    bu, bs = [], []
+    for x in range(40):
+        t = math.asin(max(-1.0, min(1.0, (x - 19.5) / 20.5)))
+        bu.append(min(63, int((t / math.pi + 0.5) * 64)))
+        bs.append(min(3, int(math.cos(t) * 4.2)))
+    w('br_u:'); w(db(bu))
+    w('br_s:'); w(db(bs))
+    w('br_text1:'); w(db([ord(c) for c in BARREL1])); w('br_text1_end: db 0')
+    w('br_text2:'); w(db([ord(c) for c in BARREL2])); w('br_text2_end: db 0')
+    w('cb_cap:'); w(db(disp(centre('- FLAT SHADED VECTORS -')) + [0xFF]))
+    w('sd_cap:'); w(db(disp(centre('- SINE DOTS -')) + [0xFF]))
+    ink = []
+    for y in range(30):
+        ry = (y // 2) % 8
+        ink.append([7, 7, 6, 6, 6, 2, 2, 3][ry] * 0x11)
+    w('wb_ink:'); w(db(ink))
+    w('wb_runtab:'); w(dw(['wb_run%d' % r for r in range(1, 16)]))
+    for r in range(1, 16):
+        runs = []
+        x = 0
+        while x < 40:
+            if lm[r * 40 + x]:
+                x0 = x
+                while x < 40 and lm[r * 40 + x]:
+                    x += 1
+                runs.append((x0, x - x0))
+            else:
+                x += 1
+        w('wb_run%d: db %d' % (r, len(runs)) + ''.join(',%d,%d' % rw for rw in runs))
+    tpl = []
+    for a in range(256):
+        e = [int(round(11.9 * math.sin(2 * math.pi * (a + 64 * i) / 256))) for i in range(4)]
+        e.append(e[0])
+        spans = []
+        for i in range(4):
+            wd = e[i + 1] - e[i]
+            if wd > 0:
+                spans.append((e[i] & 255, wd, i * 2 + (1 if wd >= 9 else 0)))
+        spans = (spans + [(0, 0, 0)] * 2)[:2]
+        for sp in spans:
+            tpl += list(sp)
+    H.append('hi_twtpl:'); H.append(db(tpl))
+    w('cr_l1:'); w(db(disp(CRASH[0]) + [0xFF]))
+    w('cr_l2:'); w(db(disp(CRASH[1]) + [0xFF]))
+    w('fl_rows:'); w(db(floor_rows()))
+    t1 = []
+    for v in range(256):
+        ang, dep = v >> 3, v & 7
+        sp = (ang + dep * 4) & 31
+        c = [0, 1, 0, 3][(sp >> 3) & 3]
+        if sp & 7 == 0:
+            c = 5
+        t1.append(c)
+    w('tun_t1:'); w(db(t1))
+    q = []
+    for dy in range(31):
+        for dx in range(32):
+            d = math.hypot(dx * 2.0, dy)
+            q.append(int(d / 3.0) & 3)
+    H.append('hi_moire:'); H.append(db(q))
+    H.append('hi_sky:'); H.append(db(sky()))
+    sp = speech_bits()
+    H.append('SPEECH_LEN equ %d' % len(sp))
+    H.append('hi_speech:'); H.append(db(sp))
+    print('speech: %d bytes, %.2f s' % (len(sp), len(sp) * 8 * 227 / 3546895.0))
     w('kf_caption:'); w(db(disp(centre('KEFRENS BARS WITHOUT A RASTER INTERRUPT')) + [0xFF]))
     w('rz_cap1:'); w(db(disp(centre('- ROTOZOOMER -')) + [0xFF]))
     w('rz_cap2:'); w(db(disp(centre('40 X 50 PIXELS FROM 1000 ATTRIBUTE BYTES')) + [0xFF]))
-    w('dot_shapes:'); w(db(sh, 12))
-    pt = []
-    for zb in range(16):
-        z = zb * 8 - 64 + 4
-        f = 64 * 220.0 / (220 + z)
-        for i in range(128):
-            v = i if i < 64 else i - 128
-            pt.append(int(round(v * f / 128.0)) & 0xFF)
-    L.insert(L.index('ROTEX:'), 'PROJT:' + NL + db(pt))
-    kpos = [int(round(11.5 + 11.5 * math.sin(i * 2 * math.pi / 256))) for i in range(256)]
-    kpos2 = [int(round(11.5 + 11.5 * math.sin(i * 2 * math.pi / 128))) for i in range(256)]
-    assert max(kpos) + max(kpos2) <= 46
-    L.insert(L.index('ROTEX:'), 'KPOS:' + NL + db(kpos) + NL + db(kpos2))
-    srow = []
-    for a in range(256):
-        sv = int(round(127 * math.sin(a * 2 * math.pi / 256)))
-        srow.append(40 * [1, 1, 2, 3, 3, 4, 5, 5][(sv + 128) >> 5])
-    L.insert(L.index('ROTEX:'), 'TI_SROW:' + NL + db([v & 255 for v in srow]) + NL +
-             db([v >> 8 for v in srow]))
+    H.append('hi_shapes:'); H.append(db(sh, 12))
     w('dots_names:')
     for nm in DOT_NAMES:
         w(db(disp(centre(nm, 19)) + [0xFF]))
@@ -487,6 +632,8 @@ def gen():
                                                  len(rows) * 12 + len(bar_rows) * 32 + len(m['order'])))
     with open(os.path.join(BUILD, 'gen_data.inc'), 'w') as f:
         f.write(NL.join(L) + NL)
+    with open(os.path.join(BUILD, 'gen_high.inc'), 'w') as f:
+        f.write(NL.join(H) + NL)
 
 
 def mzf(name, load, data, exe):
@@ -523,6 +670,12 @@ def main():
     assert crunch.check_in_place(packed, LOAD, 0xD000 - len(packed)), 'packed data overlaps'
     with open(os.path.join(BUILD, 'megademo.pak'), 'wb') as f:
         f.write(packed)
+    hdata = open(os.path.join(BUILD, 'high.bin'), 'rb').read()
+    hpacked = crunch.pack(hdata)
+    assert crunch.unpack(hpacked) == hdata
+    with open(os.path.join(BUILD, 'high.pak'), 'wb') as f:
+        f.write(hpacked)
+    print('high RAM data: %d bytes' % len(hdata))
     r = subprocess.run([asm, '--nologo', '--msg=war', '--sym=../build/stub.sym', 'stub.asm'],
                        cwd=SRC, capture_output=True, text=True)
     sys.stdout.write(r.stdout + r.stderr)

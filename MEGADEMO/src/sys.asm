@@ -247,3 +247,81 @@ mul8:   call muls16
         add hl,hl
         ld a,h
         ret
+
+; ---------------------------------------------------------------- big words
+; HL = ASCII word (0 ends), DE = VRAM character address of the top left,
+; IX = 7 attributes (one per font row).  Letters are 5x7 full blocks + gap.
+big_word:
+.ch:    ld a,(hl)
+        or a
+        ret z
+        push hl
+        push de
+        sub 32
+        ld l,a
+        ld h,0
+        ld b,h
+        ld c,l
+        add hl,hl
+        add hl,hl
+        add hl,bc
+        ld bc,big_font
+        add hl,bc                       ; 5 column bytes
+        ld c,5
+.col:   ld a,(hl)
+        push de
+        push ix
+        ld b,7
+.px:    rrca
+        jr nc,.n
+        ex de,hl
+        ld (hl),43h
+        set 3,h
+        push af
+        ld a,(ix+0)
+        ld (hl),a
+        pop af
+        res 3,h
+        ex de,hl
+.n:     push hl
+        ld hl,40
+        add hl,de
+        ex de,hl
+        pop hl
+        inc ix
+        djnz .px
+        pop ix
+        pop de
+        inc de
+        inc hl
+        dec c
+        jr nz,.col
+        pop de
+        pop hl
+        inc hl
+        ld a,e
+        add a,6
+        ld e,a
+        jr nc,.ch
+        inc d
+        jr .ch
+
+; chunky frame: wait for VBLANK, show the attribute buffer
+chunky_show:
+        call wait_vbl
+        jp blit_attr
+
+; HL = A * 40 (A < 64...255 fine).  Keeps DE, BC.
+mul40:  ld l,a
+        ld h,0
+        add hl,hl
+        add hl,hl
+        add hl,hl
+        push de
+        ld d,h
+        ld e,l
+        add hl,hl
+        add hl,hl
+        add hl,de
+        pop de
+        ret

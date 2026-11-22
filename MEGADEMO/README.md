@@ -1,6 +1,6 @@
 # SHARP EDGES — a megademo for the Sharp MZ-700
 
-A '90s-style party demo by the (fictional) group SPRITELESS. It runs for 2:34 and then loops.
+A '90s-style party demo by the (fictional) group SPRITELESS. It has 22 parts, runs for 5:03 and then loops.
 
 | | |
 |---|---|
@@ -8,23 +8,35 @@ A '90s-style party demo by the (fictional) group SPRITELESS. It runs for 2:34 an
 | `release/SHARPEDG.MZF` | the same bytes, for a real euro-spec MZ-700 through UniCMT |
 | `release/screens.png` | one frame from each part |
 
-The tape file is packed (46.6 KB → 24 KB). A stub shows `DECRUNCHING...`, unpacks the demo in place and starts it.
+The tape file is packed: 39 KB of program plus 8 KB of high-RAM data become 31.8 KB. A stub shows `DECRUNCHING...`,
+unpacks the data into the RAM under VRAM, unpacks the program in place and starts it.
 
 ## Parts (synced to the music, bar numbers in brackets)
 
-1. **Intro** (0–3): typewriter text, then a colour-block glitch into the title.
-2. **Title** (4–15): the SHARP EDGES logo built from full blocks and the ROM's diagonal half-cells (the "sharp edges"),
-   with a white shine sweeping across it. Copper bars run behind it with 1-scan-line steps, made with the split glyphs
-   70h/36h/7Ah/7Eh/3Eh/3Ch. A sine scroller runs underneath. 25 fps.
-3. **Plasma** (16–23): 40×50 pixels in 8 colours, with a new palette every bar. 23–25 fps.
-4. **Rotozoomer** (24–31): rotates and zooms a 16×16 tile, letterboxed. 16.7 fps.
-5. **Tunnel** (32–39): a textured tunnel that rotates and flies forward. 25 fps.
-6. **Kefrens bars** (40–47): one bar per scan line for 128 lines, stacking into a curtain. The display runs at 50 fps
-   and the bars move at 12.5 fps.
-7. **Vector dots** (48–59): 64 dots in 80×50 (the ROM's dotted quarter blocks). They morph between a sphere, cube,
-   torus, double helix, "MZ" and a star. 23–25 fps.
-8. **Greetings** (60–71): a big chunky scroller with a rippling reflection and parallax stars. 25 fps.
-9. **End** (72–79): credits revealed line by line under a colour wave.
+| # | Part | Bars | What | fps |
+|---|---|---|---|---|
+| 1 | Intro | 0–3 | typewriter text, then a colour-block glitch | 50 |
+| 2 | Title | 4–15 | the SHARP EDGES logo with diagonal-cell edges and a shine, copper bars behind it in 1-line steps (split glyphs 70h/36h/7Ah/7Eh/3Eh/3Ch), a sine scroller, and **sampled speech** shouting "Sharp edges!" | 25 |
+| 3 | Plasma | 16–23 | 40×50 pixels in 8 colours, a new palette every bar | 23 |
+| 4 | 3D starfield | 24–27 | 72 stars in 80×50 dots, near stars bigger and whiter, warp speed swells | 25 |
+| 5 | Rotozoomer | 28–35 | a 16×16 tile rotated and zoomed, letterboxed | 16.7 |
+| 6 | Fire | 36–43 | "Doom" fire under a big FIRE title | 16.5 |
+| 7 | Tunnel | 44–51 | textured, rotating, flying forward | 25 |
+| 8 | Vortex | 52–55 | the tunnel engine with a spiral texture | 25 |
+| 9 | Kefrens bars | 56–63 | one bar per scan line for 128 lines, no raster interrupt | 50 / 12.5 |
+| 10 | Twister | 64–71 | a square bar twisting and swaying, faces shaded by angle | 25 |
+| 11 | Shadebobs | 72–79 | 3 round stamps adding up in a 16-colour cycle | 50 |
+| 12 | Moiré | 80–87 | two sets of rings XORed into 4 colours | 17 |
+| 13 | Sunset floor | 88–95 | a striped synthwave sun over a perspective checkerboard | 16.5 |
+| 14 | Vector cube | 96–103 | a solid, flat-shaded rotating cube (polygon fill, back-face culling) | 19 |
+| 15 | Vector dots | 104–115 | 64 morphing 3D dots: sphere, cube, torus, double helix, "MZ", star | 23 |
+| 16 | Rolling barrels | 116–123 | two text cylinders turning opposite ways | 25 |
+| 17 | Sine dots | 124–127 | 80 dots on Lissajous curves that change every bar | 16.5 |
+| 18 | Endless bobs | 128–131 | never-erased 3×3-character balls | 50 |
+| 19 | Wobbling logo | 132–135 | the logo as chunky pixels, every pixel row on its own sine | 16.5 |
+| 20 | Fake crash | 136–137 | memory-dump garbage and noise, then a "Guru Meditation" box | 50 |
+| 21 | Greetings | 138–149 | "JUST KIDDING!", then a chunky scroller with a rippling reflection and parallax stars | 25 |
+| 22 | End | 150–157 | credits revealed under a colour wave | 25 |
 
 Each part after the first starts on a white flash at the bar change.
 
@@ -51,6 +63,14 @@ Each part after the first starts on a white flash at the bar change.
   - Counter 1 (which counts scan lines, period 78) finds line 72: 312 = 4 × 78, so it reads the same at line 200 of
     every frame.
   - Bars are simulated ahead into a second buffer set, a quarter of the rows per frame, and swapped in when done.
+- **Memory: overlays and high RAM.** The program sits at 1200–AFFF. B000–CFFF is an 8 KB work area that each part
+  fills when it starts: palettes, rotozoomer and tunnel textures, the perspective table, moiré rings, fire heat,
+  twister spans. The 12 KB under VRAM/IO (D000–FFFF, `OUT (E1h)` / `OUT (E3h)`) holds data that is only copied down
+  at a part's start, 256 bytes at a time with interrupts off. That includes the tunnel's angle/depth table, the dot
+  shapes, the moiré quarter, the sky picture, the twister templates and the speech sample.
+- **Sampled speech.** `tools/speech.wav` (Windows text-to-speech, saved in the repo) is resampled to 15.6 kHz and
+  turned into 1 bit by sigma-delta modulation. Each bit is played by writing an 8253 control word for counter 0:
+  mode 0 drives the speaker low, mode 4 high. It is 0.93 s in 1.8 KB, with the music paused while it plays.
 - **Dots.** Each frame builds four 128-byte rotation tables, and a static 16×128 perspective table does the
   projection. Only the cells that changed are written to VRAM.
 
@@ -81,4 +101,8 @@ Testing uses `..\MZ700onPC\mzemu.exe`:
   - Kefrens relies on the WAIT behaviour and on counter 1 being clocked at a fixed point in each line. If it ticks
     near the free window, the curtain could shake by one line;
   - VRAM timing, which follows the CSP eMZ-700 model;
-  - how the one-channel music balances.
+  - how the one-channel music balances;
+  - paging D000–FFFF to RAM (`OUT (E1h)`) in the loader and at part starts;
+  - the speech, which depends on the speaker following counter 0's output as control words are written.
+- `build/MEGADEMO_RAW.MZT` loads only the program, not the high-RAM data, so the parts that copy from high RAM
+  (tunnel, vortex, dots, moiré, floor, twister, speech) look wrong with it. Test with `release/SHARPEDG.MZT`.

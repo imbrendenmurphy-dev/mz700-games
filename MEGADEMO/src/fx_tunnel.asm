@@ -7,6 +7,11 @@
 ; ---------------------------------------------------------------------------
 
 tunnel_init:
+        call gen_tuntex
+        jp chunky_init
+
+vortex_init:                    ; the same engine with a spiral texture
+        call gen_vortex
         jp chunky_init
 
 tunnel_frame:

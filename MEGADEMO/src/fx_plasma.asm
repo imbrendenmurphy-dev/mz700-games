@@ -18,6 +18,7 @@ chunky_init:                    ; all cells 7Ah, black
         jp blit_attr
 
 plasma_init:
+        call gen_pals
         call chunky_init
         ld a,PALS/256
         ld (pl_pal),a

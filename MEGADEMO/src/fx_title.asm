@@ -14,6 +14,7 @@ SCR_TOP equ 18
 
 title_init:
         xor a
+        ld (ti_spoke),a
         ld (ti_scroll),a
         ld (ti_sdelay),a
         ld hl,title_scroll
@@ -61,6 +62,14 @@ title_frame:
         jr c,.d
         ld bc,SCR_TOP*256+7
         call blit_char_rows
+        ld a,(ti_spoke)         ; third update: the logo is up, shout its name
+        cp 3
+        jr nc,.said
+        inc a
+        ld (ti_spoke),a
+        cp 3
+        call z,speak
+.said:
         ; ---- time
         ld a,(mtick)
         ld (ti_t),a
@@ -436,6 +445,7 @@ ti_rainbow: db 70h,70h,60h,60h,20h,20h,30h,30h,10h,10h,30h,30h,50h,50h,70h,70h
             db 10h,10h,50h,50h,70h,70h,70h,70h
 
 ti_t:      db 0
+ti_spoke:  db 0
 ti_scroll: db 0
 ti_sdelay: db 0
 ti_text:   dw 0

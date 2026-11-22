@@ -221,40 +221,77 @@ MEL_D = ('A5:1 E5:1 C5:1 A4:1 A5:1 E5:1 C5:1 A4:1 G5:2 E5:2 C5:2 E5:2 '
          'E5:2 G#5:2 B5:2 E6:2 D6:2 B5:2 G#5:2 E5:2')
 
 
+PROG_D = ['Am', 'G', 'F', 'E']          # the Andalusian cadence
+PROG_E = ['F', 'G', 'Am', 'Am']
+
+MEL_E = ('A4:2 C5:2 E5:4 D5:2 C5:2 B4:4 '
+         'G4:2 B4:2 D5:4 C5:2 B4:2 A4:4 '
+         'F4:2 A4:2 C5:4 B4:2 A4:2 G#4:4 '
+         'E4:4 G#4:4 B4:4 E5:4')
+MEL_F = ('C5:4 A4:2 C5:2 D5:4 C5:4 '
+         'D5:4 B4:2 D5:2 E5:4 D5:4 '
+         'E5:6 D5:2 C5:4 B4:4 '
+         'A4:8 E5:4 A5:4')
+
+
+class CrashBar:
+    """noise bursts, then silence: the fake crash."""
+    def __init__(self, noisy):
+        self.noisy = noisy
+
+    def render(self, prev_lead=None):
+        if not self.noisy:
+            return [0] * TICKS_BAR, None
+        t = []
+        for i in range(TICKS_BAR):
+            t.append(0x85 if (i * 7) % 5 < 3 else (nv(30 + (i * 13) % 40) if i % 3 else 0x81))
+        return t, None
+
+
 def song():
     """sections: (name, [Bar...]). The demo script syncs parts to these."""
     S = []
-    # intro: chords as fast arpeggios, no drums
     S.append(('intro', bars_from(PROG_A, bass=None, arp=True, arp_oct=4)))
-    # title: beat kicks in
-    title = (bars_from(PROG_A, drums=DRUMS_HALF, bass='octave', arp=True) +
-             lead_bars(PROG_A, MEL_A, drums=DRUMS_FULL, bass='octave') +
-             lead_bars(PROG_B, MEL_A2, drums=DRUMS_FULL, bass='octave'))
-    S.append(('title', title))
-    plasma = (lead_bars(PROG_A, MEL_B, drums=DRUMS_FULL, bass='walk') +
-              lead_bars(PROG_B, MEL_D, drums=DRUMS_FOUR, bass='pulse'))
-    S.append(('plasma', plasma))
-    roto = (bars_from(PROG_C, drums=DRUMS_HALF, bass='pulse', arp=True, arp_oct=5) +
-            lead_bars(PROG_C, MEL_C, drums=DRUMS_FULL, bass='octave'))
-    S.append(('roto', roto))
-    tunnel = (bars_from(PROG_B, drums=DRUMS_HATS, bass='walk', arp=True) +
-              lead_bars(PROG_B, MEL_D, drums=DRUMS_FULL, bass='walk'))
-    S.append(('tunnel', tunnel))
-    kefrens = (bars_from(PROG_C, drums=DRUMS_FOUR, bass='walk', arp=True, arp_oct=5) +
-               lead_bars(PROG_C, MEL_C, drums=DRUMS_FULL, bass='pulse'))
-    S.append(('kefrens', kefrens))
-    dots = (lead_bars(PROG_A, MEL_A, drums=DRUMS_FOUR, bass='octave') +
-            lead_bars(PROG_B, MEL_A2, drums=DRUMS_FULL, bass='octave') +
-            lead_bars(PROG_C, MEL_C, drums=DRUMS_FULL, bass='pulse'))
-    S.append(('dots', dots))
-    greets = (lead_bars(PROG_A, MEL_B, drums=DRUMS_FULL, bass='walk') +
+    S.append(('title', bars_from(PROG_A, drums=DRUMS_HALF, bass='octave', arp=True) +
+              lead_bars(PROG_A, MEL_A, drums=DRUMS_FULL, bass='octave') +
+              lead_bars(PROG_B, MEL_A2, drums=DRUMS_FULL, bass='octave')))
+    S.append(('plasma', lead_bars(PROG_A, MEL_B, drums=DRUMS_FULL, bass='walk') +
+              lead_bars(PROG_B, MEL_D, drums=DRUMS_FOUR, bass='pulse')))
+    S.append(('stars', bars_from(PROG_A, drums=DRUMS_HATS, bass='pulse', arp=True, arp_oct=5)))
+    S.append(('roto', bars_from(PROG_C, drums=DRUMS_HALF, bass='pulse', arp=True, arp_oct=5) +
+              lead_bars(PROG_C, MEL_C, drums=DRUMS_FULL, bass='octave')))
+    S.append(('fire', lead_bars(PROG_B, MEL_B, drums=DRUMS_FULL, bass='octave') +
+              lead_bars(PROG_D, MEL_E, drums=DRUMS_FOUR, bass='walk')))
+    S.append(('tunnel', bars_from(PROG_B, drums=DRUMS_HATS, bass='walk', arp=True) +
+              lead_bars(PROG_B, MEL_D, drums=DRUMS_FULL, bass='walk')))
+    S.append(('vortex', bars_from(PROG_C, drums=DRUMS_FOUR, bass='octave', arp=True, arp_oct=5)))
+    S.append(('kefrens', bars_from(PROG_C, drums=DRUMS_FOUR, bass='walk', arp=True, arp_oct=5) +
+              lead_bars(PROG_C, MEL_C, drums=DRUMS_FULL, bass='pulse')))
+    S.append(('twist', bars_from(PROG_D, drums=DRUMS_HALF, bass='octave', arp=True) +
+              lead_bars(PROG_D, MEL_E, drums=DRUMS_FULL, bass='octave')))
+    S.append(('shade', bars_from(PROG_D, drums=DRUMS_FOUR, bass='walk', arp=True, arp_oct=5) +
+              lead_bars(PROG_D, MEL_E, drums=DRUMS_FULL, bass='walk')))
+    S.append(('moire', lead_bars(PROG_A, MEL_A2, drums=DRUMS_FULL, bass='pulse') +
+              lead_bars(PROG_B, MEL_D, drums=DRUMS_FULL, bass='octave')))
+    S.append(('floor', bars_from(PROG_E, drums=DRUMS_FOUR, bass='pulse', arp=True) +
+              lead_bars(PROG_E, MEL_F, drums=DRUMS_FULL, bass='octave')))
+    S.append(('cube', bars_from(PROG_B, drums=DRUMS_HALF, bass='pulse', arp=True, arp_oct=5) +
+              lead_bars(PROG_B, MEL_A2, drums=DRUMS_FOUR, bass='octave')))
+    S.append(('dots', lead_bars(PROG_A, MEL_A, drums=DRUMS_FOUR, bass='octave') +
+              lead_bars(PROG_B, MEL_A2, drums=DRUMS_FULL, bass='octave') +
+              lead_bars(PROG_C, MEL_C, drums=DRUMS_FULL, bass='pulse')))
+    S.append(('barrel', lead_bars(PROG_E, MEL_F, drums=DRUMS_FULL, bass='walk') +
+              lead_bars(PROG_A, MEL_D, drums=DRUMS_FULL, bass='pulse')))
+    S.append(('sdots', bars_from(PROG_D, drums=DRUMS_HATS, bass='octave', arp=True, arp_oct=5)))
+    S.append(('ebobs', bars_from(PROG_B, drums=DRUMS_FOUR, bass='walk', arp=True)))
+    S.append(('wobble', lead_bars(PROG_A, MEL_B, drums=DRUMS_FULL, bass='octave')))
+    S.append(('crash', [CrashBar(True), CrashBar(False)]))
+    S.append(('greets', lead_bars(PROG_A, MEL_B, drums=DRUMS_FULL, bass='walk') +
               lead_bars(PROG_B, MEL_D, drums=DRUMS_FULL, bass='pulse') +
               bars_from(PROG_A[:3], drums=DRUMS_FULL, bass='octave', arp=True) +
-              [Bar('E', drums=DRUMS_FILL, bass='octave', arp=True)])
-    S.append(('greets', greets))
-    end = (lead_bars(PROG_A, MEL_A, bass='root', lead_mode='3') +
-           bars_from(['Am', 'F', 'E', 'Am'], bass='root', arp=True, arp_oct=4))
-    S.append(('end', end))
+              [Bar('E', drums=DRUMS_FILL, bass='octave', arp=True)]))
+    S.append(('end', lead_bars(PROG_A, MEL_A, bass='root', lead_mode='3') +
+              bars_from(['Am', 'F', 'E', 'Am'], bass='root', arp=True, arp_oct=4)))
     return S
 
 
