@@ -1,4 +1,4 @@
-"""galaxy.py - the STARHAUL galaxy: 256 star systems, generated at build time.
+"""galaxy.py - the ARGOSY galaxy: 256 star systems, generated at build time.
 
 Original design: names are built from our own syllable list, positions are
 scattered with a minimum spacing and then nudged until every system can be

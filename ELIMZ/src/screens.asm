@@ -1,14 +1,12 @@
 ; =====================================================================
-;  screens.asm - title (spinning ships + waltz), docked, game over
+;  screens.asm - title (the ARGOSY logo, spinning ships, the waltz),
+;  game over
 ; =====================================================================
 
 title_screen:
         ld a,WHITE<<4
         call cls
-        ld b,VIEW_ROW                   ; title letters in yellow
-        ld c,5
-        ld a,YELLOW<<4
-        call clear_rows
+        call logo_draw                  ; the logo, straight into VRAM
         ld b,VIEW_ROW+6                 ; ships in cyan
         ld c,12
         ld a,CYAN<<4
@@ -115,14 +113,14 @@ title_screen:
         ld ix,objects
         ld a,(title_ship)
         ld (ix+O_TYPE),a
-        ld hl,-30
+        ld hl,-40                       ; (below the logo)
         ld (ix+O_Y),l
         ld (ix+O_Y+1),h
-        ld hl,140
+        ld hl,150
         ld a,(title_ship)
         cp T_STATION
         jr nz,$+5
-        ld hl,260
+        ld hl,330
         ld (ix+O_Z),l
         ld (ix+O_Z+1),h
         ld a,128                        ; two turns each
@@ -193,27 +191,32 @@ title_screen:
         call set_col
         ld ix,objects
         call draw_obj
-        call stamp_title
         jp present
 
-; the logo's rows take turns to light up white
+; the logo's colour bands roll slowly down through the letters
 shimmer:
         ld hl,frame
         inc (hl)
         ld a,(hl)
-        and 1
+        and 3
         ret nz
         ld a,(hl)
         rrca
+        rrca
         and 7
-        ld c,a                          ; the lit row (0..7: 5..7 = none)
+        ld c,a                          ; the phase
         ld hl,ARAM+VIEW_ROW*40
         ld b,0
-.row:   ld a,b
-        cp c
-        ld a,YELLOW<<4
-        jr nz,$+4
-        ld a,WHITE<<4
+.row:   ld a,b                          ; colour = BANDS[(row - phase) & 7]
+        sub c
+        and 7
+        push hl
+        ld e,a
+        ld d,0
+        ld hl,BANDS
+        add hl,de
+        ld a,(hl)
+        pop hl
         push bc
         ld b,40
 .c:     ld (hl),a
@@ -226,6 +229,34 @@ shimmer:
         jr c,.row
         ret
 
+BANDS:  db WHITE<<4,YELLOW<<4,YELLOW<<4,RED<<4,MAGENTA<<4,RED<<4,YELLOW<<4,WHITE<<4
+
+; the logo (build.py: LOGO) into VRAM rows 1..5, from column 2
+logo_draw:
+        ld hl,SHD                       ; present leaves these rows alone
+        ld de,SHD+1
+        ld bc,5*64-1
+        ld (hl),0
+        ldir
+        ld hl,LOGO
+        ld de,VRAM+VIEW_ROW*40+2
+        ld c,5
+.r:     ld b,36
+.l:     ld a,(hl)
+        ld (de),a
+        inc hl
+        inc de
+        djnz .l
+        ex de,hl
+        ld a,c
+        ld bc,4
+        add hl,bc
+        ld c,a
+        ex de,hl
+        dec c
+        jr nz,.r
+        ret
+
 title_text:
         db SEP_ROW+1,WHITE<<4,"ORIGINAL SPACE TRADING FOR THE MZ-700",0
         db SEP_ROW+2,CYAN<<4,"N/M ROLL  S/X DIVE  A FIRE  F1 HELP",0
@@ -233,48 +264,6 @@ title_text:
         db SEP_ROW+4,BLUE<<4,"MUSIC: J. STRAUSS II - BLUE DANUBE",0
         db 0FFh
 txt_tfoot:      db "SPACE START  L LOAD  J JOYSTICK",0
-
-; big dotted STARHAUL in PIX cell rows 0..4 (each font dot = a full cell)
-stamp_title:
-        ld a,1                          ; rows 0..4 are in use
-        ld (PIX+63),a
-        ld (PIX+63+64),a
-        ld (PIX+63+128),a
-        ld (PIX+63+192),a
-        ld (PIX+63+256),a
-        ld hl,TITLEFONT
-        ld de,PIX+4                     ; column 4
-        ld b,8
-.ch:    push bc
-        push de
-        ld b,5
-.row:   push bc
-        ld a,(hl)
-        inc hl
-        push de
-        ld b,3
-.bit:   bit 2,a
-        jr z,.z
-        ex de,hl
-        ld (hl),0Fh+(YELLOW<<4)
-        ex de,hl
-.z:     inc de
-        add a,a
-        djnz .bit
-        pop de
-        ex de,hl
-        ld bc,64
-        add hl,bc
-        ex de,hl
-        pop bc
-        djnz .row
-        pop de
-        ld a,e
-        add a,4
-        ld e,a
-        pop bc
-        djnz .ch
-        ret
 
 ; ---------------------------------------------------------------------
 gameover_screen:

@@ -1,4 +1,4 @@
-"""wav.py - record STARHAUL's speaker in the simulator and write WAV files.
+"""wav.py - record ARGOSY's speaker in the simulator and write WAV files.
 
     py tools/wav.py SCENE [seconds]      -> build/sound/SCENE.wav
 

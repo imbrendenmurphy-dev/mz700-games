@@ -1,5 +1,5 @@
 ; =====================================================================
-;  sound.asm - STARHAUL's sound (data: tools/music.py -> gen_music.inc)
+;  sound.asm - ARGOSY's sound (data: tools/music.py -> gen_music.inc)
 ;
 ;  One output for the whole game: 8253 counter 0 plays a square wave by
 ;  itself, so sound costs almost no CPU and every screen can animate.

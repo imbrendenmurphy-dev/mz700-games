@@ -1,4 +1,4 @@
-"""run.py - run STARHAUL in the MZ-700 simulator with scripted keys.
+"""run.py - run ARGOSY in the MZ-700 simulator with scripted keys.
 
     py tools/run.py FIELDS [shot_field,...] [--keys "field:key+key,field:-,..."]
 
@@ -16,7 +16,7 @@ from mzsim import MZ700, FIELD_T  # noqa: E402
 
 def load_syms():
     syms = {}
-    for ln in open(os.path.join(ROOT, 'build', 'starhaul.sym')):
+    for ln in open(os.path.join(ROOT, 'build', 'argosy.sym')):
         if ': EQU ' in ln:
             k, v = ln.split(': EQU ')
             syms[k.strip()] = int(v.strip(), 16)
@@ -30,7 +30,7 @@ class Game:
     def __init__(self, vram_wait=None):
         self.m = MZ700(os.path.join(ROOT, 'rom', 'mz700fon.int'))
         self.m.vram_wait = vram_wait
-        self.m.load_mzf(os.path.join(ROOT, 'build', 'STARHAUL.MZT'))
+        self.m.load_mzf(os.path.join(ROOT, 'build', 'ARGOSY.MZT'))
         self.end = S['end_of_program']
         self.shots = os.path.join(ROOT, 'build', 'shots')
         os.makedirs(self.shots, exist_ok=True)

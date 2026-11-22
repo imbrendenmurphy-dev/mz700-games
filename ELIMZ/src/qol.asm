@@ -187,7 +187,7 @@ SAVE_MAP:
         db 1
         dw 0
 
-pilot_name:     db "STARHAUL PILOT",0Dh
+pilot_name:     db "ARGOSY PILOT",0Dh
 PILOT_NAME_LEN  equ $-pilot_name
 
 ; copy pilot vars <-> save_buf ; A = 0 pack, 1 unpack

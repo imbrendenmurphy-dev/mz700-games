@@ -1,8 +1,8 @@
-# STARHAUL (prototype) — Sharp MZ-700
+# ARGOSY — Sharp MZ-700
 
 An original wireframe space-combat and trading game for the 64K Sharp MZ-700, in the open-world style of the 1980s. All of it is new: the code, the ship and station designs, the names and the layout. The music is an original arrangement of Johann Strauss II's *Blue Danube* waltz, which is in the public domain.
 
-`release/STARHAUL.MZT` is for emulators and `release/STARHAUL.MZF` for UniCMT. Both load at 1200h. **Not yet tested on real hardware.**
+`release/ARGOSY.MZT` is for emulators and `release/ARGOSY.MZF` for UniCMT. Both load at 1200h. **Not yet tested on real hardware.**
 
 ## Controls
 The keys follow ZX Spectrum Elite, the standard for space-trading players.

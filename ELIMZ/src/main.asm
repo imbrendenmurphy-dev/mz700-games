@@ -218,6 +218,6 @@ end_of_program:
         ASSERT end_of_program <= PIX
         ASSERT vars_end <= STACKTOP-200h
 
-        SAVEBIN "../build/starhaul.bin", start, end_of_program-start
+        SAVEBIN "../build/argosy.bin", start, end_of_program-start
 
         include "vars.asm"

@@ -1,10 +1,10 @@
-"""build.py - builds STARHAUL for the Sharp MZ-700.
+"""build.py - builds ARGOSY for the Sharp MZ-700.
 
     py build.py
 
 Generates build/gen_*.inc (lookup tables, ship models, music), assembles
-src/main.asm with sjasmplus and writes build/STARHAUL.MZT (emulators) plus
-an identical STARHAUL.MZF (UniCMT / real hardware); both go to release/.
+src/main.asm with sjasmplus and writes build/ARGOSY.MZT (emulators) plus
+an identical ARGOSY.MZF (UniCMT / real hardware); both go to release/.
 """
 import math
 import os
@@ -21,7 +21,7 @@ sys.path.insert(0, TOOLS)
 import music  # noqa: E402
 import galaxy  # noqa: E402
 
-NAME = 'STARHAUL'
+NAME = 'ARGOSY'
 LOAD = 0x1200
 NL = chr(10)
 
@@ -66,6 +66,29 @@ FONT3 = {
     'S': ['###', '#..', '###', '..#', '###'], 'T': ['###', '.#.', '.#.', '.#.', '.#.'],
     'U': ['#.#', '#.#', '#.#', '#.#', '###'], ' ': ['...'] * 5,
 }
+
+
+# the title logo: letters 5 x 5 cells in CG-ROM block glyphs, bold with
+# cut corners.  # full block, L R lower-left / lower-right triangles,
+# l r upper-left / upper-right, ^ _ upper / lower half block.
+LOGO_GLYPH = {'#': 0x43, 'L': 0x4D, 'R': 0x4E, 'l': 0x56, 'r': 0x42, '^': 0x7A, '_': 0x3A, ' ': 0}
+LOGO_FONT = {
+    'A': [' R#L ', 'R# #L', '#####', '#   #', '#   #'],
+    'R': ['####L', '#   #', '####l', '# r#L', '#  r#'],
+    'G': ['R###^', '#    ', '# ###', '#   #', 'r###l'],
+    'O': ['R###L', '#   #', '#   #', '#   #', 'r###l'],
+    'S': ['R###^', '#    ', 'r###L', '    #', '_###l'],
+    'Y': ['#   #', 'r# #l', ' r#l ', '  #  ', '  #  '],
+}
+
+
+def logo_cells(word):
+    """5 rows of 6-cell letters (a gap after each): glyph codes, row by row"""
+    out = []
+    for r in range(5):
+        for ch in word:
+            out += [LOGO_GLYPH[c] for c in LOGO_FONT[ch][r]] + [0]
+    return out
 
 
 def font3_bytes(word):
@@ -240,7 +263,7 @@ def gen_tables():
         ylo[y] = a & 255
         yhi[y] = a >> 8
     out += ['        align 256', 'YLO:', db_lines(ylo), 'YHI:', db_lines(yhi)]
-    out += ['TITLEFONT:', db_lines(font3_bytes('STARHAUL'))]
+    out += ['LOGO:', db_lines(logo_cells('ARGOSY'))]
     # the title's spinning ship: 64 orientations (side, roof, nose; unit
     # 4000h), a turn about the vertical, seen from a little above
     spin = []
@@ -292,13 +315,13 @@ def main():
     write('gen_galaxy.inc', galaxy.gen_asm(db_lines)[0])
     write('gen_music.inc', music.gen_asm())
     asm = os.path.join(TOOLS, 'sjasmplus', 'sjasmplus.exe')
-    r = subprocess.run([asm, '--nologo', '--msg=war', '--sym=../build/starhaul.sym',
-                        '--lst=../build/starhaul.lst', 'main.asm'],
+    r = subprocess.run([asm, '--nologo', '--msg=war', '--sym=../build/argosy.sym',
+                        '--lst=../build/argosy.lst', 'main.asm'],
                        cwd=SRC, capture_output=True, text=True)
     sys.stdout.write(r.stdout + r.stderr)
     if r.returncode:
         sys.exit('assembly failed')
-    data = open(os.path.join(BUILD, 'starhaul.bin'), 'rb').read()
+    data = open(os.path.join(BUILD, 'argosy.bin'), 'rb').read()
     out = mzf(NAME, LOAD, data, LOAD)
     for d in (BUILD, REL):
         for ext in ('MZT', 'MZF'):

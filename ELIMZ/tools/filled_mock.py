@@ -1,4 +1,4 @@
-"""filled_mock.py - what would STARHAUL look like with hidden lines removed
+"""filled_mock.py - what would ARGOSY look like with hidden lines removed
 or with filled, shaded polygons?  A mock-up at the MZ-700's real limits.
 
     py tools/filled_mock.py      -> build/shots/mock_filled.png

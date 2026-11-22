@@ -1,4 +1,4 @@
-"""music.py - songs and sound effects for STARHAUL (src/sound.asm).
+"""music.py - songs and sound effects for ARGOSY (src/sound.asm).
 
 Two players read these data:
 
