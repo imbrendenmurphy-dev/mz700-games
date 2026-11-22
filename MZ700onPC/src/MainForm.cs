@@ -197,10 +197,10 @@ public sealed class MainForm : Form
     void BuildMenu()
     {
         var file = new ToolStripMenuItem("&File");
-        file.DropDownItems.Add(Item("Load program (.MZT / .MZF)...", Keys.F3, (s, e) => OpenProgramDialog()));
-        file.DropDownItems.Add(Item("Reload last program", Keys.F5, (s, e) => { if (lastProgram != null) Launch(lastProgram); }));
+        file.DropDownItems.Add(Item("Load program (.MZT / .MZF)...", Keys.F7, (s, e) => OpenProgramDialog()));
+        file.DropDownItems.Add(Item("Reload last program", Keys.Shift | Keys.F7, (s, e) => { if (lastProgram != null) Launch(lastProgram); }));
         file.DropDownItems.Add(new ToolStripSeparator());
-        file.DropDownItems.Add(Item("Insert tape (MZT, or WAV / FLAC / MP3 audio)...", Keys.F2, (s, e) => OpenTapeDialog()));
+        file.DropDownItems.Add(Item("Insert tape (MZT, or WAV / FLAC / MP3 audio)...", Keys.Control | Keys.F7, (s, e) => OpenTapeDialog()));
         miTapePlay = Item("Tape: press PLAY", Keys.None, (s, e) => cmds.Enqueue(() => { m.Cass.Play(m.NowM); ShowMessage("Tape playing"); }));
         miTapeStop = Item("Tape: STOP", Keys.None, (s, e) => cmds.Enqueue(() => { m.Cass.Stop(m.NowM); ShowMessage("Tape stopped"); }));
         file.DropDownItems.Add(miTapePlay);
@@ -214,7 +214,7 @@ public sealed class MainForm : Form
         file.DropDownItems.Add(miRec);
         file.DropDownItems.Add(miRecStop);
         file.DropDownItems.Add(new ToolStripSeparator());
-        file.DropDownItems.Add(Item("Paste text as typing", Keys.F7, (s, e) => PasteText()));
+        file.DropDownItems.Add(Item("Paste text as typing", Keys.Control | Keys.F8, (s, e) => PasteText()));
         file.DropDownItems.Add(Item("Save screenshot", Keys.F12, (s, e) => Screenshot()));
         file.DropDownItems.Add(Item("Open the screenshots folder", Keys.None, (s, e) => { string d = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "screenshots"); Directory.CreateDirectory(d); Process.Start("explorer.exe", "\"" + d + "\""); }));
         file.DropDownItems.Add(new ToolStripSeparator());
@@ -224,9 +224,9 @@ public sealed class MainForm : Form
         for (int d = 0; d < 2; d++)
         {
             int dn = d;
-            disk.DropDownItems.Add(Item("Insert disk in drive " + (dn + 1) + " (.D88 / .DSK / .2D)...", dn == 0 ? Keys.Control | Keys.F2 : Keys.None, (s, e) => OpenDiskDialog(dn, false)));
+            disk.DropDownItems.Add(Item("Insert disk in drive " + (dn + 1) + " (.D88 / .DSK / .2D)...", dn == 0 ? Keys.Shift | Keys.F8 : Keys.None, (s, e) => OpenDiskDialog(dn, false)));
         }
-        disk.DropDownItems.Add(Item("Insert a disk in drive 1 and boot it...", Keys.Control | Keys.F3, (s, e) => OpenDiskDialog(0, true)));
+        disk.DropDownItems.Add(Item("Insert a disk in drive 1 and boot it...", Keys.F8, (s, e) => OpenDiskDialog(0, true)));
         disk.DropDownItems.Add(Item("Boot drive 1 (the monitor's F command)", Keys.None, (s, e) => cmds.Enqueue(BootDiskNow)));
         disk.DropDownItems.Add(new ToolStripSeparator());
         for (int d = 0; d < 2; d++)
@@ -261,11 +261,11 @@ public sealed class MainForm : Form
         miFloppy = Item("MZ-1E05 floppy interface + MZ-1F02 drives (ports D8-DF, ROM F000)", Keys.None, (s, e) => cmds.Enqueue(() => { m.FloppyOn = !m.FloppyOn; ShowMessage(m.FloppyOn ? "Floppy interface fitted: " + m.FdRomName + " at F000 (type F at the monitor)" : "Floppy interface removed"); }));
         miPsg = Item("MZ-1500 PSG sound (2 x SN76489, ports E9 / F2 / F3)", Keys.None, (s, e) => cmds.Enqueue(() => { m.PsgOn = !m.PsgOn; m.PsgL.Reset(); m.PsgR.Reset(); ShowMessage(m.PsgOn ? "MZ-1500 PSG fitted" : "MZ-1500 PSG removed"); }));
         mach.DropDownItems.AddRange(new ToolStripItem[] { miRom, miJp, pcg, wait, miJoy, miPsg, miFloppy, new ToolStripSeparator() });
-        mach.DropDownItems.Add(Item("Power cycle", Keys.F4, (s, e) => cmds.Enqueue(PowerOnNow)));
-        mach.DropDownItems.Add(Item("Reset (the RESET switch)", Keys.Shift | Keys.F4, (s, e) => cmds.Enqueue(() => m.Reset())));
+        mach.DropDownItems.Add(Item("Power cycle", Keys.Control | Keys.F6, (s, e) => cmds.Enqueue(PowerOnNow)));
+        mach.DropDownItems.Add(Item("Reset (the RESET switch)", Keys.Shift | Keys.F6, (s, e) => cmds.Enqueue(() => m.Reset())));
         miPause = Item("Pause", Keys.F6, (s, e) => { paused = !paused; });
         miWarp = Item("Warp speed", Keys.F9, (s, e) => { warp = !warp; });
-        miMute = Item("Mute sound", Keys.F8, (s, e) => { muted = !muted; });
+        miMute = Item("Mute sound", Keys.Shift | Keys.F9, (s, e) => { muted = !muted; });
         mach.DropDownItems.AddRange(new ToolStripItem[] { miPause, miWarp, miMute });
 
         var view = new ToolStripMenuItem("&View");
@@ -297,7 +297,7 @@ public sealed class MainForm : Form
             Item("Rescan joysticks", Keys.None, (s, e) => { Joysticks.Scan(); ShowMessage(Joysticks.Count + " joystick(s): " + string.Join(", ", Joysticks.Names)); }), miJoyList });
 
         var help = new ToolStripMenuItem("&Help");
-        help.DropDownItems.Add(Item("Keys and controls", Keys.F1, (s, e) => MessageBox.Show(this, HelpText, "MZ700onPC keys")));
+        help.DropDownItems.Add(Item("Keys and controls", Keys.Shift | Keys.F12, (s, e) => MessageBox.Show(this, HelpText, "MZ700onPC keys")));
         help.DropDownItems.Add(Item("About", Keys.None, (s, e) => MessageBox.Show(this,
             "MZ700onPC - Sharp MZ-700 (PAL) emulator\n\nZ80, 8253, 8255, colour text video with VRAM wait states, PCG-700 and MZ-1500 PCG, " +
             "MZ-1X03 joysticks, data recorder, sound, visualiser.\n\nMonitor: " + (m.HasRom ? m.RomName : "none (built-in stub)") +
@@ -310,13 +310,17 @@ public sealed class MainForm : Form
     const string HelpText =
         "MZ keyboard: letters, digits, SPACE, RETURN, SHIFT, CTRL and the punctuation keys.\n" +
         "  Backspace / Delete = DEL    Insert = INST    Esc = BREAK (SHIFT+Esc = SHIFT+BREAK)\n" +
-        "  ` = @    [ ] = [ ]    ' = :    Home = ALPHA    End = GRAPH    Ctrl+F1..F5 = MZ F1..F5\n\n" +
+        "  ` = @    [ ] = [ ]    ' = :    Home = ALPHA    End = GRAPH    F1..F5 = MZ F1..F5 (with SHIFT too)\n\n" +
         "Arrow keys: MZ cursor keys, or joystick 1 (Input menu; Right Ctrl and Right Shift are its buttons).\n" +
         "PC gamepads are MZ-1X03 joysticks (analogue sticks work), or cursor keys + SPACE / RETURN for keyboard games.\n\n" +
-        "F1 help   F2 insert tape   F3 load program   F4 power cycle   F5 reload program\n" +
-        "F6 pause   F7 paste text   F8 mute   F9 warp   F10 visualiser   F11 / Alt+Enter fullscreen   F12 screenshot\n" +
+        "F1-F5 are the MZ's own function keys. The emulator uses F6-F12 (SHIFT and CTRL with these never reach the MZ):\n" +
+        "F6 pause          Shift+F6 reset          Ctrl+F6 power cycle\n" +
+        "F7 load program   Shift+F7 reload it      Ctrl+F7 insert tape\n" +
+        "F8 boot a disk    Shift+F8 insert disk 1  Ctrl+F8 paste text as typing\n" +
+        "F9 warp           Shift+F9 mute\n" +
+        "F10 visualiser    F11 / Alt+Enter fullscreen    F12 screenshot    Shift+F12 this help\n\n" +
         "Drop an .MZT / .MZF on the window to run it; drop a .WAV to put it in the data recorder.\n" +
-        "Drop a .D88 / .DSK disk image to boot it. Ctrl+F2 inserts a disk, Ctrl+F3 inserts and boots; F at the monitor boots drive 1.";
+        "Drop a .D88 / .DSK disk image to boot it. F at the monitor boots drive 1.";
 
     void SyncMenu()
     {
@@ -359,7 +363,7 @@ public sealed class MainForm : Form
     {
         sessionProgram = false;
         m.PowerOn();
-        ShowMessage(m.HasRom ? "Power on: monitor " + m.RomName : "Power on: no monitor ROM (roms\\1z013a.rom) - press F3 to load a program");
+        ShowMessage(m.HasRom ? "Power on: monitor " + m.RomName : "Power on: no monitor ROM (roms\\1z013a.rom) - press F7 to load a program");
         BeginInvoke((Action)(() => Text = "MZ700onPC"));
     }
 
@@ -599,7 +603,8 @@ public sealed class MainForm : Form
         if (keyData == (Keys.Alt | Keys.Enter)) { ToggleFullscreen(); return true; }
         if (keyData == Keys.F10) { ToggleVis(); return true; }
         if (keyData == Keys.Menu || keyData == (Keys.Alt | Keys.Menu)) return true;
-        if ((keyData & Keys.Control) != 0 && (keyData & Keys.KeyCode) >= Keys.F1 && (keyData & Keys.KeyCode) <= Keys.F5) return true;   // MZ F1-F5
+        Keys kc = keyData & Keys.KeyCode;
+        if (kc >= Keys.F1 && kc <= Keys.F5) return true;             // the MZ's own F1-F5, read in PollInput: never a shortcut
         return base.ProcessCmdKey(ref msg, keyData);
     }
     protected override void OnKeyDown(KeyEventArgs e) { e.Handled = true; e.SuppressKeyPress = true; }
@@ -734,12 +739,14 @@ public sealed class MainForm : Form
         if (focused)
         {
             bool ctrl = Native.KeyDown(0xA2) || (!arrowsJoy && Native.KeyDown(0xA3));
+            // F1-F5 are the MZ's F1-F5. F6-F12 belong to the emulator: while one is down, SHIFT and CTRL stay off the MZ
+            for (int i = 0; i < 5; i++) if (Native.KeyDown(0x70 + i)) K("F" + (i + 1));
             bool fkey = false;
-            for (int i = 0; i < 5; i++) if (ctrl && Native.KeyDown(0x70 + i)) { K("F" + (i + 1)); fkey = true; }
+            for (int i = 5; i < 12; i++) if (Native.KeyDown(0x70 + i)) fkey = true;
             for (int i = 0; i < 36; i++) if (Native.KeyDown(letterVk[i])) K(letterKey[i]);
             if (Native.KeyDown(0x20)) K("SPACE");
             if (Native.KeyDown(0x0D)) K("CR");
-            if (Native.KeyDown(0xA0) || (!arrowsJoy && Native.KeyDown(0xA1))) K("SHIFT");
+            if (!fkey && (Native.KeyDown(0xA0) || (!arrowsJoy && Native.KeyDown(0xA1)))) K("SHIFT");
             if (ctrl && !fkey) K("CTRL");
             if (Native.KeyDown(0xBC)) K(",");
             if (Native.KeyDown(0xBE)) K(".");

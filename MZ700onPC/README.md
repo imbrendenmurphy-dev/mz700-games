@@ -37,24 +37,24 @@ It builds with the C# compiler that comes with Windows (`build.bat`). There is n
 | `mz700onpc.ini` | settings, written on exit |
 
 **Without the monitor ROM** a small built-in stand-in sets the hardware up, and `0038h` jumps to `1038h` as in the
-real monitor. Machine-code programs loaded with F3 or a drop run the same way. **Without the CG-ROM** a rough built-in
+real monitor. Machine-code programs loaded with F7 or a drop run the same way. **Without the CG-ROM** a rough built-in
 font is used.
 
 ## Using it
 
-- **F3**, or dropping an `.MZT`/`.MZF` on the window, loads a program.
+- **F7**, or dropping an `.MZT`/`.MZF` on the window, loads a program.
   - The machine is switched on first and the real monitor boots to its `*` prompt.
   - Then the file goes into memory, the same way the monitor's `L` command leaves things: the header at `10F0h`,
     SP = `10F0h`, interrupts off. The program runs from its exec address.
   - Any further files in the same MZT stay on the tape, for programs that load more parts through the monitor.
-- **F2** puts a tape in the data recorder and presses PLAY. Type `L` and RETURN at the monitor prompt to load it.
+- **Ctrl+F7** puts a tape in the data recorder and presses PLAY. Type `L` and RETURN at the monitor prompt to load it.
   - With **File → Fast tape loading** on, the monitor's RDINF (`04D8h`) and RDDAT (`04F8h`) finish at once.
   - With it off, the MZT is played as a real Sharp PWM signal on PC5, at real speed. The monitor reads it with its own
     code, and the motor is driven by PC3 and sensed on PC4. That is a good way to check a loader.
 - **File → Record tape output** records PC1 while the program saves. Name the file `.mzt` to have the pulses decoded
   back into a tape file, or `.wav` for the audio.
 - **Disks:** drop a `.D88`, `.DSK` or `.2D` image on the window to boot it, or use the **Disk** menu.
-  - **Ctrl+F2** inserts a disk in drive 1 (there is a drive 2 too). **Ctrl+F3** inserts one and boots it.
+  - **F8** inserts a disk in drive 1 and boots it. **Shift+F8** only inserts it (there is a drive 2 too, in the menu).
   - Booting powers on, lets the monitor reach `*`, then does what typing `F` does: it runs the interface ROM at `F000`.
     You can type `F` yourself at any time.
   - Writes go to the image file when the disk is ejected or the emulator closes. Turn **Disk → Write disk changes
@@ -67,21 +67,17 @@ font is used.
 
 | Key | |
 |---|---|
-| F1 | help |
-| F2 | insert a tape (MZT or audio) and press PLAY |
-| F3 | load a program |
-| F4 / Shift+F4 | power cycle / the RESET switch |
-| F5 | reload the last program |
-| F6 | pause |
-| F7 | paste the clipboard as typing |
-| F8 | mute |
-| F9 | warp speed |
+| F1–F5 | the MZ's own F1–F5 (SHIFT and CTRL with them go to the MZ too) |
+| F6 / Shift+F6 / Ctrl+F6 | pause / the RESET switch / power cycle |
+| F7 / Shift+F7 / Ctrl+F7 | load a program / reload the last one / insert a tape (MZT or audio) and press PLAY |
+| F8 / Shift+F8 / Ctrl+F8 | insert a disk in drive 1 and boot it / just insert it / paste the clipboard as typing |
+| F9 / Shift+F9 | warp speed / mute |
 | F10 | visualiser (sidebars in fullscreen, its own window otherwise) |
 | F11 or Alt+Enter, or double-click | fullscreen |
-| F12 | screenshot, saved to `screenshots\` |
-| Ctrl+F2 / Ctrl+F3 | insert a disk in drive 1 / insert one and boot it |
+| F12 / Shift+F12 | screenshot, saved to `screenshots\` / keys help |
 
-**MZ keyboard:** letters, digits, SPACE, RETURN, SHIFT, CTRL and the punctuation keys work as typed.
+**MZ keyboard:** letters, digits, SPACE, RETURN, SHIFT, CTRL, F1–F5 and the punctuation keys work as typed. The
+emulator's own keys are all on F6–F12, which the MZ doesn't have; SHIFT and CTRL held with those never reach the MZ.
 
 | PC key | MZ key |
 |---|---|
@@ -92,7 +88,7 @@ font is used.
 | End | GRAPH |
 | `` ` `` | `@` |
 | `'` | `:` |
-| Ctrl+F1 to Ctrl+F5 | F1 to F5 |
+| F1 to F5 | F1 to F5 |
 
 The arrow keys are the MZ cursor keys. Under **Input** they can be made joystick 1 instead, with Right Ctrl and
 Right Shift as its two buttons.

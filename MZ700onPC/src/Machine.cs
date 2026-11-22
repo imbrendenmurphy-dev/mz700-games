@@ -190,7 +190,7 @@ public sealed class MzMachine
         e(new[] { 0x21, 0x00, 0xD8, 0x01, 0x00, 0x04, 0x36, 0x71, 0x23, 0x0B, 0x78, 0xB1, 0x20, 0xF8 });
         // copy the message to the screen: LD HL,msg; LD DE,D000+40*2+1; LD BC,len; LDIR
         int msgAt = 0x100;
-        string[] lines = { "MZ700ONPC", "", "NO MONITOR ROM  ROMS 1Z013A ROM", "", "DROP AN MZT FILE ON THE WINDOW", "OR PRESS F2" };
+        string[] lines = { "MZ700ONPC", "", "NO MONITOR ROM  ROMS 1Z013A ROM", "", "DROP AN MZT FILE ON THE WINDOW", "OR PRESS F7" };
         var msg = new List<byte>(); var pos = new List<int>();
         for (int i = 0; i < lines.Length; i++) foreach (char ch in lines[i]) { msg.Add((byte)DisplayCode(ch)); pos.Add(0xD000 + (2 + i) * 40 + 2); }
         // simple: write each line with its own LDIR
@@ -748,7 +748,7 @@ public sealed class MzMachine
         Cass.FastIndex = 1;
         Cpu.SP = 0x10F0; Cpu.PC = b.Exec; Cpu.IFF1 = Cpu.IFF2 = false; Cpu.Halted = false; Cpu.IM = 1;
         TapeLog.Add("LOAD " + b.Describe());
-        if (b.Attr != 1) Log(b.Attr == 2 ? "\"" + b.Name + "\" is a BASIC program (attribute 02): load S-BASIC first, then LOAD it from tape (F2)"
+        if (b.Attr != 1) Log(b.Attr == 2 ? "\"" + b.Name + "\" is a BASIC program (attribute 02): load S-BASIC first, then LOAD it from tape (Ctrl+F7)"
             : string.Format("\"{0}\" has file attribute {1:X2}, not 01 (machine code)", b.Name, b.Attr));
         return b;
     }
