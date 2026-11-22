@@ -302,10 +302,10 @@ public sealed class MzMachine
         if (Pcg == PcgType.Mz1500 && PcgMap >= 0 && a < 0xF000)
         {
             VramAccess(a, true);
-            if (PcgMap > 0) { SyncVideo(); Plane[PcgMap - 1][a - 0xD000] = (byte)v; PcgWrites++; }
+            if (PcgMap > 0) { SyncVideo(MzTrace.P_CG); Plane[PcgMap - 1][a - 0xD000] = (byte)v; PcgWrites++; }
             return;
         }
-        if (a < 0xE000) { VramAccess(a, true); SyncVideo(); Vram[a - 0xD000] = (byte)v; return; }
+        if (a < 0xE000) { VramAccess(a, true); SyncVideo(MzTrace.P_CELL); Vram[a - 0xD000] = (byte)v; return; }
         if (a < 0xE800) WriteIo(a, v);
     }
 
@@ -390,13 +390,13 @@ public sealed class MzMachine
                 {
                     if ((PcgCtrl & 0x10) == 0 && (v & 0x10) != 0)
                     {
-                        SyncVideo();
+                        SyncVideo(MzTrace.P_CG);
                         int off = PcgAddr | ((v & 3) << 8);
                         off |= (v & 4) != 0 ? 0xC00 : 0x400;
                         Pcg700[off] = (v & 0x20) != 0 ? Font[off] : (byte)PcgData;
                         PcgWrites++;
                     }
-                    if (((PcgCtrl ^ v) & 8) != 0) SyncVideo();
+                    if (((PcgCtrl ^ v) & 8) != 0) SyncVideo(MzTrace.P_CG);
                     PcgCtrl = v;
                 }
                 break;
@@ -635,8 +635,8 @@ public sealed class MzMachine
         if (x > spanX) { RenderSpan(renderLine, spanX, x); spanX = x; }
     }
     /// <summary>Before a change to anything on screen at the access in progress.</summary>
-    void SyncVideo() { DrawTo(AccM, true); }
-    void SyncPixel() { DrawTo(AccM, false); }
+    void SyncVideo(byte kind) { DrawTo(AccM, true); if (Tr != null) Tr.Pic(kind); }
+    void SyncPixel() { DrawTo(AccM, false); if (Tr != null) Tr.Pic(MzTrace.P_PAL); }
 
 
     void RenderSpan(int ln, int x0, int x1)

@@ -21,7 +21,7 @@ also a good way to explore the classic demos and see how they pull their tricks.
 | ![Booting a floppy disk: the IPL loading Dracula 2, the floppy panel and track map bottom left](vis_disk_boot.png) | ![The MZ-1500 PSG: two SN76489 chips playing a chord loop](vis_psg.png) |
 | ![ROCKFALL: VRAM waits by line, the frame budget and hot spots](vis_rockfall.png) | ![ROBOGEDDON: sound, keyboard scanning and the beam](vis_robogeddon.png) |
 | ![STARHAUL: the wireframe engine at work](vis_starhaul.png) | ![ZENITH: the ray-cast landscape](vis_zenith.png) |
-| ![Pixel-exact: the palette switched every 12 T, mid-line, 30 pixels apart](vis_raster.png) | |
+| ![Pixel-exact: the palette switched every 12 T, mid-line, 30 pixels apart. In the beam panel each write sits on the colour boundary it made](vis_raster.png) | |
 
 ## The visualiser
 
@@ -32,8 +32,9 @@ also a good way to explore the classic demos and see how they pull their tricks.
 - **Hot spots:** CPU time per routine over the last second.
 - **Frame budget:** each 50 Hz field split into busy, interrupt, VRAM wait, tape and idle time, with a six-second
   history.
-- **VRAM by line:** reads and writes on all 312 lines, with accesses outside the free window in red and the
-  T-states lost to waits.
+- **Beam, line by line:** every picture line at one column per T-state, with the picture as drawn. Each VRAM,
+  PCG and palette write sits at the exact T-state it happened, beside the pixel it changed. Also shown: the
+  HBLANK free window, and per-line VRAM counts with accesses outside the window in red.
 - **Opcodes:** a heat map of the instructions the program actually uses.
 - **Floppy:** the controller's command and status, the head position, sectors read and written, and a track map
   that flashes as the disk is read and written.

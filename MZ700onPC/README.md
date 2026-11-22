@@ -255,8 +255,13 @@ on blue), as in CSP. The monitor never writes them.
 - **Hot spots.** CPU time per routine over the last second.
 - **Frame budget.** Each 50 Hz field split into busy, ISR, **VRAM wait** (orange-red), tape and idle, with a 6-second
   history.
-- **VRAM by line.** Writes (white) and reads (cyan) to `D000`–`DFFF` on each of the 312 lines. Accesses outside the free
-  window are red. Underneath: the T-states lost to waits this field.
+- **Beam, line by line.** All 200 picture lines at one column per T-state (2.5 pixels), the counterpart of VZonPC's
+  6847 line panel. T 0–127 is the picture as it was drawn, dimmed. T 128–227 is HBLANK: green where VRAM is free,
+  red where the CPU would wait. Every change to what the beam draws is marked at the T-state it happened: VRAM
+  writes (white, shown from the next 8-pixel cell), PCG writes (magenta), MZ-1500 palette or priority (amber, shown
+  from the next pixel), and VRAM reads (cyan). Ticks under the picture mark the 8-pixel cells. On the right are the
+  VRAM accesses per line, red where they fell outside the free window. Underneath are this field's writes, reads,
+  VBLANK writes/reads, accesses outside the window and T-states lost to waits.
 - **Opcodes.** A heat map of the first opcode byte, and the top instructions.
 - **Floppy** (when the interface is fitted). The drive, image and motor; the command in progress, status, DRQ;
   track/sector registers, the head position, and sectors read and written, with lost data in red. Underneath is a

@@ -24,6 +24,9 @@ public sealed class MzTrace
     public const byte O_VR = 1, O_VW = 2, O_SND = 3, O_OUT = 4, O_IN = 5, O_KEY = 6, O_PIT = 7, O_JOY = 8;
     byte[] ras = new byte[FT], ov = new byte[FT];
     public byte[] Ras = new byte[FT], Ov = new byte[FT];
+    // changes to what the beam draws, at the T-state they land: VRAM (from the next 8-pixel cell), PCG, palette/priority
+    public const byte P_CELL = 1, P_CG = 2, P_PAL = 3;
+    byte[] pic = new byte[FT]; public byte[] PicShown = new byte[FT];
 
     // VRAM accesses per line (and those outside the free window)
     int[] lvw = new int[LINES], lvr = new int[LINES], lcont = new int[LINES];
@@ -106,6 +109,7 @@ public sealed class MzTrace
         int key = (isOut ? 256 : 0) + lo;
         if (Recent.Count == 0 || Recent[0] != key) { Recent.Remove(key); Recent.Insert(0, key); if (Recent.Count > 16) Recent.RemoveAt(16); }
     }
+    public void Pic(byte kind) { int r = Rel; if (kind > pic[r]) pic[r] = kind; }
     public void Wait(long t, int n) { waitT.Add(t); waitN.Add(n); }
     public void Line(int ln) { }
     public void Sample(double lvl)
@@ -189,6 +193,7 @@ public sealed class MzTrace
 
         var b = Ras; Ras = ras; ras = b; Array.Clear(ras, 0, FT);
         b = Ov; Ov = ov; ov = b; Array.Clear(ov, 0, FT);
+        b = PicShown; PicShown = pic; pic = b; Array.Clear(pic, 0, FT);
         if (tapeCarry > 0) { for (int i = 0; i < Math.Min(FT, tapeCarry); i++) ras[i] = S_TAPE; tapeCarry = 0; }
         var l = LineVW; LineVW = lvw; lvw = l; Array.Clear(lvw, 0, LINES);
         l = LineVR; LineVR = lvr; lvr = l; Array.Clear(lvr, 0, LINES);

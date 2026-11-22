@@ -157,7 +157,7 @@ public sealed class MzVis
         y = PCode(y, 18) + 6;
         y = PHot(y, 7) + 6;
         y = PBudget(y) + 6;
-        y = PVramLines(y) + 6;
+        y = PLines(y) + 6;
         y = POps(y) + 6;
         if (m.FloppyOn) y = PFloppy(y) + 6;
         PStack(y, H - y);
@@ -337,34 +337,64 @@ public sealed class MzVis
     }
 
     // ---------------------------------------------------------------- VRAM accesses by line
-    int PVramLines(int y0)
+    // ---------------------------------------------------------------- the beam, line by line
+    // Every picture line at one column per T-state (2.5 pixels). T 0-127 is the picture as it was drawn, dimmed;
+    // T 128-227 is HBLANK, green where VRAM is free and red where the CPU would wait. On top, each change to what
+    // the beam draws sits at the T-state it happened: VRAM writes (shown from the next 8-pixel cell), PCG writes,
+    // palette/priority (shown from the next pixel), plus VRAM reads. Right: VRAM accesses per line.
+    int PLines(int y0)
     {
-        int rh = 156;
-        int h = 15 + rh + 24;
-        int y = Panel(y0, h, "VRAM BY LINE", m.VramWait == VramWaitMode.Off ? "WAITS OFF" : "FREE T " + m.WaitW0 + "-" + m.WaitW1);
-        int bx = 30, bw = W - bx - 6;
-        Fill(bx, y, bw, rh, 0x080C14);
-        int max = 8;
-        for (int l = 0; l < MzTrace.LINES; l++) max = Math.Max(max, T.LineVW[l] + T.LineVR[l]);
-        for (int r = 0; r < rh; r++)
+        const int PL = MzMachine.VIS;
+        int h = 15 + PL + 4 + 3 * 10;
+        int y = Panel(y0, h, "BEAM, LINE BY LINE", "228 T X " + PL + " PICTURE LINES");
+        int bx = 4, lt = MzTrace.LT;
+        var pic = T.PicShown; var ov = T.Ov; var fb = m.Fb;
+        bool waits = m.VramWait != VramWaitMode.Off;
+        int freeC = 0x0C2414, waitC = waits ? 0x2C0C0C : 0x101418;
+        for (int ln = 0; ln < PL; ln++)
         {
-            int l0 = r * 2, l1 = l0 + 1;
-            int wv = T.LineVW[l0] + T.LineVW[l1], rv = T.LineVR[l0] + T.LineVR[l1], cv = T.LineCont[l0] + T.LineCont[l1];
-            int ww = wv * bw / (2 * max), rw = rv * bw / (2 * max), cw = cv * bw / (2 * max);
-            bool vb = l0 >= MzMachine.VIS;
-            Fill(bx - 6, y + r, 4, 1, vb ? 0x302410 : 0x1A3A20);
-            Fill(bx, y + r, ww, 1, HI); Fill(bx + ww, y + r, rw, 1, CYAN);
-            if (cw > 0) Fill(bx, y + r, cw, 1, RED);
+            int o = (y + ln) * W + bx, fo = (MzMachine.BY + ln) * MzMachine.FBW + MzMachine.BX;
+            long l0 = (long)ln * MzMachine.LINE_M;
+            for (int t = 0; t < lt; t++)
+            {
+                int c;
+                if (t < 128) { int px = Math.Min(319, (t * 5 + 2) / 2); int v = fb[fo + px]; c = ((v >> 1) & 0x7F7F7F) + ((v >> 3) & 0x1F1F1F); }
+                else c = (t >= m.WaitW0 && t < m.WaitW1) ? freeC : waitC;
+                int i = (int)((l0 + t * 5L) / 5); if (i >= MzTrace.FT) i = MzTrace.FT - 1;
+                int k = pic[i];
+                if (k == MzTrace.P_PAL) c = AMBER; else if (k == MzTrace.P_CG) c = MAG; else if (k == MzTrace.P_CELL) c = HI;
+                else if (ov[i] == MzTrace.O_VR) c = CYAN;
+                buf[o + t] = c;
+            }
         }
-        Fill(bx, y + MzMachine.VIS / 2, bw, 1, 0x806020);
-        Text(2, y, "0", DIM); Text(2, y + MzMachine.VIS / 2 - 8, "199", DIM); Text(2, y + MzMachine.VIS / 2 + 2, "VBL", 0xC09040); Text(2, y + rh - 8, "311", DIM);
-        int ly = y + rh + 3;
-        int x = Text(5, ly, "WRITES ", HI); x = Text(x, ly, T.VramW.ToString(), TXT);
-        x = Text(x + 8, ly, "READS ", CYAN); x = Text(x, ly, T.VramR.ToString(), TXT);
-        x = Text(x + 8, ly, "OUTSIDE WINDOW ", RED); Text(x, ly, T.Contended.ToString(), T.Contended > 0 ? AMBER : TXT);
+        // 8-pixel cell boundaries under the picture, and the picture / HBLANK edges
+        int ry = y + PL;
+        for (int cx = 0; cx <= 40; cx++) { int t = cx * 16 / 5; Px(bx + Math.Min(t, lt - 1), ry, cx % 5 == 0 ? TXT : DIM); }
+        for (int ln = 0; ln < PL; ln += 2) Px(bx + 128, y + ln, 0x50A060);
+        // VRAM accesses per line
+        int sx = bx + lt + 4, sw = W - 4 - sx;
+        Fill(sx, y, sw, PL, 0x080C14);
+        int max = 8;
+        for (int l = 0; l < PL; l++) max = Math.Max(max, T.LineVW[l] + T.LineVR[l]);
+        for (int l = 0; l < PL; l++)
+        {
+            int ww = T.LineVW[l] * sw / max, rw = T.LineVR[l] * sw / max, cw = T.LineCont[l] * sw / max;
+            Fill(sx, y + l, ww, 1, HI); Fill(sx + ww, y + l, Math.Min(rw, sw - ww), 1, CYAN);
+            if (cw > 0) Fill(sx, y + l, cw, 1, RED);
+        }
+        int vbW = 0, vbR = 0;
+        for (int l = PL; l < MzTrace.LINES; l++) { vbW += T.LineVW[l]; vbR += T.LineVR[l]; }
+        int ly = y + PL + 4;
+        Text(bx, ly, "T 0", DIM); Text(bx + 128 - 9, ly, "128", DIM); TextR(bx + lt, ly, "227", DIM); Text(sx, ly, "VRAM", DIM);
         ly += 10;
-        x = Text(5, ly, "WAIT THIS FIELD ", WAITC); x = Text(x, ly, T.WaitShown + " T", TXT);
-        Text(x + 8, ly, "(" + (T.WaitShown * 100 / 70886) + "% OF THE FIELD)", DIM);
+        int x = Text(5, ly, "VRAM WRITE", HI); x = Text(x + 8, ly, "READ", CYAN); x = Text(x + 8, ly, "PCG", MAG);
+        x = Text(x + 8, ly, "PALETTE", AMBER); x = Text(x + 8, ly, "WAIT", RED); Text(x + 8, ly, "FREE", 0x30A050);
+        ly += 10;
+        x = Text(5, ly, "W ", HI); x = Text(x, ly, T.VramW.ToString(), TXT);
+        x = Text(x + 6, ly, "R ", CYAN); x = Text(x, ly, T.VramR.ToString(), TXT);
+        x = Text(x + 6, ly, "VBL ", 0xC09040); x = Text(x, ly, vbW + "/" + vbR, TXT);
+        x = Text(x + 6, ly, "OUTSIDE ", RED); x = Text(x, ly, T.Contended.ToString(), T.Contended > 0 ? AMBER : TXT);
+        Text(x + 6, ly, "WAIT " + T.WaitShown + " T", T.WaitShown > 0 ? WAITC : DIM);
         return y0 + h;
     }
 
@@ -462,6 +492,7 @@ public sealed class MzVis
             TextR(W - 4, gy, H4(lo), DIM); TextR(W - 4, gy + gh - 8, H4(hi), DIM);
         }
         int ly = gy + gh + 4;
+        if (ly + 9 >= y0 + h) return y0 + h;
         Text(5, ly, "RETURN ADDRESSES ON THE STACK", DIM); ly += 10;
         int shown = 0;
         for (int k = 0; k < 24 && shown < 8 && ly + 9 < y0 + h; k++)
@@ -480,7 +511,7 @@ public sealed class MzVis
             Text(xx + 8, ly, "FROM " + from, shown == 0 ? AMBER : TXT);
             ly += 10; shown++;
         }
-        if (shown == 0) Text(5, ly, "(NONE)", DIM);
+        if (shown == 0 && ly + 9 < y0 + h) Text(5, ly, "(NONE)", DIM);
         return y0 + h;
     }
 
