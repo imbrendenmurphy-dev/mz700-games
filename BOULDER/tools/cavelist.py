@@ -1,4 +1,4 @@
-"""cavelist.py - the caves of ROCKFALL: five wings of four here, wings VI-VII and the
+"""cavelist.py - the caves of UNDERMINED: five wings of four here, wings VI-VII and the
 bonus caves in wings67.py.
 
 Each wing teaches one idea, varies it, shows it off in a picture cave and

@@ -1,4 +1,4 @@
-"""wings67.py - the caves added in ROCKFALL 2.4: wing VI (Crystal Vaults),
+"""wings67.py - the caves added in UNDERMINED 2.4: wing VI (Crystal Vaults),
 wing VII (The Haunted Deep) and the six bonus caves (hidden chambers)
 found between the wings.
 

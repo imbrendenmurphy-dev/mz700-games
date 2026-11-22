@@ -1,4 +1,4 @@
-# ROCKFALL
+# UNDERMINED
 
 A cave-digging game for the **Sharp MZ-700** (64K, PAL, stock European
 character ROM, no PCG), loaded from tape or a UniCMT USB cassette emulator.
@@ -26,10 +26,10 @@ sound chip.
 
 ## Running it
 
-- **Real MZ-700 / UniCMT:** copy `release/ROCKFALL.MZF` to the USB stick and
+- **Real MZ-700 / UniCMT:** copy `release/UNDERMINED.MZF` to the USB stick and
   load it like a tape (`L` from the monitor). It loads at 1200h and starts by
   itself.
-- **Emulator:** open `release/ROCKFALL.MZT` (the same file with the extension
+- **Emulator:** open `release/UNDERMINED.MZT` (the same file with the extension
   MZ700WIN expects).
 
 ## Controls
@@ -138,8 +138,9 @@ simulator and compares the whole cave with the model after every tick.
 
 ## Attract mode
 
-The title screen has its music, a colour-cycling logo, a little digger
-tunnelling along the bottom and a scroller. After it come two tours, in
+The title screen has its music and the name split by the ground: UNDER
+stands against a starry night sky, MINED is dug into the earth below, and
+a little digger tunnels along underneath. A scroller runs along the bottom. After it come two tours, in
 turn:
 - **The Legend:** the mountain by night, to a slow hymn. Stars twinkle,
   lanterns flicker in the caves, a miner walks home into the mountain, and

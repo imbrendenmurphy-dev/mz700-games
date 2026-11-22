@@ -1,4 +1,4 @@
-﻿"""music.py - songs and sound effects for ROCKFALL (one 8253 square voice).
+﻿"""music.py - songs and sound effects for UNDERMINED (one 8253 square voice).
 
 Songs are tracker-style: each row lasts `speed` ticks (50 Hz) and holds a
 lead note, a bass note, a drum and an effect.  The player gives the voice

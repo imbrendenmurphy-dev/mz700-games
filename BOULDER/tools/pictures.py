@@ -1,4 +1,4 @@
-"""pictures.py - the full-screen pictures of ROCKFALL's attract mode and
+"""pictures.py - the full-screen pictures of UNDERMINED's attract mode and
 ending, drawn in ROM characters, plus the lists of cells the Z80 animates.
 
     story()     "The Legend": the mountain by night, its caves lit inside
@@ -142,6 +142,57 @@ def daybreak():
     return p.cells(), anim
 
 
+# the title: UNDER stands on the ground against the night, MINED is dug into
+# the earth below it ('#' block, '/' 'Q' 'L' 'J' the rounded corners)
+LETTERS = {
+    'U': ['#..#', '#..#', '#..#', '#..#', '#..#', '#..#', 'L##J'],
+    'N': ['#..#', '##.#', '##.#', '#.##', '#.##', '#..#', '#..#'],
+    'D': ['###Q', '#..#', '#..#', '#..#', '#..#', '#..#', '###J'],
+    'E': ['####', '#...', '#...', '###.', '#...', '#...', '####'],
+    'R': ['###Q', '#..#', '#..#', '###J', '#.Q.', '#.LQ', '#..#'],
+    'M': ['#...#', '##.##', '#.#.#', '#.#.#', '#...#', '#...#', '#...#'],
+    'I': ['###', '.#.', '.#.', '.#.', '.#.', '.#.', '###'],
+}
+SHAPE = {'#': FULL, '/': UR, 'Q': UL, 'L': DR, 'J': DL}
+SKY_H, TURF, EARTH_H = 7, 7, 8          # sky rows 0-6, turf row 7, earth rows 8-15
+
+
+def word(word, y0):
+    w = sum(len(LETTERS[c][0]) for c in word) + len(word) - 1
+    x = (W - w) // 2
+    for ch in word:
+        rows = LETTERS[ch]
+        for r, row in enumerate(rows):
+            for c, v in enumerate(row):
+                if v != '.':
+                    yield x + c, y0 + r, v
+        x += len(rows[0]) + 1
+
+
+def title():
+    p = Pic()
+    anim = {'stars': []}
+    for y in range(SKY_H):
+        for x in range(W):
+            p.put(x, y, 0, WHITE, BLUE)
+    for x, y in ((2, 1), (5, 4), (1, 6), (33, 1), (36, 4), (38, 2), (34, 6), (3, 3), (7, 6)):
+        p.put(x, y, STAR, YELLOW if (x + y) % 3 else WHITE, BLUE)
+        anim['stars'].append(y * W + x)
+    p.put(37, 0, ROCK, YELLOW, BLUE)                            # the moon
+    for x, y, v in word('UNDER', 0):
+        p.put(x, y, SHAPE[v], WHITE, BLUE)
+    anim['stars'] = [o for o in anim['stars'] if p.ch[o] == STAR]
+    for x in range(W):
+        p.put(x, TURF, 0x1EE, GREEN)
+    for y in range(TURF + 1, TURF + 1 + EARTH_H):
+        for x in range(W):
+            p.put(x, y, 0xD0, RED)
+    for x, y, v in word('MINED', TURF + 1):
+        p.put(x, y, 0, WHITE)                                   # dug out of the earth
+    p.put(25, 10, GEM, CYAN)
+    return p.cells(), anim
+
+
 def rle(cells):
     """runs of (count, char, attr), ended by a 0 count"""
     out = []
@@ -163,7 +214,7 @@ def preview(cells, path):
 
 if __name__ == '__main__':
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    for name, fn in (('story', story), ('daybreak', daybreak)):
+    for name, fn in (('title', title), ('story', story), ('daybreak', daybreak)):
         cells, anim = fn()
         preview(cells, os.path.join(root, 'build', 'pic_%s.png' % name))
         print(name, len(rle(cells)), 'bytes packed')

@@ -2,9 +2,9 @@
 ;  screens.asm - title, cave guide, high scores, name entry
 ; =====================================================================
 
-LOGO_ROW        equ 1
 SCROLL_ROW      equ 24
-DIG_ROW         equ 22                  ; the little digger's tunnel
+DIG_ROW         equ 17                  ; the little digger's tunnel, under the title
+SEL_ROW         equ 19                  ; start cave, joystick, press space, best, credit
 
 ; ---------------------------------------------------------------------
 ; page helpers
@@ -99,33 +99,24 @@ title_screen:
         ld hl,SONG_TITLE
         call mus_play
 .playing:
-        ld a,BLACK
-        call cls
         call patch_reset
-        ; logo
-        ld hl,LOGO
-        ld de,VRAM+LOGO_ROW*40
-        ld bc,LOGO_H*40
-        ldir
+        ; the title picture: UNDER against the night sky, MINED dug below
+        ld hl,PIC_TITLE
+        call draw_pic
         xor a
         ld (logo_phase),a
-        call logo_colours
-        ld hl,txt_sub
-        ld c,9
-        ld a,CYAN*16
-        call print_centre
         ld hl,txt_press
-        ld c,15
+        ld c,SEL_ROW+2
         ld a,WHITE*16
         call print_centre
         ld hl,txt_credit
-        ld c,19
+        ld c,SEL_ROW+4
         ld a,BLUE*16
         call print_centre
         ; best score
         ld hl,txt_best
         ld b,10
-        ld c,17
+        ld c,SEL_ROW+3
         ld a,CYAN*16
         call print_at
         ld hl,HISCORES+5
@@ -168,8 +159,19 @@ title_fx:
         ld hl,logo_phase
         inc (hl)
         ld a,(hl)
-        and 3
-        call z,logo_colours
+        and 3                       ; a star changes colour every 4 fields
+        jr nz,.ns
+        call rand
+        and 70h
+        jr nz,$+4
+        ld a,BLUE*16
+        ld c,a
+        ld a,(logo_phase)
+        rrca
+        rrca
+        ld hl,TT_STARS
+        call set_fg_n
+.ns:
         call scroller
         call dig_step
         call cave_select_keys
@@ -180,7 +182,7 @@ title_fx:
         ld a,WHITE*16
         jr z,$+4
         ld a,YELLOW*16
-        ld de,VRAM+15*40
+        ld de,VRAM+(SEL_ROW+2)*40
         ld b,40
         jp fill_attr
 
@@ -247,14 +249,14 @@ joy_draw:
         or a
         jr z,$+5
         ld hl,txt_joyon
-        ld c,13
+        ld c,SEL_ROW+1
         ld a,CYAN*16
         jp print_centre
 
 cave_select_draw:
         ld hl,txt_startcave
         ld b,11
-        ld c,11
+        ld c,SEL_ROW
         ld a,GREEN*16
         call print_at
         ld a,51h                    ; '<'
@@ -274,36 +276,6 @@ cave_select_draw:
         ld c,WHITE*16
         jp putc
 
-; logo rows: a fixed gradient with a white glint sweeping down
-logo_colours:
-        ld a,(logo_phase)
-        rrca
-        rrca
-        and 31
-        ld c,a
-        ld de,VRAM+LOGO_ROW*40
-        ld hl,logo_grad
-        ld b,0
-.r:     ld a,b
-        cp c
-        ld a,(hl)
-        jr nz,.nc
-        ld a,WHITE*16
-.nc:    push bc
-        push hl
-        ld b,40
-        call fill_attr
-        pop hl
-        pop bc
-        inc hl
-        inc b
-        ld a,b
-        cp LOGO_H
-        jr c,.r
-        ret
-
-logo_grad:
-        db YELLOW*16,YELLOW*16,YELLOW*16,RED*16,RED*16,MAGENTA*16,MAGENTA*16,BLUE*16
 
 ; text scroller on the bottom row
 scroller:

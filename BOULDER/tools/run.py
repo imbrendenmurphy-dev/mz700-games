@@ -1,4 +1,4 @@
-"""run.py - run ROCKFALL in the MZ-700 simulator with scripted keys.
+"""run.py - run UNDERMINED in the MZ-700 simulator with scripted keys.
 
     py tools/run.py FIELDS [shot_field,...] [--keys "field:key+key,field:-,..."]
 
@@ -16,7 +16,7 @@ from mzsim import MZ700, FIELD_T  # noqa: E402
 
 def load_syms():
     syms = {}
-    for ln in open(os.path.join(ROOT, 'build', 'rockfall.sym')):
+    for ln in open(os.path.join(ROOT, 'build', 'undermined.sym')):
         if ': EQU ' in ln:
             k, v = ln.split(': EQU ')
             syms[k.strip()] = int(v.strip(), 16)
@@ -30,7 +30,7 @@ class Game:
     def __init__(self, vram_wait=None):
         self.m = MZ700(os.path.join(ROOT, 'rom', 'mz700fon.int'))
         self.m.vram_wait = vram_wait
-        self.m.load_mzf(os.path.join(ROOT, 'build', 'ROCKFALL.MZT'))
+        self.m.load_mzf(os.path.join(ROOT, 'build', 'UNDERMINED.MZT'))
         self.end = S['end_of_program']
         self.shots = os.path.join(ROOT, 'build', 'shots')
         os.makedirs(self.shots, exist_ok=True)

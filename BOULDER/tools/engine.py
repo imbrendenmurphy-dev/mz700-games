@@ -1,4 +1,4 @@
-"""engine.py - the ROCKFALL rules in Python, tick for tick the same as the Z80.
+"""engine.py - the UNDERMINED rules in Python, tick for tick the same as the Z80.
 
 Mirrors src/cave.asm (scan and handlers), src/player.asm (the player's move,
 scoring) and the clock in src/game.asm.  tools/crosscheck.py compares this

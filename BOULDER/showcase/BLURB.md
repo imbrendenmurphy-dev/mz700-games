@@ -1,9 +1,9 @@
-# ROCKFALL
+# UNDERMINED
 
 *A cave-digging game for the Sharp MZ-700.*
 ViBED by BPM 2026.
 
-![ROCKFALL](rockfall.gif)
+![UNDERMINED](undermined.gif)
 
 **Deep under the mountain lie twenty-six caves in seven wings, and the
 diamonds won't dig themselves out.** Tunnel through the earth, gather enough gems to open the
@@ -64,8 +64,9 @@ the mountain at daybreak, then the caves start again, darker and faster.
 
 ## All the trimmings
 
-- **Attract sequence:** "Under the Mountain" title music, a colour-rolling
-  logo, a digger tunnelling along the bottom and a scroller. Then two tours
+- **Attract sequence:** "Under the Mountain" title music and the name
+  split by the ground: UNDER against a starry sky, MINED dug into the earth
+  below, with a little digger tunnelling underneath and a scroller. Then two tours
   in turn. "The Legend" shows the mountain by night to a slow hymn: stars
   twinkle, lanterns flicker in its caves, a miner walks home, and the story
   types itself out. "The Seven Wings" shows each wing's stone and gems,
@@ -106,7 +107,7 @@ the mountain at daybreak, then the caves start again, darker and faster.
 | Controls | Cursor keys or Q / A / O / P; optional Sharp MZ-1X03 joystick, its analogue pulses timed from VBLANK on the scan-line counter (about 2% of the CPU when on) |
 | Cave data | 32 caves, Huffman-coded with a code tree per cave: 10,850 bytes (about 350 bytes for a full 64 x 32 cave) |
 | Demo data | Every cave's recorded solution, run-length coded: 7,044 bytes |
-| Media | `ROCKFALL.MZF` for a real machine through a UniCMT or tape; `ROCKFALL.MZT` for emulators (identical) |
+| Media | `UNDERMINED.MZF` for a real machine through a UniCMT or tape; `UNDERMINED.MZT` for emulators (identical) |
 | File | 40,458 bytes; loads at 1200h and starts by itself; nothing more is loaded |
 | Language | Z80 assembly (sjasmplus); cave design, solver, music and verification in Python |
 

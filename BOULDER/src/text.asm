@@ -2,7 +2,6 @@
 ;  text.asm - strings (ASCII; 01h-07h inside = colour change)
 ; =====================================================================
 
-txt_sub:        db "A CAVE DIGGING GAME FOR THE MZ-700",0
 txt_credit:     db "MZ-700 VERSION  2026  VIBED BY BPM",0
 txt_press:      db "PRESS SPACE TO START",0
 txt_best:       db "HIGH SCORE ",0
@@ -12,6 +11,7 @@ txt_joyon:      db "J  JOYSTICK ON ",0
 
 scroll_text:
         db "                                        "
+        db "UNDERMINED - A CAVE DIGGING GAME FOR THE MZ-700.    "
         db "DEEP UNDER THE MOUNTAIN LIE TWENTY-SIX CAVES IN SEVEN WINGS - THE SHALLOWS, THE FIREFLY DEEPS, "
         db "THE MAGIC HALLS, THE GREEN CAVERNS, THE CORE, THE CRYSTAL VAULTS AND THE HAUNTED DEEP... EACH WITH ITS OWN STONE.  "
         db "BETWEEN THE WINGS LIE SIX HIDDEN CHAMBERS FULL OF GEMS - A DASH THAT COSTS NO LIFE.  "

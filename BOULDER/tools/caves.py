@@ -1,4 +1,4 @@
-"""caves.py - element codes, tile looks and the cave drawing kit of ROCKFALL.
+"""caves.py - element codes, tile looks and the cave drawing kit of UNDERMINED.
 
 A cave is w x h cells (40 x 22, one screen, up to 64 x 32) with a steel
 border, drawn by a seeded random fill plus drawing operations (lines,

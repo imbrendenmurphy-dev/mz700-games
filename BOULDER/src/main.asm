@@ -1,5 +1,5 @@
 ; =====================================================================
-;  ROCKFALL  -  a cave digging game for the Sharp MZ-700 (64K, PAL,
+;  UNDERMINED  -  a cave digging game for the Sharp MZ-700 (64K, PAL,
 ;               European CG-ROM, no PCG).  Loads at 1200h from tape /
 ;               UniCMT.                                    ViBED by BPM
 ; =====================================================================
@@ -128,12 +128,11 @@ init_once:
         include "../build/gen_looks.inc"
         include "../build/gen_caves.inc"
         include "../build/gen_music.inc"
-        include "../build/gen_logo.inc"
         include "../build/gen_pics.inc"
 
 end_of_program:
         ASSERT end_of_program <= VARBASE
 
-        SAVEBIN "../build/rockfall.bin", start, end_of_program-start
+        SAVEBIN "../build/undermined.bin", start, end_of_program-start
 
         include "vars.asm"

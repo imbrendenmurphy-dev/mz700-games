@@ -9,7 +9,7 @@ writes showcase/:
     attract_scores.png   the high-score table
     attract_card.png     a cave card
     play_*.png           the demo replaying recorded solutions in six caves
-    rockfall.gif         the title, the legend, the demo in cave A (scrolling),
+    undermined.gif         the title, the legend, the demo in cave A (scrolling),
                          U, X, Z and a bonus cave, then the ending
 
 The gameplay is the attract demo: the program replaying a cave's recorded
@@ -34,7 +34,7 @@ SCALE = 2
 
 def find_demo_entry():
     """the attract loop's `ld a,1 / ld (demo),a` (where the demo starts)"""
-    code = open(os.path.join(ROOT, 'build', 'rockfall.bin'), 'rb').read()
+    code = open(os.path.join(ROOT, 'build', 'undermined.bin'), 'rb').read()
     pat = bytes([0x3E, 0x01, 0x32, S['demo'] & 0xFF, S['demo'] >> 8])
     k = code.index(pat, S['attract'] - 0x1200)
     return 0x1200 + k
@@ -226,10 +226,10 @@ def gif():
     dur = [STEP * 20] * len(gf)
     for c in cuts:
         dur[c - 1] = 700          # a beat at each cut
-    path = os.path.join(OUT, 'rockfall.gif')
+    path = os.path.join(OUT, 'undermined.gif')
     gf[0].save(path, save_all=True, append_images=gf[1:], duration=dur, loop=0,
                optimize=True, disposal=1)
-    print('wrote showcase/rockfall.gif (%d frames, %.0f s, %.0f KB)' % (
+    print('wrote showcase/undermined.gif (%d frames, %.0f s, %.0f KB)' % (
         len(gf), sum(dur) / 1000, os.path.getsize(path) / 1024))
 
 
