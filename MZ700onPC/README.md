@@ -33,7 +33,8 @@ It builds with the C# compiler that comes with Windows (`build.bat`). There is n
 | `roms\` | `1z013a.rom` (monitor, 4K), `mz700fon.int` (European CG-ROM), `mz700fon.jpn` (Japanese), optionally `mz1e05.rom` (the floppy interface ROM). Not in git. |
 | `tools\mkmzt.py` | wraps a raw binary in an MZT header: `py tools\mkmzt.py game.bin GAME.MZT 0x1200` |
 | `tools\fdipl.asm`, `tools\mkipl.ps1` | the built-in floppy boot ROM, and the script that rebuilds `src\FdIpl.cs` from it |
-| `test\` | test programs: `pcg700.asm`, `pcg1500.asm`, `psgtest.asm` (PSG tones and noise), `fdctest.asm` (every FDC command) |
+| `test\` | test programs: `pcg700.asm`, `pcg1500.asm`, `psgtest.asm` (PSG tones and noise, measured), `psgdemo.asm` (a chord loop on both PSGs), `fdctest.asm` (every FDC command) |
+| `showcase\` | `BLURB.md` (the pitch and tech specs) and fullscreen visualiser screenshots |
 | `mz700onpc.ini` | settings, written on exit |
 
 **Without the monitor ROM** a small built-in stand-in sets the hardware up, and `0038h` jumps to `1038h` as in the

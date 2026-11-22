@@ -686,7 +686,7 @@ public sealed class MzVis
         double rate = MzMachine.RATE;
         int maxBin = (int)(6000 / (rate / 1024)); if (maxBin > 511) maxBin = 511;
         int peak = 0; double pv = 0;
-        for (int i = 1; i <= maxBin; i++) { spec[i] = Math.Sqrt(fre[i] * fre[i] + fim[i] * fim[i]); if (spec[i] > pv) { pv = spec[i]; peak = i; } }
+        spec[1] = 0; for (int i = 2; i <= maxBin; i++) { spec[i] = Math.Sqrt(fre[i] * fre[i] + fim[i] * fim[i]); if (spec[i] > pv) { pv = spec[i]; peak = i; } }
         int gy = y + shh + 4, gh = 36;
         Fill(sx, gy, sw, gh, 0x080C14);
         for (int col = 0; col < sw; col++)
