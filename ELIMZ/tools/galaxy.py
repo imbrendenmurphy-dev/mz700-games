@@ -88,6 +88,28 @@ def make(seed=1866):
     return systems, start
 
 
+# each system's look: the planet's colour (bits 0-2), its star's (bits
+# 4-6) and which of four coronas the star has (bits 3 and 7), as MZ-700
+# colour numbers: sixteen star and corona pairs in all.  Farm worlds lean green, industry
+# worlds yellow and red; stars are mostly yellow, some white, red or blue.
+RED, MAGENTA, GREEN, CYAN, YELLOW, WHITE = 2, 3, 4, 5, 6, 7
+
+
+def looks(systems, start):
+    rng = random.Random(4242)
+    out = []
+    for i, s in enumerate(systems):
+        farm = s['econ'] <= 2                     # farm or pastoral
+        pl = rng.choice([GREEN, GREEN, CYAN, CYAN, MAGENTA, WHITE] if farm else
+                        [YELLOW, RED, MAGENTA, CYAN, WHITE, GREEN])
+        star = rng.choice([YELLOW] * 5 + [WHITE] * 2 + [RED] * 2 + [CYAN])
+        var = rng.randrange(4)                  # which corona (bits 3, 7)
+        if i == start:
+            pl, star, var = CYAN, YELLOW, 0
+        out.append(pl | star << 4 | (var & 1) << 3 | (var >> 1) << 7)
+    return out
+
+
 def gen_asm(db_lines):
     systems, start = make()
     nl = chr(10)
@@ -99,6 +121,7 @@ def gen_asm(db_lines):
     for lab, key in (('SYS_GX', 'x'), ('SYS_GY', 'y'), ('SYS_ECON', 'econ'), ('SYS_GOV', 'gov'),
                      ('SYS_TECH', 'tech')):
         out += ['%s:' % lab, db_lines([s[key] for s in systems])]
+    out += ['SYS_LOOK:', db_lines(looks(systems, start))]
     out += ['SYS_CX:', db_lines([s['x'] * 5 // 16 for s in systems]),
             'SYS_CY:', db_lines([s['y'] * 5 // 16 for s in systems])]
     names = []

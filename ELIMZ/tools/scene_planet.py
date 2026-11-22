@@ -10,9 +10,7 @@ SHIPS = [(-190, 40, 400, 3), (-40, 160, 800, 2), (200, -60, 1100, 5)]
 
 def setup():
     g = Game()
-    g.run(60)
-    g.run(8, ['space'])
-    g.run(120)
+    g.launch(120)
     m = g.m.mem
     ob = S['objects']
 

@@ -35,6 +35,24 @@ class Game:
         self.shots = os.path.join(ROOT, 'build', 'shots')
         os.makedirs(self.shots, exist_ok=True)
 
+    def launch(self, after=60):
+        """title -> SPACE: docked at the home station -> SPACE: out through
+        the tunnel -> flying; then `after` more fields"""
+        m = self.m.mem
+        self.run(60)
+        self.run(8, ['space'])
+        for _ in range(100):
+            if 'DOCKED' in self.screen_text():
+                break
+            self.run(5)
+        self.run(20)
+        self.run(8, ['space'])
+        for _ in range(120):
+            if m[S['state']] == 0 and m[S['snd_mode']] == 0 and m[S['tn_f']] >= 32:
+                break
+            self.run(5)
+        self.run(after)
+
     def run(self, fields, keys=()):
         m = self.m
         m.held = set(keys)

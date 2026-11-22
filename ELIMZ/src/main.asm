@@ -23,7 +23,7 @@ SHD             equ 0A800h          ; same layout: what VRAM shows now
 RBUF            equ 0B000h          ; radar: 5 rows x 16 cells
 RSHD            equ 0B100h
 STACKTOP        equ 0CFF0h
-VARBASE         equ (end_of_program+255) & 0FF00h
+VARBASE         equ 0B600h          ; above the view and map pages
 
 ; ---------------------------------------------------------------- screen layout
 VIEW_ROW        equ 1               ; view = rows 1..18
@@ -130,7 +130,7 @@ start:
         call new_game
         ld a,(load_req)             ; L on the title: load a pilot first
         or a
-        jr z,.launch
+        jr z,.docked                ; a new pilot starts at the home station
         xor a
         ld (load_req),a
         call menu_load
@@ -144,6 +144,7 @@ start:
         jr z,.dead
         cp 2
         jr z,.jump
+        call dock_fx                ; in through the station's tunnel
 .docked:
         call docked_screen
         xor a
@@ -201,6 +202,7 @@ new_game:
         include "fx.asm"
         include "joy.asm"
         include "hidden.asm"
+        include "views.asm"
 
 ; ---------------------------------------------------------------- data
         include "../build/gen_tables.inc"
@@ -209,7 +211,8 @@ new_game:
         include "../build/gen_galaxy.inc"
 
 end_of_program:
-        ASSERT vars_end <= PIX
+        ASSERT end_of_program <= PIX
+        ASSERT vars_end <= STACKTOP-200h
 
         SAVEBIN "../build/starhaul.bin", start, end_of_program-start
 

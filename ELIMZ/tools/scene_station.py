@@ -13,9 +13,7 @@ def w16(m, a, v):
 
 if __name__ == '__main__':
     g = Game()
-    g.run(60)
-    g.run(8, ['space'])
-    g.run(100)
+    g.launch(100)
     m = g.m.mem
     ob = S['objects']
     m[S['spawn_t']] = 255

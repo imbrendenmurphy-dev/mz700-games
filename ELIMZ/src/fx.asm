@@ -205,14 +205,198 @@ tunnel_fx:
 LAUNCH_PAL:     db WHITE,CYAN,CYAN,BLUE,BLACK,BLACK,BLACK,BLUE
 HYPER_PAL:      db WHITE,WHITE,CYAN,CYAN,MAGENTA,MAGENTA,BLUE,BLUE
 
-; out through the station's tunnel
-launch_fx:
+; ---------------------------------------------------------------------
+; the station's tunnel in 3D: hexagonal rings rush at us, turning with
+; the station, joined by struts; near ones white, then cyan, then blue.
+; On the tone generator, so the drawing has the CPU.
+; ---------------------------------------------------------------------
+TN_RINGS        equ 6
+TN_GAP          equ 64                  ; between rings (world units)
+TN_FRAMES       equ 32
+
+launch_fx:                              ; out through the tunnel
+dock_fx:                                ; and in again
+        call snd_fl
         ld hl,SFX_LAUNCH
         ld a,9
         call sfx
-        ld hl,LAUNCH_PAL
-        ld bc,20*256+1
-        jp tunnel_fx
+        ld a,WHITE<<4
+        call cls
+        xor a
+        ld (tn_f),a
+.f:     call wait_frame
+        ld a,(tn_f)                     ; the nearest ring's depth
+        add a,a
+        add a,a
+        add a,a                         ; 8 units a frame
+        and TN_GAP-1
+        neg
+        add a,TN_GAP+40
+        ld (tn_z),a
+        ld c,0
+.r:     push bc
+        call tn_ring                    ; ring C: its corners -> TN_X/TN_Y
+        pop bc
+        push bc
+        call tn_draw
+        pop bc
+        inc c
+        ld a,c
+        cp TN_RINGS
+        jr c,.r
+        call present
+        ld hl,tn_f
+        inc (hl)
+        ld a,(hl)
+        cp TN_FRAMES
+        jr c,.f
+        jp snd_fe
+
+; corners of ring C at depth tn_z + C * TN_GAP, turned by the frame
+tn_ring:
+        ld l,c
+        ld h,0
+        ld b,6
+.c64:   add hl,hl
+        djnz .c64                       ; C * 64
+        ld a,(tn_z)
+        ld e,a
+        ld d,0
+        add hl,de
+        ld (tn_d),hl                    ; depth
+        ld b,6
+        ld ix,TN_X
+        ld hl,TN_ANG
+        ld (tn_p),hl
+.k:     push bc
+        ld hl,(tn_p)                    ; this corner's angle, turned a
+        ld a,(tn_f)                     ; step a frame
+        add a,(hl)
+        inc hl
+        ld (tn_p),hl
+        and 63
+        ld l,a
+        ld h,0
+        ld d,h
+        ld e,l
+        add hl,hl
+        add hl,hl
+        add hl,hl
+        add hl,de
+        ld de,SPIN
+        add hl,de
+        ld a,(hl)                       ; side.x = cos (unit 64)
+        push hl
+        call .proj
+        ld de,CX
+        add hl,de
+        ld (ix+0),l
+        ld (ix+1),h
+        pop hl
+        ld de,6
+        add hl,de
+        ld a,(hl)                       ; nose.x = sin
+        call .proj
+        ex de,hl
+        ld hl,CY
+        or a
+        sbc hl,de
+        ld (ix+12),l
+        ld (ix+13),h
+        inc ix
+        inc ix
+        pop bc
+        djnz .k
+        ret
+; HL = A * 48 / depth (signed): a ring of radius 96 units
+.proj:  ld b,a
+        ld c,48
+        call mul8s
+        ld a,h
+        push af
+        call abs_hl
+        ld de,(tn_d)
+        call div16u
+        pop af
+        bit 7,a
+        ret z
+        jp neg_hl
+
+TN_ANG: db 0,11,21,32,43,53             ; six corners in 64ths of a turn
+
+; draw ring C (its corners in TN_X/TN_Y) and struts to the one before
+tn_draw:
+        ld a,c                          ; colour by depth
+        ld hl,TN_COL
+        add a,l
+        ld l,a
+        jr nc,$+3
+        inc h
+        ld a,(hl)
+        call set_col
+        ld b,6
+        ld ix,TN_X
+.e:     push bc
+        ld l,(ix+0)
+        ld h,(ix+1)
+        ld (lx0),hl
+        ld l,(ix+12)
+        ld h,(ix+13)
+        ld (ly0),hl
+        ld de,2                         ; the next corner (round)
+        dec b
+        jr nz,$+5
+        ld de,-10
+        push ix
+        pop hl
+        add hl,de
+        push hl
+        pop iy
+        ld l,(iy+0)
+        ld h,(iy+1)
+        ld (lx1),hl
+        ld l,(iy+12)
+        ld h,(iy+13)
+        ld (ly1),hl
+        call line16
+        pop bc
+        push bc
+        bit 0,b                         ; struts on every other corner
+        jr z,.ns
+        ld a,c
+        or a
+        jr z,.ns
+        ld l,(ix+0)
+        ld h,(ix+1)
+        ld (lx0),hl
+        ld l,(ix+12)
+        ld h,(ix+13)
+        ld (ly0),hl
+        ld l,(ix+24)                    ; the same corner, last ring
+        ld h,(ix+25)
+        ld (lx1),hl
+        ld l,(ix+36)
+        ld h,(ix+37)
+        ld (ly1),hl
+        call line16
+.ns:    pop bc
+        push bc                         ; keep this ring for the next
+        ld l,(ix+0)
+        ld h,(ix+1)
+        ld (ix+24),l
+        ld (ix+25),h
+        ld l,(ix+12)
+        ld h,(ix+13)
+        ld (ix+36),l
+        ld (ix+37),h
+        pop bc
+        inc ix
+        inc ix
+        dec b
+        jp nz,.e
+        ret
+
+TN_COL: db WHITE,WHITE,CYAN,CYAN,BLUE,BLUE
 
 ; ---------------------------------------------------------------------
 ; death: rings of fire burst out over the view and fade

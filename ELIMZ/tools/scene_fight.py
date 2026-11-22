@@ -8,9 +8,7 @@ from run import Game, S  # noqa: E402
 
 def setup():
     g = Game()
-    g.run(60)
-    g.run(8, ['space'])
-    g.run(90)
+    g.launch(90)
     m = g.m.mem
     ob = S['objects']
 

@@ -25,6 +25,8 @@ flight:
         ret
 
 flight_in:
+        xor a                           ; always the front view to start
+        ld (view),a
         ld a,(autoplay)                 ; the attract demo keeps its waltz
         or a
         call z,mus_stop
@@ -73,6 +75,13 @@ flight_in:
         call z,pilot
 .human: call read_flight
         ld (keys),a
+        call flight_keys                ; views 1-4, screens F1-F4
+        ld a,(view)                     ; lasers fire from the front view
+        or a
+        jr z,.fv
+        ld hl,keys
+        res 4,(hl)
+.fv:
         ld hl,frame
         inc (hl)
         ld a,(state)
@@ -83,7 +92,10 @@ flight_in:
         ld a,(state)                    ; blown up: the death sequence
         cp 2
         jr z,.dead
+        ld a,(view)                     ; draw from the chosen view
+        call view_xf
         call render
+        call view_unxf
         call present
         call hud_update
         ld a,(state)
@@ -146,7 +158,16 @@ world_init:
         ld (planet+2),hl
         ld hl,21000
         ld (planet+4),hl
-.pl:    ld hl,SUN0                      ; the sun, beyond the planet
+.pl:    ld a,(cur_sys)                  ; the sun, beyond the planet, on
+        and 3                           ; one of four sides by system
+        ld e,a
+        add a,a
+        add a,e
+        add a,a                         ; * 6
+        ld e,a
+        ld d,0
+        ld hl,SUN0
+        add hl,de
         ld de,sunv
         ld bc,6
         ldir
@@ -1574,7 +1595,8 @@ render:
         add ix,de
         pop bc
         djnz .o
-        call planet_draw
+        call sun_draw                   ; the sun, then the planet: both
+        call planet_draw                ; round the ships
 .dust:  xor a
         ld (pl_on),a
         ld a,WHITE
@@ -1584,6 +1606,7 @@ render:
         ld b,NDUST
 .d:     push bc
         push hl
+        call poll                       ; (each particle costs two divisions)
         call load_v
         ld hl,(vz_)
         call z_ok
@@ -1605,6 +1628,9 @@ render:
         call plot
         jr .nd
 .respawn:
+        ld a,(view)                     ; (only ahead are new ones made)
+        or a
+        jr nz,.nd
         pop hl
         push hl
         call dust_new
@@ -1614,6 +1640,9 @@ render:
         pop bc
         djnz .d
         ld a,(state)
+        or a
+        ret nz
+        ld a,(view)                     ; sights and beams: front view only
         or a
         ret nz
 .cross: ; crosshair
@@ -1664,6 +1693,7 @@ TYPE_COL:
         db WHITE,RED,MAGENTA,RED,YELLOW,CYAN,YELLOW,WHITE,GREEN,YELLOW
 
 planet_prep:
+        call sys_look                   ; this system's colours
         xor a
         ld (pl_mode),a
         ld (pl_on),a
@@ -1715,7 +1745,7 @@ planet_draw:
         ld a,(pl_mode)
         dec a
         jr nz,.disc
-        ld a,CYAN
+        ld a,(pl_col)
         call set_col
         ld hl,(ccx)
         ld de,(ccy)

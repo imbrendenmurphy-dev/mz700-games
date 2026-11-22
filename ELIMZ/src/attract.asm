@@ -243,11 +243,11 @@ gallery:
         call cls
         ld b,0
         ld c,1
-        ld a,YELLOW<<4+BLUE
+        ld a,(YELLOW<<4)+BLUE
         call clear_rows
         ld hl,txt_gallery
         ld c,0
-        ld a,YELLOW<<4+BLUE
+        ld a,(YELLOW<<4)+BLUE
         call print_centre
         ld a,1
         ld (state),a
@@ -366,7 +366,7 @@ handbook:
         call cls
         ld b,0
         ld c,1
-        ld a,YELLOW<<4+BLUE
+        ld a,(YELLOW<<4)+BLUE
         call clear_rows
         ld hl,HANDBOOK
 .l:     ld a,(hl)
@@ -405,7 +405,7 @@ handbook:
         ret
 
 HANDBOOK:
-        db 0,YELLOW<<4+BLUE,"PILOT'S HANDBOOK",0
+        db 0,(YELLOW<<4)+BLUE,"PILOT'S HANDBOOK",0
         db 2,CYAN<<4,"CURSORS   ROLL AND PITCH",0
         db 3,CYAN<<4,"A / Z     FASTER / SLOWER",0
         db 4,CYAN<<4,"SPACE     LASERS (MIND THE HEAT)",0
@@ -414,6 +414,7 @@ HANDBOOK:
         db 7,CYAN<<4,"H         HYPERSPACE TO THE TARGET",0
         db 8,CYAN<<4,"D         AUTO-DOCK (IF FITTED)",0
         db 9,CYAN<<4,"P / S     PAUSE / SOUND ON-OFF",0
+        db 10,CYAN<<4,"1-4 VIEWS   F1 HELP  F2-F4 MAPS",0
         db 11,WHITE<<4,"BUY LOW ON FARMWORLDS, SELL HIGH",0
         db 12,WHITE<<4,"TO INDUSTRY - AND THE REVERSE.",0
         db 13,WHITE<<4,"PIRATES PAY BOUNTIES.  TRADERS",0

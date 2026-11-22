@@ -184,6 +184,11 @@ sunv            ds 6
 vtb_s           ds 1
 oc_rs           ds 2
 pl_mode         ds 1
+pl_col          ds 1
+sun_col         ds 1
+sun_var         ds 1
+sun_x           ds 1
+sun_y           ds 1
 mf_m1           ds 1
 mf_e            ds 1
 f_cx            ds 1
@@ -204,6 +209,22 @@ f_m0            ds 1
 f_m1            ds 1
 f_e             ds 1
 f_s             ds 1
+view            ds 1                ; 0 front, 1 rear, 2 left, 3 right
+fk_prev         ds 1
+xf_m            ds 1
+xf_x            ds 2
+xf_z            ds 2
+lc_gx           ds 1
+lc_gy           ds 1
+lc_bd           ds 1
+si_save         ds 12
+tn_f            ds 1
+tn_z            ds 1
+tn_p            ds 2
+tn_d            ds 2
+TN_X            ds 12               ; this ring's corners, x then y,
+TN_Y            ds 12               ; then the last ring's (struts)
+TN_PX           ds 24
 comp_addr       ds 2
 numbuf          ds 6
 

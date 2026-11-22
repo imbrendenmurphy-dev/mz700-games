@@ -709,7 +709,7 @@ crescent:
 crescent_rows:
         call cres_fits                  ; wholly in the view: the quick way
         jp nc,cres_fast
-        ld a,CYAN
+        ld a,(pl_col)
         call set_col
         ld a,(pl_r)                     ; rows cy - r .. cy + r in the view
         ld e,a
@@ -728,6 +728,7 @@ crescent_rows:
         ret nc
         ld c,a
 .row:   push bc
+        call poll
         call .span
         pop bc
         jr nc,.rnext
@@ -1039,8 +1040,11 @@ cmp_s:  push hl
         ret
 
 ; the sun's direction at launch and arrival (unit 4000h): beyond the
-; planet, up and to the left, so it shows as a crescent
-SUN0:           dw -2736,5079,15335
+; planet, so it shows as a crescent; one of four sides by system
+SUN0:           dw -2735,5083,15334             ; up and left
+                dw 10292,3051,12378             ; up and right
+                dw -4014,-7316,14100            ; down and left
+                dw 9025,-7249,11595             ; down and right
 
 ; ---------------------------------------------------------------------
 ; the quick way, in bytes, when the whole disc lies in the view (the
@@ -1095,7 +1099,8 @@ cres_fast:
         ld a,(f_cy)
         sub b
         ld (f_y),a                      ; first row
-.row:   ld a,(f_y)                      ; this row's PIX, dot mask, ship mask
+.row:   call poll                       ; (the joystick and sound keep time)
+        ld a,(f_y)                      ; this row's PIX, dot mask, ship mask
         ld c,a
         ld h,high YLO
         ld l,a
@@ -1137,7 +1142,7 @@ cres_fast:
         add a,b
         add a,b
         ld (f_a1),a
-        ld a,CYAN                       ; the lit part
+        ld a,(pl_col)                   ; the lit part
         call set_col
         ld a,(f_y)                      ; this row of the dark disc
         ld hl,f_dy
@@ -1296,3 +1301,282 @@ lt_sb:  xor 80h
         cp b
         pop bc
         ret
+
+; ---------------------------------------------------------------------
+; the system's colours: pl_col = the planet's, sun_col = its star's
+; ---------------------------------------------------------------------
+sys_look:
+        ld a,(cur_sys)
+        ld l,a
+        ld h,high SYS_LOOK
+        ld a,(hl)
+        and 7
+        ld (pl_col),a
+        ld a,(hl)
+        rrca
+        rrca
+        rrca
+        rrca
+        and 7
+        ld (sun_col),a
+        ld a,(hl)                       ; the corona: bits 7 and 3
+        rlca
+        rlca                            ; bit 7 -> 1
+        and 2
+        bit 3,(hl)
+        jr z,$+3
+        inc a
+        ld (sun_var),a
+        ret
+
+; ---------------------------------------------------------------------
+; the sun: a small ring in the star's colour with a corona of rays that
+; flicker in and out, where sunv points (it lights the crescent too).
+; Drawn after the ships: dots under a ship or behind the planet's disc
+; (the night side as well) are left out.
+; ---------------------------------------------------------------------
+SUN_R           equ 3                   ; the ring's radius
+
+sun_draw:
+        ld hl,(sunv+4)                  ; ahead of us, inside the view's
+        ld de,-2800h                    ; angle (z > 0.62)?
+        add hl,de
+        bit 7,h
+        ret nz
+        ld hl,(sunv)
+        ld (vx_),hl
+        ld hl,(sunv+2)
+        ld (vy_),hl
+        ld hl,(sunv+4)
+        ld (vz_),hl
+        call project
+        ld hl,(psx)                     ; in the view, give or take the rays
+        ld de,8
+        add hl,de
+        ld a,h
+        or a
+        ret nz
+        ld a,l
+        cp VW+16
+        ret nc
+        sub 8
+        ld (sun_x),a
+        ld hl,(psy)
+        add hl,de
+        ld a,h
+        or a
+        ret nz
+        ld a,l
+        cp VH+16
+        ret nc
+        sub 8
+        ld (sun_y),a
+        call sun_clear
+        ld hl,plot_sun                  ; near the planet: test each dot
+        jr c,$+5
+        ld hl,plot_mask                 ; clear of it: just round the ships
+        call plot_hook
+        ld a,(sun_col)                  ; a ring with a burnt-out centre,
+        call set_col                    ; as if the bright star had dazzled
+        ld hl,SUN_RING                  ; the sensor
+        ld b,16
+        call .pts
+        call poll
+        ld a,(sun_col)                  ; the corona: eight rays, each one
+        add a,a                         ; or two dots long by turns, in
+        add a,a                         ; this star's own colour
+        ld hl,sun_var
+        add a,(hl)
+        ld e,a
+        ld d,0
+        ld hl,CORONA
+        add hl,de
+        ld a,(hl)
+        call set_col
+        ld hl,RAYS
+        ld b,8
+.ray:   push bc
+        push hl
+        ld a,(hl)                       ; the inner dot
+        inc hl
+        ld c,(hl)
+        call .pt
+        pop hl
+        pop bc
+        push bc
+        push hl
+        ld a,(frame)
+        rrca
+        add a,b
+        and 3
+        jr z,.rn                        ; short this time
+        inc hl
+        inc hl
+        ld a,(hl)                       ; the outer dot
+        inc hl
+        ld c,(hl)
+        call .pt
+.rn:    pop hl
+        ld de,4
+        add hl,de
+        pop bc
+        djnz .ray
+        jp plot_unhook
+; B dots from (HL): dx, dy pairs
+.pts:   push bc
+        push hl
+        ld a,(hl)
+        inc hl
+        ld c,(hl)
+        call .pt
+        pop hl
+        inc hl
+        inc hl
+        pop bc
+        djnz .pts
+        ret
+; plot sun + (A, C) if it lies in the view
+.pt:    ld hl,sun_x
+        add a,(hl)
+        cp VW
+        ret nc
+        ld b,a
+        ld a,(sun_y)
+        add a,c
+        cp VH
+        ret nc
+        ld c,a
+        jp plot
+
+; the ring: a circle of radius 3
+SUN_RING:
+        db 3,0, 3,1, 2,2, 1,3, 0,3, -1,3, -2,2, -3,1
+        db -3,0, -3,-1, -2,-2, -1,-3, 0,-3, 1,-3, 2,-2, 3,-1
+; the rays: the inner dot (radius 5), then the outer one (radius 6)
+RAYS:   db 5,0, 6,0,  3,3, 4,4,  0,5, 0,6,  -3,3, -4,4
+        db -5,0, -6,0,  -3,-3, -4,-4,  0,-5, 0,-6,  3,-3, 4,-4
+; the corona's colour: four choices for each star colour
+CORONA: db BLUE,BLUE,BLUE,BLUE, BLUE,BLUE,BLUE,BLUE
+        db MAGENTA,YELLOW,WHITE,BLUE            ; red dwarf
+        db BLUE,BLUE,BLUE,BLUE, BLUE,BLUE,BLUE,BLUE
+        db BLUE,WHITE,MAGENTA,GREEN             ; blue giant
+        db RED,WHITE,MAGENTA,CYAN               ; yellow
+        db YELLOW,CYAN,BLUE,MAGENTA             ; white
+
+; NC if the sun's disc lies wholly in the view and its box (rays and
+; all) misses the planet's
+sun_clear:
+        ld a,(sun_x)
+        cp SUN_R
+        ret c
+        cp VW-SUN_R
+        ccf
+        ret c
+        ld a,(sun_y)
+        cp SUN_R
+        ret c
+        cp VH-SUN_R
+        ccf
+        ret c
+        ld a,(pl_mode)
+        cp 2
+        jr nz,.yes
+        ld a,(pl_r)
+        add a,8
+        ld e,a
+        ld d,0                          ; DE = r + reach of the rays
+        ld a,(sun_x)
+        ld l,a
+        ld h,0
+        ld bc,(pl_cx)
+        or a
+        sbc hl,bc
+        call abs_hl
+        or a
+        sbc hl,de
+        jr nc,.yes                      ; far enough across
+        ld a,(sun_y)
+        ld l,a
+        ld h,0
+        ld bc,(pl_cy)
+        or a
+        sbc hl,bc
+        call abs_hl
+        or a
+        sbc hl,de
+        ret                             ; NC if far enough down or up
+.yes:   or a
+        ret
+
+; plot for the sun: not under a ship, not behind the planet
+plot_sun:
+        ld h,high SPMIN                 ; under a ship?
+        ld l,c
+        ld a,b
+        cp (hl)
+        jr c,.ns
+        set 6,l
+        cp (hl)
+        ret z
+        ret c
+.ns:    ld a,(pl_mode)                  ; behind the planet's disc?
+        cp 2
+        jr nz,.draw
+        ld a,(pl_cy+1)                  ; its centre within 0..255: bytes
+        ld hl,pl_cx+1
+        or (hl)
+        jr nz,.wide
+        ld a,(pl_cy)
+        sub c
+        jr nc,$+4
+        neg
+        ld hl,pl_r
+        cp (hl)
+        jr z,.in1
+        jr nc,.draw
+.in1:   ld l,a
+        ld h,high HWT
+        ld a,(pl_cx)
+        sub b
+        jr nc,$+4
+        neg
+        cp (hl)
+        ret c
+        ret z
+        jr .draw
+.wide:  push de
+        ld hl,(pl_cy)
+        ld e,c
+        ld d,0
+        ex de,hl
+        or a
+        sbc hl,de
+        call abs_hl
+        ld a,h
+        or a
+        jr nz,.out
+        ld a,(pl_r)
+        cp l
+        jr c,.out
+        ld h,high HWT
+        ld a,(hl)                       ; half width at this row
+        push af
+        ld hl,(pl_cx)
+        ld e,b
+        ld d,0
+        ex de,hl
+        or a
+        sbc hl,de
+        call abs_hl
+        pop af
+        ld e,a
+        ld d,0
+        or a
+        sbc hl,de
+        pop de
+        ret c                           ; inside the disc
+        jr z,.ret
+        jr .draw
+.ret:   ret
+.out:   pop de
+.draw:  jp plot_mask.draw

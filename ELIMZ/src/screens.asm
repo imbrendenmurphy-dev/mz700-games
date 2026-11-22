@@ -153,18 +153,24 @@ title_screen:
         ld (title_ang),a
         ld l,a
         ld h,0
-        add hl,hl
         ld d,h
         ld e,l
         add hl,hl
         add hl,hl
         add hl,hl
-        add hl,de                       ; * 18
+        add hl,de                       ; * 9
         ld de,SPIN
         add hl,de
-        ld de,objects+O_SIDE
-        ld bc,18
-        ldir
+        ld de,objects+O_SIDE            ; bytes -> words (high bytes)
+        ld b,9
+.sp:    xor a
+        ld (de),a
+        inc de
+        ld a,(hl)
+        ld (de),a
+        inc de
+        inc hl
+        djnz .sp
         ld a,(title_ship)
         ld hl,TYPE_COL-1
         add a,l

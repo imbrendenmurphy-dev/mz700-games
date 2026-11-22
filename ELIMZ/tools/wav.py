@@ -109,8 +109,7 @@ def write(path, y):
 
 
 def start_game(g):
-    g.run(60)
-    g.run(8, ['space'])
+    g.launch(0)
 
 
 def scene(name, secs):
@@ -120,6 +119,8 @@ def scene(name, secs):
         g.run(5)
     elif name in ('launch',):
         g.run(60)
+        g.run(8, ['space'])
+        g.run(80)                                # docked at the home station
         m.spk_log = []
         t0 = m.cpu.t
         g.run(8, ['space'])

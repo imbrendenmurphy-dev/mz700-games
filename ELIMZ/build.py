@@ -252,7 +252,7 @@ def gen_tables():
             y2 = y * math.cos(th) - z * math.sin(th)
             z2 = y * math.sin(th) + z * math.cos(th)
             spin += [round(v * 0x4000) & 0xFFFF for v in (x, y2, z2)]
-    out += ['SPIN:', dw_lines(spin, 9)]
+    out += ['SPIN:', db_lines([(v >> 8) & 255 for v in spin], 9)]
     # explosion particle offsets (-8..8)
     import random
     rnd = random.Random(7)

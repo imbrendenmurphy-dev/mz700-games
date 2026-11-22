@@ -374,15 +374,15 @@ docked_screen:
         call cls
         ld b,0
         ld c,3
-        ld a,YELLOW<<4+BLUE
+        ld a,(YELLOW<<4)+BLUE
         call clear_rows
         ld hl,txt_dockedat
         ld bc,2*256+1
-        ld a,YELLOW<<4+BLUE
+        ld a,(YELLOW<<4)+BLUE
         call print_at
         ld a,(cur_sys)
         call sys_name
-        ld c,YELLOW<<4+BLUE
+        ld c,(YELLOW<<4)+BLUE
         call print
         ; system facts
         ld hl,txt_econ
@@ -525,7 +525,12 @@ docked_screen:
         jr nz,.sk
         jr .mt
 .keys:  call wait_field                 ; the mixer plays while we wait
-        call getkey
+        call fkeys_new                  ; F1 help, F2 chart, F3 nearby, F4 data
+        or a
+        jr z,.nofk
+        call fk_screen
+        jp .menu
+.nofk:  call getkey
         cp 'M'
         jr z,.market
         cp 'C'
@@ -584,6 +589,7 @@ menu_text:
         db 19,"F  REFUEL (0.2 CR PER 0.1 LY)",0
         db 20,"E  EQUIPMENT   S/L  SAVE/LOAD PILOT",0
         db 21,"SPACE  LAUNCH   (H IN FLIGHT: JUMP)",0
+        db 22,"F1 HELP  F3 NEARBY  F4 SYSTEM DATA",0
         db 0FFh
 
 ; HL = the A'th 0-terminated string of a list
@@ -620,15 +626,15 @@ market_screen:
         call cls
         ld b,0
         ld c,1
-        ld a,YELLOW<<4+BLUE
+        ld a,(YELLOW<<4)+BLUE
         call clear_rows
         ld hl,txt_market
         ld bc,1*256+0
-        ld a,YELLOW<<4+BLUE
+        ld a,(YELLOW<<4)+BLUE
         call print_at
         ld a,(cur_sys)
         call sys_name
-        ld c,YELLOW<<4+BLUE
+        ld c,(YELLOW<<4)+BLUE
         call print
         ld hl,txt_mhead
         ld bc,1*256+2
@@ -758,7 +764,7 @@ mkt_row:
         cp b
         ld a,WHITE<<4
         jr nz,$+4
-        ld a,WHITE<<4+BLUE
+        ld a,(WHITE<<4)+BLUE
         ld (mk_attr),a
         push bc
         ld a,(mk_row)
@@ -903,11 +909,11 @@ chart_screen:
         call clear_rows
         ld b,0
         ld c,1
-        ld a,YELLOW<<4+BLUE
+        ld a,(YELLOW<<4)+BLUE
         call clear_rows
         ld hl,txt_chart
         ld c,0
-        ld a,YELLOW<<4+BLUE
+        ld a,(YELLOW<<4)+BLUE
         call print_centre
         ld a,(target_sys)
         ld l,a
@@ -921,13 +927,21 @@ chart_screen:
         call wait_release
         call fe_reset
 .loop:  call wait_frame
-        ld a,CYAN
-        call set_col
-        ld hl,SYS_CX                    ; every star
+        ld hl,SYS_CX                    ; every star, in its own colour
 .st:    ld b,(hl)
         inc h
         ld c,(hl)
         dec h
+        push hl
+        ld h,high SYS_LOOK
+        ld a,(hl)
+        rrca
+        rrca
+        rrca
+        rrca
+        and 7
+        call set_col
+        pop hl
         push hl
         call plot
         pop hl

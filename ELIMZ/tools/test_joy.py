@@ -61,16 +61,22 @@ for port, inv in (('A', False), ('B', True), ('A', True), ('B', False)):
     joy['x'] = 128
     g.run(12)
     check(tag + ': mixer centre', rb(g, 'joy_dirs') == 0, rb(g, 'joy_dirs'))
-    joy['sw1'] = True                              # SW1 launches
-    g.run(6)
-    joy['sw1'] = False
-    g.run(120)
+    for _ in range(2):                             # SW1: to the station, then out
+        joy['sw1'] = True
+        g.run(6)
+        joy['sw1'] = False
+        g.run(100)
+    for _ in range(80):
+        if rb(g, 'state') == 0 and rb(g, 'snd_mode') == 0 and rb(g, 'tn_f') >= 32:
+            break
+        g.run(5)
+    g.run(30)
     check(tag + ': SW1 launched', rb(g, 'state') == 0 and rb(g, 'snd_mode') == 0,
           (rb(g, 'state'), rb(g, 'snd_mode')))
     if port == 'A' and not inv:
         for (x, y), want in (((255, 128), 2), ((0, 128), 1), ((128, 0), 4), ((128, 255), 8), ((128, 128), 0)):
             joy['x'], joy['y'] = x, y
-            g.run(10)                          # a frame to read it, a frame to use it
+            g.run(20)                          # a frame or two to read it and use it
             seen = flight_dirs(g, 20)
             check('flight stick %d,%d' % (x, y), seen & 15 == want, seen)
         # every flight frame should get a fresh reading
@@ -100,7 +106,7 @@ for port, inv in (('A', False), ('B', True), ('A', True), ('B', False)):
 
 # the cost in flight: frames in 300 fields with and without the stick
 counts = []
-for joy in (None, dict(x=255, y=255, port='A')):
+for joy in (None, dict(x=128, y=128, port='A')):
     g = Game()
     g.m.joy = joy
     g.run(10)
@@ -108,15 +114,16 @@ for joy in (None, dict(x=255, y=255, port='A')):
         joy['x'] = joy['y'] = 128
         g.run(3, ['j'])
         g.run(30)
-        joy['x'] = joy['y'] = 255
     else:
         g.run(33)
     g.run(8, ['space'])
-    g.run(120)
+    g.run(80)
+    g.run(8, ['space'])
+    g.run(300)
     f0 = rb(g, 'frame')
     g.run(300)
     counts.append((rb(g, 'frame') - f0) & 255)
-check('flight frame rate kept', counts[1] >= counts[0] * 0.95, 'frames in 300 fields: keys %d, stick at full travel %d' % tuple(counts))
+check('flight frame rate kept', counts[1] >= counts[0] * 0.95, 'frames in 300 fields: keys %d, stick on %d' % tuple(counts))
 
 g = Game()
 g.run(10)

@@ -478,11 +478,11 @@ equip_screen:
         call cls
         ld b,0
         ld c,1
-        ld a,YELLOW<<4+BLUE
+        ld a,(YELLOW<<4)+BLUE
         call clear_rows
         ld hl,txt_equip
         ld c,0
-        ld a,YELLOW<<4+BLUE
+        ld a,(YELLOW<<4)+BLUE
         call print_centre
         ld hl,txt_ehead
         ld bc,1*256+2
@@ -620,7 +620,7 @@ eq_row:
         cp b
         ld a,WHITE<<4
         jr nz,$+4
-        ld a,WHITE<<4+BLUE
+        ld a,(WHITE<<4)+BLUE
         ld (mk_attr),a
         push bc
         ld a,(mk_row)

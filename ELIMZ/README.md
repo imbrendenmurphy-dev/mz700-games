@@ -10,13 +10,20 @@ An original wireframe space-combat and trading game for the 64K Sharp MZ-700, in
 | Cursor left / right | roll |
 | Cursor up / down | dive / climb |
 | A / Z | faster / slower |
-| SPACE | lasers (watch the LSR heat bar) |
+| SPACE | lasers, from the front view (watch the LSR heat bar) |
 | H | hyperspace to the target chosen on the galaxy chart (needs fuel) |
 | M | fire a seeker missile at the ship nearest the sights |
 | J | jammer pulse: destroys every seeker in flight (costs energy) |
 | D | auto-dock on/off (if fitted; it plays the waltz) |
 | P | pause |
 | S | sound on/off |
+| 1 / 2 / 3 / 4 | front / rear / left / right view |
+| F1 | help: every key |
+| F2 | galaxy chart (choose the jump target) |
+| F3 | nearby systems: a zoomed map with names, the fuel circle and a cursor for the target |
+| F4 | this system: a picture of its planet and sun, economy, government, tech level, star and world type |
+
+A new game starts docked at the home station with 100 credits, so you can read the system data, trade, refuel and fit equipment before SPACE launches you. F1-F4 work when docked too.
 
 On the title screen, L loads a saved pilot and J switches the joystick on or off.
 
@@ -29,8 +36,9 @@ To dock, fly straight into the slot on the station's front face. The station spi
 
 ## What the prototype has
 - A 3D view of 40 × 18 cells drawn in the CG-ROM's dotted quarter blocks (F0h–FFh), which gives 80 × 36 dots. It has perspective projection, near-plane clipping and Cohen-Sutherland 2D clipping. Only changed cells are written to VRAM.
+- **Views:** keys 1-4 look ahead, behind, left or right. For the length of the drawing every world vector (ships, planet, sun, dust) is turned into that camera and back again, so physics, lasers, scanner and compass stay in the front view. The sights and laser beams show only ahead.
 - **Hidden lines:** each model carries the planes of its convex hull, worked out by `build.py`. Once per object the camera is moved into the model's space, then three byte multiplies a face say whether it faces us. Only edges on a face towards us are drawn, so ships and the station look solid. Far ships (under about four dots across) skip the test, and from inside the station's hull every edge is drawn.
-- **The planet** is a back-lit crescent in cyan, with its night side black against the stars. The lit part is the disc minus the same disc shifted away from the sun, which turns with the world, so the crescent stays true as you roll. Ships hide it: the planet is placed first but drawn after the ships, and while a ship over it is drawn, `plot` notes each dot row's span so the planet skips those dots. A cell a ship has drawn in keeps the ship's colour.
+- **The planet and its sun:** every system has its own planet colour and star colour (`tools/galaxy.py`: farm worlds lean green, industrial ones yellow and red; stars are mostly yellow, some white, red or blue-white, each with one of four corona colours, so sixteen star looks in all), and the galaxy chart shows each star in its colour. The sun is a small ring with a burnt-out centre, as if the bright star had dazzled the sensor, and a corona of eight flickering rays, and it sits on one of four sides of the planet depending on the system. It is hidden behind ships and behind the planet's whole disc, night side included, so it can peek over the limb or be eclipsed. The planet is a back-lit crescent with its night side black against the stars, lit from the sun's direction. The lit part is the disc minus the same disc shifted away from the sun, which turns with the world, so the crescent stays true as you roll. Ships hide it: the planet is placed first but drawn after the ships, and while a ship over it is drawn, `plot` notes each dot row's span so the planet skips those dots. A cell a ship has drawn in keeps the ship's colour.
 - The universe rotates around the player with small-angle rotations that need only shifts. Multiplication uses quarter-square tables.
 - A hexagonal orbital hub that spins, a planet, star dust, Dart and Mantis pirates (the AI rolls, pitches, fires and breaks off when close), and Hauler traders.
 - **The console:** a bezel across the top of the dashboard with the panel titles (SYSTEMS, SCANNER, STATUS) set into it, and dividers between the panels. Speed, shields, energy and laser heat are dot-matrix LED meters in the CG-ROM's quarter-block glyphs: two dots per cell, graded green, yellow and red, with the unlit dots in dim blue. The scanner is a blue scope whose blips take each ship's colour, seekers show as missile icons, and the station compass is a small scope of its own. A hit flashes the bezel red.
@@ -44,13 +52,13 @@ To dock, fly straight into the slot on the station's front face. The station spi
 - **Equipment shop** (E when docked; what's on sale depends on the system's tech level): seeker missile, jammer, twin laser (double damage), cargo pod (+15 hold), shield booster (faster recharge), cargo scoop, auto-dock.
 - **Colour 3D view:** each dot cell takes the colour of whatever was drawn last: green planet, red Darts and Raptors, magenta Mantises, yellow Haulers, cyan Wardens, white station. The radar, the chart and the hyperspace rings are coloured too.
 - **More objects:** the Raptor warlord pirate (9 hit points, two seekers, lawless systems only, 60 cr bounty), tumbling asteroids that break into ore, and cargo canisters dropped by destroyed ships. You scoop canisters by flying into them with a cargo scoop fitted; without one they just hit you.
-- **Effects:** explosions start as a yellow fireball ring and then throw red and yellow sparks. Leaving the station runs a launch tunnel, hyperspace a tunnel of coloured rings, and your own death a white flash and rings of fire.
+- **Effects:** explosions start as a yellow fireball ring and then throw red and yellow sparks. Leaving and entering the station run through its tunnel in real-time 3D: hexagonal rings joined by struts rush at you and turn with the station, white near, cyan, then blue. On the tone generator, so the drawing has the CPU. Hyperspace runs a tunnel of coloured rings, and your own death a white flash and rings of fire.
 - **Hyperspace ambushes:** about one jump in six arrives with pirates waiting.
 - **Attract mode:** after 20 s the title hands over to an AI demo pilot in a lawless system. It hunts pirates, leaves traders alone, jams incoming seekers and fires seekers at Raptors. Then come a gallery of every ship with notes, and a pilot's handbook page; any key returns to the title.
 - **Rank** from kills: Cadet, Pilot, Gunner, Veteran, Ace, Hotshot, Legend.
 - **Hyperspace:** H starts a countdown, followed by a jump effect. You arrive with the new system's station ahead of you. Lawless systems spawn more pirates; orderly ones spawn more traders.
 
-Speed (simulator, no VRAM waits): 16.7 fps in open space, including while turning. With three pirates close ahead of the planet it runs at 8 fps (`py tools/scene_fight.py`; 9 before the hidden lines and the filled crescent), and with three ships over a close planet at 6.7 (`tools/scene_planet.py`).
+Speed (simulator, no VRAM waits): 16.7 fps in open space, including while turning. With three pirates close ahead of the planet and the sun in view it runs at 7.5 fps (`py tools/scene_fight.py`; 9 before the hidden lines, the filled crescent and the sun), and with three ships over a close planet at 6.7 (`tools/scene_planet.py`).
 ## Sound
 The MZ-700 has one tone generator (8253 counter 0) and a 1-bit speaker, so the game uses it in three ways:
 - **Tracker** for the title and the whole attract sequence (demo, gallery, handbook): one square-wave channel set once per 50 Hz tick, the way MZ-700 demos play music (Genesis Project's *Sharper* was the model). `tools/music.py` arranges the waltz for it at build time: every note starts with a one-tick octave pluck, each bar opens with a kick falling into the bass note, the two "pahs" are quick chord blips, held notes get a slow vibrato and gaps fill with a fading arpeggio of the chord. It packs into 851 bytes plus a 61-entry divisor table. The counter plays the note by itself, so the tracker needs almost no CPU and the screen can animate flat out. Effects take the channel in turns with the music, so the attract demo keeps its waltz under the laser fire.
@@ -73,5 +81,5 @@ py build.py
 py tools/run.py 300 120,299 --keys "150:space,156:-"
 py tools/test_flow.py
 ```
-`tools/test_joy.py` checks the joystick in both sockets and both polarities. `tools/test_flow.py` runs the whole game: the attract cycle, launching, docking, the market, hyperspace, death and game over.
+`tools/test_views.py` checks the views and the F1-F4 screens in flight and docked. `tools/test_joy.py` checks the joystick in both sockets and both polarities. `tools/test_flow.py` runs the whole game: the attract cycle, launching, docking, the market, hyperspace, death and game over.
 `tools/run.py`, `mzsim.py` and `z80.py` are the shared Python MZ-700 simulator. Screenshots go to `build/shots/`. The CG-ROM image `rom/mz700fon.int` is not committed.
