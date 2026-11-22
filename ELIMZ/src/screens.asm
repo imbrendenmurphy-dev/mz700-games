@@ -193,8 +193,10 @@ title_screen:
         call draw_obj
         jp present
 
-; the logo's glint: a slanted white streak sweeps across the yellow
-; letters, two columns a call, then a rest (26 calls in 64 sweep)
+; the logo's glint: a slanted streak sweeps across the letters, two
+; columns a call, then a rest (26 calls in 64 sweep).  It turns the
+; letters' yellow white and leaves their blue shadow alone; behind it
+; each cell gets its own colours back (LOGOA).
 shimmer:
         ld hl,frame
         inc (hl)
@@ -203,52 +205,86 @@ shimmer:
         cp 26
         ret nc
         add a,a
-        sub 4
+        sub 6
         ld c,a                          ; the streak's column on the top row
-        ld hl,ARAM+VIEW_ROW*40
+        ld hl,ARAM+VIEW_ROW*40+2
+        ld de,LOGOA
         ld b,5
-.row:   ld a,c
+.row:   xor a                           ; behind it: the logo's colours
+        ld (gl_w),a
+        ld a,c
         sub 2
-        ld e,YELLOW<<4                  ; behind it: back to yellow
         call .cell
         call .cell
-        ld e,WHITE<<4                   ; the streak, two cells wide
+        push af                         ; the streak, two cells wide
+        ld a,1
+        ld (gl_w),a
+        pop af
         call .cell
         call .cell
+        push de
         ld de,40
         add hl,de
+        pop de
+        push hl
+        ld hl,36
+        add hl,de
+        ex de,hl
+        pop hl
         dec c                           ; leaning: one column left a row
         djnz .row
         ret
-; colour column A of the row at HL with E, if on the screen; A + 1
-.cell:  cp 40
+; logo column A of the rows at HL (screen) and DE (LOGOA): its colours,
+; yellow made white if gl_w; A + 1
+.cell:  cp 36
         jr nc,.n
-        push hl
         push af
-        add a,l
-        ld l,a
-        jr nc,$+3
-        inc h
-        ld (hl),e
-        pop af
+        push bc
+        push de
+        push hl
+        ld c,a
+        ld b,0
+        add hl,bc
+        ex de,hl
+        add hl,bc                       ; HL -> LOGOA, DE -> the screen
+        ld c,(hl)
+        ld a,(gl_w)
+        or a
+        ld a,c
+        jr z,.put
+        and 70h                         ; yellow ink, or yellow paper
+        cp YELLOW<<4                    ; (inverted glyphs): white
+        ld a,c
+        jr nz,$+4
+        or 10h
+        ld c,a
+        and 07h
+        cp YELLOW
+        ld a,c
+        jr nz,.put
+        or 01h
+.put:   ld (de),a
         pop hl
+        pop de
+        pop bc
+        pop af
 .n:     inc a
         ret
 
-; the logo (build.py: LOGO) into VRAM rows 1..5, from column 2, yellow
+; the logo (build.py: LOGO, LOGOA - letters with a thin blue shadow)
+; into VRAM rows 1..6 from column 2
 logo_draw:
-        ld b,VIEW_ROW
-        ld c,5
-        ld a,YELLOW<<4
-        call clear_rows
         ld hl,SHD                       ; present leaves these rows alone
         ld de,SHD+1
-        ld bc,5*64-1
+        ld bc,6*64-1
         ld (hl),0
         ldir
         ld hl,LOGO
         ld de,VRAM+VIEW_ROW*40+2
-        ld c,5
+        call .copy
+        ld hl,LOGOA
+        ld de,ARAM+VIEW_ROW*40+2
+.copy:  ld c,6
 .r:     ld b,36
 .l:     ld a,(hl)
         ld (de),a

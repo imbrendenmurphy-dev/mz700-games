@@ -313,4 +313,5 @@ killer          ds 2                ; fx.asm: the death camera
 kbest           ds 2
 cam_d           ds 2
 frags           ds NFRAG*FRSZ
+gl_w            ds 1                ; screens.asm: glinting
 vars_end:

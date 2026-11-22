@@ -17,7 +17,7 @@ The keys follow ZX Spectrum Elite, the standard for space-trading players.
 | E | ECM: a jammer pulse destroys every seeker in flight (costs energy) |
 | C | docking computer on/off (if fitted; it plays the waltz) |
 | H | hyperspace to the chosen target (needs fuel) |
-| J | jump drive, held: rush ahead while nothing is near (MASS LOCKED near ships, the station or the planet) |
+| J | jump drive, held: rush ahead while nothing is near (MASS LOCKED near ships, the station, the planet or the sun) |
 | 1 / 2 / 3 / 4 | front / rear / left / right view |
 | I / O / P | galactic chart / local chart / data on the system (also F2 / F3 / F4) |
 | F1 | help: every key |
@@ -39,7 +39,7 @@ A new game starts docked at the home station with 100 credits in a Kestrel, so y
 
 ### Fuel, the sun and ships
 - **Fuel is a good.** Every jump burns its distance in fuel, and each station sells it by the light year at its own price and stock: cheap at industrial, high-tech stations, dear on farm worlds and in lawless space, where it is sometimes sold out. It is the last row of the market (RIGHT buys a light year; it cannot be sold), and F fills the tank as far as credits and stock allow.
-- **The sun can be flown at.** Fly towards it and it swells. Inside its heat the cabin warms (the TMP meter on the console); with a **fuel scoop** fitted (equipment, 100 credits) skimming it fills the tank. Stay too long and the heat burns the shields and then the energy banks.
+- **The sun can be flown at.** It lies well beyond the planet, about half a minute flat out, and the jump drive will not take you close. Fly towards it and it swells. Inside its heat the cabin warms (the TMP meter on the console); with a **fuel scoop** fitted (equipment, 100 credits) skimming it fills the tank. Stay too long and the heat burns the shields and then the energy banks.
 - **Ships.** The shipyard (5 when docked) sells four hulls; the one you fly is traded in at 60%. Better hulls need a higher rank, which comes from kills, and the hold must take your cargo.
 
 | Hull | Price | Hold | Range | Top speed | Seeker racks | Notes | Rank |

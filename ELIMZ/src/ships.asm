@@ -191,12 +191,12 @@ sun_reset:
         ret
 
 sun_step:
-        ld a,(sunv+5)                   ; d -= speed * cos(nose, sun) / 16
-        ld b,a
+        ld a,(sunv+5)                   ; d -= speed * cos(nose, sun) / 64
+        ld b,a                          ; (a long cruise: ~40 s flat out)
         ld a,(speed)
         ld c,a
         call mul8s
-        ld b,4
+        ld b,6
 .s:     sra h
         rr l
         djnz .s
@@ -631,6 +631,7 @@ txt_poor:       db "NOT ENOUGH CREDITS",0
 JSTEP           equ 800
 LOCK_SHIP       equ 7000                ; |x|+|y|+|z| inside which ships lock it
 LOCK_PLANET     equ 16000
+SUN_LOCK        equ 4000                ; sun_d inside which the sun locks it
 
 jump_step:
         call mass_lock
@@ -664,14 +665,12 @@ jump_step:
         ld a,(sunv+5)                   ; and the sun, as we head for it
         or a
         ret m
-        ld l,a                          ; JSTEP * cos / 64 = cos * 12.5
+        ld l,a                          ; JSTEP * cos / 256 = cos * 3
         ld h,0
-        add hl,hl
-        add hl,hl
         ld d,h
         ld e,l
         add hl,hl
-        add hl,de                       ; * 12
+        add hl,de
         ex de,hl
         ld hl,(sun_d)
         or a
@@ -683,6 +682,11 @@ jump_step:
 
 ; C if something is near enough to lock the jump drive
 mass_lock:
+        ld hl,(sun_d)                   ; the sun
+        ld de,SUN_LOCK
+        or a
+        sbc hl,de
+        ret c
         ld hl,planet
         call clamp_far.sum
         ld de,LOCK_PLANET

@@ -104,6 +104,13 @@ read_ctr1:
         ret
 
 wait_frame:
+        ld a,(joy_req)              ; the joystick missed this frame's
+        or a                        ; reading (poll came too late after
+        jr z,.w                     ; the VBLANK): catch the next one
+.j:     call poll
+        ld a,(joy_req)
+        or a
+        jr nz,.j
 .w:     call poll
         call read_ctr1
         ex de,hl                    ; DE = now

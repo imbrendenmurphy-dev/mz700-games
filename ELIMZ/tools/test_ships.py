@@ -116,6 +116,8 @@ d0 = m[S['sun_d']] | m[S['sun_d'] + 1] << 8
 g.run(60, ['space'])
 d1 = m[S['sun_d']] | m[S['sun_d'] + 1] << 8
 check('flying at the sun brings it nearer', d1 < d0, (d0, d1))
+check('the sun is a long cruise away', d0 - d1 < 1200, d0 - d1)
+w16(S['sun_d'], 1800)                  # then on to the edge of the heat
 fuel_seen = 0
 temp_seen = 0
 sh = m[S['shield']]

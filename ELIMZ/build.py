@@ -91,6 +91,67 @@ def logo_cells(word):
     return out
 
 
+def logo_shadowed(word, fg=6, shade=1):
+    """the logo with a thin bas-relief shadow (2 dots down-right, blue):
+    6 rows x 36 cells of glyph codes, then their attributes.  Every
+    cell is the closest CG-ROM glyph (either bank, either polarity) to
+    its letter / shadow / empty dots; where no glyph fits the shadow
+    cleanly, the shadow is left out there."""
+    raw = open(os.path.join(ROOT, 'rom', 'mz700fon.int'), 'rb').read()
+    font = bytes(int('{:08b}'.format(b)[::-1], 2) for b in raw)
+
+    def bits(code, bank=0):
+        g = font[(code + 256 * bank) * 8:][:8]
+        return [[1 if g[y] & (0x80 >> x) else 0 for x in range(8)] for y in range(8)]
+
+    glyphs = [(code, bank, bits(code, bank)) for bank in (0, 1) for code in range(256)]
+    cells = logo_cells(word)
+    nc, nr = 36, 6
+    w, h = nc * 8, nr * 8
+    let = [[0] * w for _ in range(h)]
+    for i, code in enumerate(cells):
+        r, c = divmod(i, nc)
+        g = bits(code)
+        for y in range(8):
+            for x in range(8):
+                let[r * 8 + y][c * 8 + x] = g[y][x]
+    sh = [[1 if not let[y][x] and any(0 <= y - k and 0 <= x - k and let[y - k][x - k] for k in (1, 2)) else 0
+           for x in range(w)] for y in range(h)]
+
+    def best(mask):
+        bv = None
+        for code, bank, gm in glyphs:
+            d = sum(gm[y][x] != mask[y][x] for y in range(8) for x in range(8))
+            for inv, dd in ((0, d), (1, 64 - d)):
+                if bv is None or dd < bv[0]:
+                    bv = (dd, code, bank, inv)
+        return bv
+
+    chars, attrs = [], []
+    for r in range(nr):
+        for c in range(nc):
+            cell = [[2 if let[r * 8 + y][c * 8 + x] else 1 if sh[r * 8 + y][c * 8 + x] else 0
+                     for x in range(8)] for y in range(8)]
+            n = [sum(v == k for row in cell for v in row) for k in range(3)]
+            code, at = 0, 0
+            if n[2]:                                # letter (on blue if the shadow fills the rest)
+                col = (fg, shade if n[1] and n[1] >= 3 * n[0] else 0)
+                err, code, bank, inv = best([[1 if v == 2 else 0 for v in row] for row in cell])
+            elif n[1]:
+                col = (shade, 0)
+                err, code, bank, inv = best([[1 if v == 1 else 0 for v in row] for row in cell])
+                if err > 3:
+                    code = None
+            else:
+                code = None
+            if code is not None:
+                f, b = col[::-1] if inv else col
+                at = (f << 4) | b | (0x80 if bank else 0)
+            chars.append(code or 0)
+            attrs.append(at)
+    return chars, attrs
+
+
 def font3_bytes(word):
     out = []
     for ch in word:
@@ -263,7 +324,8 @@ def gen_tables():
         ylo[y] = a & 255
         yhi[y] = a >> 8
     out += ['        align 256', 'YLO:', db_lines(ylo), 'YHI:', db_lines(yhi)]
-    out += ['LOGO:', db_lines(logo_cells('ARGOSY'))]
+    lc, la = logo_shadowed('ARGOSY')
+    out += ['LOGO:', db_lines(lc), 'LOGOA:', db_lines(la)]
     # the title's spinning ship: 64 orientations (side, roof, nose; unit
     # 4000h), a turn about the vertical, seen from a little above
     spin = []
