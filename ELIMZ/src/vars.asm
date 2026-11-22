@@ -309,4 +309,8 @@ TSY             ds 48
 planet          ds 6
 dust            ds 6*NDUST
 objects         ds MAXOBJ*OBJSZ
+killer          ds 2                ; fx.asm: the death camera
+kbest           ds 2
+cam_d           ds 2
+frags           ds NFRAG*FRSZ
 vars_end:

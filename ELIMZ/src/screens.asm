@@ -193,46 +193,54 @@ title_screen:
         call draw_obj
         jp present
 
-; the logo's colour bands roll slowly down through the letters
+; the logo's glint: a slanted white streak sweeps across the yellow
+; letters, two columns a call, then a rest (26 calls in 64 sweep)
 shimmer:
         ld hl,frame
         inc (hl)
         ld a,(hl)
-        and 3
-        ret nz
-        ld a,(hl)
-        rrca
-        rrca
-        and 7
-        ld c,a                          ; the phase
+        and 63
+        cp 26
+        ret nc
+        add a,a
+        sub 4
+        ld c,a                          ; the streak's column on the top row
         ld hl,ARAM+VIEW_ROW*40
-        ld b,0
-.row:   ld a,b                          ; colour = BANDS[(row - phase) & 7]
-        sub c
-        and 7
-        push hl
-        ld e,a
-        ld d,0
-        ld hl,BANDS
+        ld b,5
+.row:   ld a,c
+        sub 2
+        ld e,YELLOW<<4                  ; behind it: back to yellow
+        call .cell
+        call .cell
+        ld e,WHITE<<4                   ; the streak, two cells wide
+        call .cell
+        call .cell
+        ld de,40
         add hl,de
-        ld a,(hl)
+        dec c                           ; leaning: one column left a row
+        djnz .row
+        ret
+; colour column A of the row at HL with E, if on the screen; A + 1
+.cell:  cp 40
+        jr nc,.n
+        push hl
+        push af
+        add a,l
+        ld l,a
+        jr nc,$+3
+        inc h
+        ld (hl),e
+        pop af
         pop hl
-        push bc
-        ld b,40
-.c:     ld (hl),a
-        inc hl
-        djnz .c
-        pop bc
-        inc b
-        ld a,b
-        cp 5
-        jr c,.row
+.n:     inc a
         ret
 
-BANDS:  db WHITE<<4,YELLOW<<4,YELLOW<<4,RED<<4,MAGENTA<<4,RED<<4,YELLOW<<4,WHITE<<4
-
-; the logo (build.py: LOGO) into VRAM rows 1..5, from column 2
+; the logo (build.py: LOGO) into VRAM rows 1..5, from column 2, yellow
 logo_draw:
+        ld b,VIEW_ROW
+        ld c,5
+        ld a,YELLOW<<4
+        call clear_rows
         ld hl,SHD                       ; present leaves these rows alone
         ld de,SHD+1
         ld bc,5*64-1

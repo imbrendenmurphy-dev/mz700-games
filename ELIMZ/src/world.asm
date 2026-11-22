@@ -689,13 +689,13 @@ world_step:
         pop bc
         djnz .d
         call spawn
+        ld a,(energy)                   ; (before regen can top it up)
+        or a
+        jr z,.dead
         call regen
         call sun_step                   ; flying at the sun: heat, scooping
-        call hyper_tick
-        ld a,(state)
-        or a
-        ret nz
-        ld a,(energy)
+        jp hyper_tick
+.dead:  ld a,(state)
         or a
         ret nz
         ; destroyed
@@ -1092,6 +1092,7 @@ ai_pirate:
         sbc hl,de
         ret nc
         ; fire!
+        ld (killer),ix                  ; (the death camera finds it)
         call rand
         and 15
         add a,24

@@ -288,6 +288,12 @@ gallery:
         ld (ix+O_Z),l
         ld (ix+O_Z+1),h
         ex de,hl
+        ld a,(hl)                       ; height: centres the tumble
+        inc hl
+        ld (ix+O_Y),a
+        add a,a
+        sbc a,a
+        ld (ix+O_Y+1),a
         ld c,SEP_ROW+1                  ; name, then two lines of notes
         ld a,YELLOW<<4
         call .line
@@ -334,21 +340,24 @@ gallery:
         jr nz,.skip
         ret
 
-; type, distance/2, name, two lines of notes
+; type, distance/2, height, name, two lines of notes.  Distance and
+; height are the nearest and best centred at which the whole 90-frame
+; tumble stays inside the 36 dot rows (simulated) - each ship fills
+; the view
 GALLERY:
-        db T_DART,110
+        db T_DART,64,4
         db "DART",0,"LIGHT PIRATE INTERCEPTOR",0,"FAST, FRAGILE.  BOUNTY 15 CR",0
-        db T_MANTIS,115
+        db T_MANTIS,48,10
         db "MANTIS",0,"PIRATE GUNSHIP",0,"CARRIES A SEEKER.  BOUNTY 25 CR",0
-        db T_RAPTOR,150
+        db T_RAPTOR,104,-1
         db "RAPTOR",0,"PIRATE WARLORD",0,"LAWLESS SPACE ONLY.  BOUNTY 60 CR",0
-        db T_HAULER,140
+        db T_HAULER,74,15
         db "HAULER",0,"BULK TRADER",0,"HARMLESS - LEAVE IT ALONE",0
-        db T_WARDEN,110
+        db T_WARDEN,47,-1
         db "WARDEN",0,"SYSTEM POLICE",0,"FIRE ON ONE AND THEY ALL HUNT YOU",0
-        db T_ROCK,110
+        db T_ROCK,66,2
         db "ASTEROID",0,"DRIFTING ROCK",0,"SHOOT IT, SCOOP THE ORE",0
-        db T_STATION,200
+        db T_STATION,118,1
         db "ORBITAL HUB",0,"STATION",0,"FLY INTO THE SLOT TO DOCK",0
         db 0
 

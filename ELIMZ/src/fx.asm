@@ -399,73 +399,382 @@ tn_draw:
 TN_COL: db WHITE,WHITE,CYAN,CYAN,BLUE,BLUE
 
 ; ---------------------------------------------------------------------
-; death: rings of fire burst out over the view and fade
+; death: the camera leaves the cockpit.  The wreck bursts into tumbling
+; spars and sparks; the camera pans round it, pulls back and turns to
+; the ship that killed us, beyond the wreck.  (The world is frozen; the
+; camera orbits by turning the world about the wreck, rotate_world, and
+; stands cam_d behind it, shift_z.)
 ; ---------------------------------------------------------------------
-DEATH_FRAMES    equ 34
-FADE:           db WHITE,YELLOW,YELLOW,RED,RED,MAGENTA,BLUE,BLACK
+NFRAG           equ 12
+FRSZ            equ 18                  ; position, velocity, spar: words
+DEATH_FRAMES    equ 60
 
 death_seq:
         call snd_fe
         ld hl,SFX_DEATH
         ld a,9
         call sfx
-        ld hl,fx_last
-        ld b,NRINGS
-.l:     ld (hl),0FFh
+        ld a,1
+        ld (view),a                     ; (no fresh dust: the camera moves)
+        ld ix,objects                   ; a fireball, in a free slot
+        ld b,MAXOBJ
+.fs:    ld a,(ix+O_TYPE)
+        or a
+        jr z,.free
+        ld de,OBJSZ
+        add ix,de
+        djnz .fs
+        jr .nofb
+.free:  push ix
+        pop hl
+        ld d,h
+        ld e,l
+        inc de
+        ld (hl),0
+        ld bc,OBJSZ-1
+        ldir
+        ld (ix+O_TYPE),T_DEBRIS
+.nofb:  call pick_killer
+        ld hl,frags                     ; the pieces, at the wreck
+        ld b,NFRAG
+.fr:    push bc
+        ld b,6
+.z:     ld (hl),0
         inc hl
-        djnz .l
-        ld bc,VIEW_ROW*256+18           ; a white flash, then darkness
-        ld a,(WHITE<<4)|WHITE
-        call clear_rows
-        call wait_frame
-        ld bc,VIEW_ROW*256+18
-        ld a,WHITE<<4
-        call clear_rows
+        djnz .z
+        ld b,3                          ; velocity -4..3 a frame
+.v:     push hl
+        call rand
+        pop hl
+        and 7
+        sub 4
+        call .sw
+        djnz .v
+        ld b,3                          ; spar -32..31
+.e:     push hl
+        call rand
+        pop hl
+        and 63
+        sub 32
+        call .sw
+        djnz .e
+        pop bc
+        djnz .fr
+        ld hl,120
+        ld (cam_d),hl
         xor a
         ld (fx_ph),a
 .f:     call wait_frame
-        ld a,(fx_ph)                    ; a new ring every second frame
-        srl a
-        jr c,.col
-        cp NRINGS
-        jr nc,.col
-        push af
-        ld e,a
-        ld d,0
-        ld hl,fx_last
+        call frag_move
+        ld ix,objects                   ; the fireballs grow
+        ld b,MAXOBJ
+.db:    ld a,(ix+O_TYPE)
+        cp T_DEBRIS
+        jr nz,.dn
+        ld a,(ix+O_TMR)
+        cp 24
+        jr nc,.dn
+        inc (ix+O_TMR)
+.dn:    ld de,OBJSZ
+        add ix,de
+        djnz .db
+        ld a,(fx_ph)                    ; the camera: a pan round the
+        cp 12                           ; wreck, then round to the killer
+        call c,cam_pan
+        call nc,cam_aim
+        ld hl,(cam_d)                   ; pulling back
+        ld de,5
         add hl,de
-        ld (hl),0FFh
-        pop af
-        call ring_chars
-.col:   ld c,0                          ; ring k: FADE[t - 2k], once t >= 2k
-.r:     ld a,(fx_ph)
-        sub c
-        sub c
-        jr c,.nx
-        cp 8
-        jr c,$+4
-        ld a,7
-        ld e,a
-        ld d,0
-        ld hl,FADE
-        add hl,de
-        ld a,(hl)
-        add a,a
-        add a,a
-        add a,a
-        add a,a
-        ld d,a
-        ld a,c
-        push bc
-        call ring_col
-        pop bc
-.nx:    inc c
-        ld a,c
-        cp NRINGS
-        jr c,.r
+        ld (cam_d),hl
+        ex de,hl
+        call shift_z
+        call render
+        call frag_draw
+        ld hl,(cam_d)
+        call neg_hl
+        ex de,hl
+        call shift_z
+        call present
         ld hl,fx_ph
         inc (hl)
         ld a,(hl)
         cp DEATH_FRAMES
         jr c,.f
         ret
+; A -> a signed word at HL, HL += 2
+.sw:    ld (hl),a
+        inc hl
+        add a,a
+        sbc a,a
+        ld (hl),a
+        inc hl
+        ret
+
+; the killer: the last ship to fire on us if it is still there, else
+; the nearest ship; 0 if none
+pick_killer:
+        ld hl,(killer)
+        ld a,h
+        or l
+        jr z,.near
+        push hl
+        pop ix
+        ld a,(ix+O_TYPE)
+        call is_ship
+        ret c
+.near:  ld hl,0
+        ld (killer),hl
+        dec hl
+        ld (kbest),hl
+        ld ix,objects
+        ld b,MAXOBJ
+.o:     push bc
+        ld a,(ix+O_TYPE)
+        call is_ship
+        jr nc,.n
+        call obj_dist
+        ld de,(kbest)
+        or a
+        sbc hl,de
+        jr nc,.n
+        add hl,de
+        ld (kbest),hl
+        ld (killer),ix
+.n:     ld de,OBJSZ
+        add ix,de
+        pop bc
+        djnz .o
+        ret
+; C if type A is a ship (dart .. warden)
+is_ship:
+        sub T_DART
+        cp T_WARDEN-T_DART+1
+        ret
+
+; the opening pan (keeps the carry set)
+cam_pan:
+        xor a
+        ld (ro1),a
+        ld a,4
+        ld (ro2),a
+        call cam_turn
+        scf
+        ret
+
+; turn the camera (the world, the pieces) towards the killer, beyond
+; the wreck: its x, then its y, to 0 with z > 0
+cam_aim:
+        ld hl,(killer)
+        ld a,h
+        or l
+        jr z,cam_pan                    ; nobody: pan on
+        push hl
+        pop ix
+        ld l,(ix+O_X)
+        ld h,(ix+O_X+1)
+        xor a
+        call .axis
+        ld l,(ix+O_Y)
+        ld h,(ix+O_Y+1)
+        ld a,2
+; HL = the component at offset A: turn it into z, faster when far off
+.axis:  ld c,4
+        bit 7,h
+        jr z,.pos
+        ld c,a
+        ld a,4
+.pos:   ld (ro1),a
+        ld a,c
+        ld (ro2),a
+        call abs_hl
+        ex de,hl                        ; DE = |component|
+        ld l,(ix+O_Z)
+        ld h,(ix+O_Z+1)
+        ld a,3
+        bit 7,h
+        jr nz,cam_turn                  ; behind the camera: swing
+        srl h
+        rr l
+        srl h
+        rr l
+        or a
+        sbc hl,de
+        jr c,cam_turn                   ; over z/4 off: swing
+        add hl,de
+        srl h
+        rr l
+        srl h
+        rr l
+        ld a,5
+        or a
+        sbc hl,de
+        ret nc                          ; lined up
+; turn the world and the pieces by k = A in the pair (ro1, ro2)
+cam_turn:
+        push ix
+        call set_rot
+        call rotate_world
+        ld hl,frags
+        ld b,NFRAG*3
+.l:     push bc
+        push hl
+        call rotate_world.vhl
+        pop hl
+        ld de,6
+        add hl,de
+        pop bc
+        djnz .l
+        pop ix
+        ret
+
+; DE added to every object's z and the dust's (the camera stands back)
+shift_z:
+        ld ix,objects
+        ld b,MAXOBJ
+.o:     ld a,(ix+O_TYPE)
+        or a
+        jr z,.n
+        ld l,(ix+O_Z)
+        ld h,(ix+O_Z+1)
+        add hl,de
+        ld (ix+O_Z),l
+        ld (ix+O_Z+1),h
+.n:     push de
+        ld de,OBJSZ
+        add ix,de
+        pop de
+        djnz .o
+        ld hl,dust+4
+        ld b,NDUST
+.d:     ld a,(hl)
+        add a,e
+        ld (hl),a
+        inc hl
+        ld a,(hl)
+        adc a,d
+        ld (hl),a
+        ld a,5
+        add a,l
+        ld l,a
+        jr nc,$+3
+        inc h
+        djnz .d
+        ret
+
+; the pieces fly apart, each spar tumbling
+frag_move:
+        ld hl,frags
+        ld b,NFRAG
+.l:     push bc
+        push hl
+        ld d,h                          ; position += velocity
+        ld e,l
+        ld bc,6
+        add hl,bc
+        ld b,3
+.a:     ld a,(de)
+        add a,(hl)
+        ld (de),a
+        inc hl
+        inc de
+        ld a,(de)
+        adc a,(hl)
+        ld (de),a
+        inc hl
+        inc de
+        djnz .a
+        ld a,3                          ; HL -> the spar: x, y
+        call set_rot
+        push hl
+        ld d,h
+        ld e,l
+        inc de
+        inc de
+        call rot_pair
+        pop hl
+        inc hl                          ; y, z
+        inc hl
+        ld a,4
+        call set_rot
+        ld d,h
+        ld e,l
+        inc de
+        inc de
+        call rot_pair
+        pop hl
+        ld de,FRSZ
+        add hl,de
+        pop bc
+        djnz .l
+        ret
+
+; the pieces: white and cyan spars
+frag_draw:
+        ld hl,frags
+        ld b,NFRAG
+.l:     push bc
+        push hl
+        ld a,b
+        and 1
+        ld a,WHITE
+        jr z,$+4
+        ld a,CYAN
+        call set_col
+        call poll
+        pop hl
+        push hl
+        ld de,fr_zero
+        call .pt
+        jr nc,.n
+        ld hl,(psx)
+        ld (lx0),hl
+        ld hl,(psy)
+        ld (ly0),hl
+        pop hl
+        push hl
+        ex de,hl
+        ld hl,12
+        add hl,de
+        ex de,hl
+        call .pt
+        jr nc,.n
+        ld hl,(psx)
+        ld (lx1),hl
+        ld hl,(psy)
+        ld (ly1),hl
+        call line16
+.n:     pop hl
+        ld de,FRSZ
+        add hl,de
+        pop bc
+        djnz .l
+        ret
+; (HL) + (DE), camera-relative, projected: NC if behind the camera
+.pt:    ld bc,vx_
+        ld a,3
+.c:     push af
+        ld a,(de)
+        add a,(hl)
+        ld (bc),a
+        inc hl
+        inc de
+        inc bc
+        ld a,(de)
+        adc a,(hl)
+        ld (bc),a
+        inc hl
+        inc de
+        inc bc
+        pop af
+        dec a
+        jr nz,.c
+        ld hl,(vz_)
+        ld de,(cam_d)
+        add hl,de
+        ld (vz_),hl
+        call z_ok
+        ret nc
+        call project
+        scf
+        ret
+fr_zero:        dw 0,0,0

@@ -288,9 +288,13 @@ HSFX = {
     'KILL': hnoise(3, 0, 1) + hseg(4, 1047, None, 3, 4) + hseg(8, 1568, None, 3, 4),
     'BUY': hseg(4, 1568, None, 3, 5) + hseg(10, 2093, None, 3, 5),
     'SAVE': hseg(6, 1047, None, 3, 5) + hseg(6, 1319, None, 3, 5) + hseg(14, 1568, None, 3, 5),
-    'DOCK': hnoise(6, 6, 7) + hsweep(24, 220, 70, 3, 3, 3) + hnoise(10, 16, 15),
+    # docking clamps: a clunk, then the thrusters spooling down
+    'DOCK': hnoise(3, 0, 1) + hnoise(5, 6, 7) + hnoise(12, 10, 15) + hnoise(16, 16, 31),
     'JUMP': hsweep(70, 90, 2600, 7, 3, 3) + hnoise(10, 2, 3) + hnoise(24, 12, 15),
-    'LAUNCH': hsweep(40, 180, 1100, 4, 3, 3) + hsweep(14, 1100, 600, 2, 3, 3),
+    # the tunnel (out and in): thrusters - an ignition crack, a hiss
+    # building into a low roar, then the roar falling away (all noise)
+    'LAUNCH': (hnoise(3, 1, 3) + hnoise(6, 3, 7) + hnoise(8, 4, 15) + hnoise(24, 5, 15) + hnoise(14, 7, 15)
+               + hnoise(10, 10, 31) + hnoise(8, 14, 31)),
     'DEATH': hnoise(8, 1, 3) + hnoise(20, 6, 7) + hnoise(40, 14, 15) + hnoise(60, 26, 31),
 }
 

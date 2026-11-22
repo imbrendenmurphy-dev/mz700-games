@@ -341,6 +341,28 @@ dec5:
 ; radar: top-down, 32 x 10 dots, x / 512, z / 1024
 ; ---------------------------------------------------------------------
 RCOL            equ RBUF+80h            ; colour of each scanner cell
+
+; C if IX is after us: pirates, police on the hunt, seekers aimed at
+; us.  Keeps A.
+hostile:
+        bit 1,(ix+O_FLAG)               ; police on the hunt
+        scf
+        ret nz
+        ld e,a
+        ld a,(ix+O_TYPE)
+        cp T_SEEKER
+        jr z,.sk
+        sub T_DART                      ; dart, mantis, raptor
+        cp T_RAPTOR-T_DART+1
+        ld a,e
+        ret
+.sk:    ld a,(ix+O_AIM)
+        cp 0FFh
+        ld a,e
+        scf
+        ret z
+        or a
+        ret
 RCSH            equ RSHD+80h            ; what VRAM shows
 
 radar:
@@ -377,7 +399,15 @@ radar:
         inc h
         ld a,(hl)
         pop hl
-        add a,a
+        call hostile                    ; enemies flash white
+        jr nc,.calm
+        ld e,a
+        ld a,(frame)
+        and 2
+        ld a,e
+        jr z,.calm
+        ld a,WHITE
+.calm:  add a,a
         add a,a
         add a,a
         add a,a
@@ -415,7 +445,8 @@ radar:
 .n:     ld de,OBJSZ
         add ix,de
         pop bc
-        djnz .o
+        dec b
+        jp nz,.o
         ; present the radar
         ld hl,RBUF
         ld de,VRAM+HUD_ROW*40+RAD_COL
