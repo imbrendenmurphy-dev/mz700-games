@@ -13,6 +13,7 @@ ROM, no PCG), loadable from tape or a UniCMT USB cassette emulator.
 | [Skink and the Sun Mosaic](REPTON/) | 1.0: Repton 2-style adventure, 14 linked caverns that remember everything, scrolling 2x2-character tiles, eggs, beasts, spirits, mould, switches, tape saves, verified solution (`release/SKINK.MZT`) |
 | [Circus 2](CIRCUS2/) | 1.0: conversion of the VZ300 seesaw-and-balloons game, 9 acts + encore, 2 bonus rounds, 7 power-ups, monkey and ring of fire, circus march, attract mode with AI demo, high-score entry (`release/CIRCUS2.MZT`) |
 | [Nova Storm](VSHMUP/) | 0.9: vertically scrolling space shoot-'em-up, 5 stages with scrolling scenery and a boss each, 7 power-ups, medals and formation bonuses, tracker music, attract mode with AI demo, high-score entry, joystick (`release/NOVASTRM.MZT`) |
+| [Redline](RACER/) | 0.9: pseudo-3D road racer, 15 courses in a branching route with forks, 8 themes, hills, traffic, close-call combos, slipstream boost, tracker music, attract mode with live-road title and AI demo, high-score entry (`release/REDLINE.MZT`) |
 
 Each game folder has its source, a Python build script (no extra packages
 needed) and a ready-to-load `.MZF` in `release/`.
