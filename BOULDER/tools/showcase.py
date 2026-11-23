@@ -181,12 +181,12 @@ def gif():
     frames = []
     g = Game()
     g.run(20)
-    for _ in range(int(8 * 50 / STEP)):           # the title
+    for _ in range(int(10 * 50 / STEP)):          # the title: out, and back for the gems
         g.run(STEP)
         frames.append(frame(g))
     cuts = [len(frames)]
-    g = page_of('story_page', 0)                   # the legend
-    for _ in range(int(7 * 50 / STEP)):
+    g = page_of('story_page', 0)                   # the legend: down the mine
+    for _ in range(int(8 * 50 / STEP)):
         g.run(STEP)
         frames.append(frame(g))
     cuts.append(len(frames))

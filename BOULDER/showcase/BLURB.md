@@ -66,10 +66,12 @@ the mountain at daybreak, then the caves start again, darker and faster.
 
 - **Attract sequence:** "Under the Mountain" title music and the name
   split by the ground: UNDER against a starry sky, MINED dug into the earth
-  below, with a little digger tunnelling underneath and a scroller. Then two tours
-  in turn. "The Legend" shows the mountain by night to a slow hymn: stars
-  twinkle, lanterns flicker in its caves, a miner walks home, and the story
-  types itself out. "The Seven Wings" shows each wing's stone and gems,
+  below, with a little digger tunnelling underneath, who turns round to
+  gather the gems he has brought down, and a scroller. Then two tours
+  in turn. "The Legend" cuts away the land under the mountain to a slow
+  hymn: the seven wings lie one under another, each in its own rock, and a
+  miner goes down the pithead and through every wing to the glittering
+  heart, while the story types itself out. "The Seven Wings" shows each wing's stone and gems,
   animated. Each tour has its guide to what lives in the caves, then the
   Deepest Diggers table and a demo.
 - **Demo:** the computer plays a different cave each time, replaying the
@@ -96,7 +98,7 @@ the mountain at daybreak, then the caves start again, darker and faster.
 |---|---|
 | Machine | Sharp MZ-700, stock: Z80A at 3.5 MHz, 64 KB RAM, PAL |
 | Display | 40 x 25 text, 8 colours, built-in European character ROM only (no PCG, no bitmap mode) |
-| Graphics | One ROM character and colour pair per cell, 94 looks across eight themes (seven wings and the gold bonus chambers); diamonds sparkle, fireflies spin and shades flicker through four-phase tables. Full-screen pictures for the story and the ending, run-length packed into 791 bytes |
+| Graphics | One ROM character and colour pair per cell, 94 looks across eight themes (seven wings and the gold bonus chambers); diamonds sparkle, fireflies spin and shades flicker through four-phase tables. Full-screen pictures for the story and the ending, run-length packed into 719 bytes |
 | View | A 40 x 22 window on caves up to 64 x 32 cells. It stays still until you near an edge, then glides a cell per frame |
 | Screen updates | A shadow copy of the window means only cells whose look changed are written to video RAM |
 | Physics | A top-to-bottom scan of the whole cave, not just the window, every tick: falling, rolling, pushing, explosions, wall-following creatures, amoeba, magic wall, spouts, geodes, slime, locks and hunting shades. A cell holds a 6-bit element and a moved-this-tick flag |
@@ -108,21 +110,21 @@ the mountain at daybreak, then the caves start again, darker and faster.
 | Cave data | 32 caves, Huffman-coded with a code tree per cave: 10,850 bytes (about 350 bytes for a full 64 x 32 cave) |
 | Demo data | Every cave's recorded solution, run-length coded: 7,044 bytes |
 | Media | `UNDERMINED.MZF` for a real machine through a UniCMT or tape; `UNDERMINED.MZT` for emulators (identical) |
-| File | 40,458 bytes; loads at 1200h and starts by itself; nothing more is loaded |
+| File | 41,050 bytes; loads at 1200h and starts by itself; nothing more is loaded |
 | Language | Z80 assembly (sjasmplus); cave design, solver, music and verification in Python |
 
 ### RAM used
 
 | Area | Address | Bytes |
 |---|---|---|
-| Program, caves, themes, music, pictures, demo | 1200h-B009h | 40,458 |
-| Variables and high-score table | B100h-B2B9h | 442 |
+| Program, caves, themes, music, pictures, demo | 1200h-B259h | 41,050 |
+| Variables and high-score table | B300h-B4E2h | 483 |
 | The current cave, unpacked (64 x 32) | B800h-BFFFh | 2,048 |
 | Screen shadow (40 x 22) | C050h-C3BFh | 880 |
 | Stack (top) | below CFF0h | 256 |
-| **Total** | | **about 44,100 (43.1 KB)** |
+| **Total** | | **about 44,700 (43.7 KB)** |
 
-That leaves about 4.4 KB of the MZ-700's 47.5 KB of user RAM (1200h-CFFFh)
+That leaves about 3.8 KB of the MZ-700's 47.5 KB of user RAM (1200h-CFFFh)
 free, in gaps between the areas above. Video and colour RAM (D000h-DFFFh) and the monitor ROM are not
 counted.
 

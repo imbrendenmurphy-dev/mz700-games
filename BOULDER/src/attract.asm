@@ -93,7 +93,9 @@ glint:
 
 ; ---------------------------------------------------------------------
 ; a walker: steps along a table of screen offsets (db n, dw ...), saving
-; and restoring the cell under it, then rests a moment and starts again
+; and restoring the cell under it, then rests a moment and starts again.
+; Bits 14-15 of an offset are added to the glyph (the miner: 0 facing
+; left, 1 facing you, 2 facing right)
 ; ---------------------------------------------------------------------
 walk_init:                          ; HL = table, A = glyph, C = attr
         ld (wk_tab),hl
@@ -140,13 +142,20 @@ walk_step:
         add hl,de
         ld e,(hl)
         inc hl
-        ld d,(hl)
+        ld a,(hl)
+        and 3Fh
+        ld d,a
+        xor (hl)
+        rlca
+        rlca
+        ld c,a                      ; the facing
         ld hl,VRAM
         add hl,de
         ld (wk_prev),hl
         ld a,(hl)
         ld (wk_sch),a
         ld a,(wk_glyph)
+        add a,c
         ld (hl),a
         set 3,h
         ld a,(hl)
@@ -211,7 +220,8 @@ typewriter:
         ret
 
 ; ---------------------------------------------------------------------
-; the story: the mountain by night, a hymn, the legend typed out
+; the story: the seven wings under the mountain, a hymn, the legend
+; typed out, and the miner going down the mine to the heart
 ; ---------------------------------------------------------------------
 story_page:
         ld hl,PIC_STORY
@@ -224,7 +234,7 @@ story_page:
         ld a,20
         call tw_start
         ld hl,ST_WALK
-        ld a,43h                    ; the miner, facing left (second bank)
+        ld a,43h                    ; the miner (second bank)
         ld c,YELLOW*16+80h
         call walk_init
         ld hl,story_fx
@@ -256,6 +266,9 @@ story_fx:
 .ng:    ld hl,ST_GEMS
         ld de,glint_gem
         call glint
+        ld hl,ST_HEART
+        ld de,glint_heart
+        call glint
         ld a,(pic_t)                ; the lanterns flicker
         and 3
         jr nz,.nl
@@ -266,11 +279,12 @@ story_fx:
         ld hl,ST_LAMPS
         call set_fg_all
 .nl:    ld a,(pic_t)
-        and 7
+        and 3
         call z,walk_step
         jp typewriter
 
 glint_gem:      db CYAN*16, WHITE*16, CYAN*16, MAGENTA*16
+glint_heart:    db WHITE*16, CYAN*16, YELLOW*16, CYAN*16
 
 ; ---------------------------------------------------------------------
 ; the seven wings: a sample of each wing's stone, with its name

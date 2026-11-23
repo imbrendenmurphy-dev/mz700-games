@@ -140,11 +140,16 @@ simulator and compares the whole cave with the model after every tick.
 
 The title screen has its music and the name split by the ground: UNDER
 stands against a starry night sky, MINED is dug into the earth below, and
-a little digger tunnels along underneath. A scroller runs along the bottom. After it come two tours, in
-turn:
-- **The Legend:** the mountain by night, to a slow hymn. Stars twinkle,
-  lanterns flicker in the caves, a miner walks home into the mountain, and
-  the story types itself out. Then the guide to what lives in the caves.
+a little digger tunnels along underneath: the gems above drop into his
+tunnel behind him and the rocks in the roof drop onto them, so he turns
+round and gathers the gems on the way back as the rocks fall in behind
+him. A scroller runs along the bottom. After it come two tours, in turn:
+- **The Legend:** the land under the mountain in cross-section, to a slow
+  hymn: the seven wings lie one under another, each in its own rock, with
+  the heart of the mountain at the bottom. Stars twinkle over the peaks,
+  lanterns flicker, and a miner walks to the pithead and goes down, back
+  and forth through every wing to the heart, while the story types itself
+  out. Then the guide to what lives in the caves.
 - **The Seven Wings:** each wing's stone and gems, animated, beside its
   name. Then the guide to what waits deeper: geodes, slime, keys, locks and
   shades.

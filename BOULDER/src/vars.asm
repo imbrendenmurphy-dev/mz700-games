@@ -157,13 +157,14 @@ scroll_tick     ds 1
 logo_phase      ds 1
 dig_x           ds 1
 dig_t           ds 1
+dig_dir         ds 1
 ge_ptr          ds 2
 hs_ptr          ds 2
 hs_pos          ds 1
 hs_i            ds 1
 hs_ent          ds 2
 PBUF            ds 80
-DIGBUF          ds 120
+DIGBUF          ds 160
 HISCORES        ds 8*8              ; name[3], score[3] BCD (lo first), cave, level
 vars_end:
         ASSERT vars_end <= QUEUE

@@ -229,7 +229,8 @@ def gen_pics():
     total = 0
     for name, fn, tabs in (('TITLE', pictures.title, (('TT_STARS', 'stars'),)),
                            ('STORY', pictures.story, (('ST_STARS', 'stars'), ('ST_GEMS', 'gems'),
-                                                        ('ST_LAMPS', 'lamps'), ('ST_WALK', 'walk'))),
+                                                        ('ST_LAMPS', 'lamps'), ('ST_HEART', 'heart'),
+                                                        ('ST_WALK', 'walk'))),
                            ('DAYBREAK', pictures.daybreak, (('DB_RAYS', 'rays'), ('DB_GEMS', 'gems'),
                                                               ('DB_WALK', 'walk')))):
         cells, anim = fn()

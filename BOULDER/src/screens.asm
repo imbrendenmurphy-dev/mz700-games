@@ -305,34 +305,44 @@ scroller:
         jp fill_attr
 
 ; ---------------------------------------------------------------------
-; the title's little digger: walks along a tunnel of earth, and the
-; rocks and gems resting on top drop into the hole behind him
+; the title's little digger: tunnels right under a gallery of gems, which
+; drop into the hole behind him (and the rocks in the roof drop onto
+; them), then turns and walks back, gathering the gems as the rocks fall
+; in behind him.  DIGBUF rows: roof (earth/rock), gallery (gem/space),
+; tunnel (earth), steel.  dig_x = his column, 0FFh while off screen.
 ; ---------------------------------------------------------------------
 dig_init:
-        xor a
+        ld a,0FFh
         ld (dig_x),a
+        xor a
         ld (dig_t),a
-        ; row DIG_ROW-1: gems and rocks, row DIG_ROW: earth, row DIG_ROW+1: steel
+        ld (dig_dir),a
         ld hl,DIGBUF
+        ld de,DIGBUF+40
         ld b,40
 .a:     push bc
         push hl
+        push de
         call rand
+        pop de
         pop hl
         pop bc
-        and 3
+        and 3                       ; 0,3 nothing, 1 a gem, 2 a gem under a rock
+        ld (hl),E_DIRT
         ld c,E_SPACE
         jr z,.s
-        dec a
-        ld c,E_BOULDER
+        cp 3
         jr z,.s
-        dec a
         ld c,E_DIAMOND
-        jr z,.s
-        ld c,E_SPACE
-.s:     ld (hl),c
+        cp 2
+        jr nz,.s
+        ld (hl),E_BOULDER
+.s:     ld a,c
+        ld (de),a
         inc hl
+        inc de
         djnz .a
+        ld hl,DIGBUF+80
         ld b,40
 .e:     ld (hl),E_DIRT
         inc hl
@@ -350,58 +360,60 @@ dig_step:
         cp 6
         jr c,dig_draw
         ld (hl),0
-        ; things fall into the hole behind the digger
-        ld hl,DIGBUF
-        ld de,DIGBUF+40
-        ld b,40
-.f:     ld a,(de)
-        or a
-        jr nz,.nf
-        ld a,(hl)
-        or a
-        jr z,.nf
-        ld (de),a
-        ld (hl),E_SPACE
-.nf:    inc hl
-        inc de
-        djnz .f
-        ; step
-        ld a,(dig_x)
-        cp 40
-        jr c,.walk
-        call dig_init               ; off the edge: a new tunnel
-        jr dig_draw
-.walk:  ld e,a
-        ld d,0
+        ; rocks and gems drop into the space below them, bottom row first
         ld hl,DIGBUF+40
-        add hl,de
-        ld a,(hl)
-        cp E_DIRT
-        jr z,.dig
-        cp E_SPACE
-        jr nz,.wait                 ; blocked by something that fell
-.dig:   ld (hl),E_PLAYER
-        dec hl
-        ld a,(dig_x)
+        call dig_fall
+        ld hl,DIGBUF
+        call dig_fall
+        ; step
+        ld a,(dig_dir)
         or a
-        jr z,.first
-        ld (hl),E_SPACE
-.first: ld hl,dig_x
-        inc (hl)
+        ld a,(dig_x)
+        jr nz,.back
+        inc a
+        cp 40
+        jr c,.go
+        ld a,1                      ; the far end: turn round
+        ld (dig_dir),a
         jr dig_draw
-.wait:  ld (hl),E_SPACE             ; (cannot happen: things only fall behind him)
+.back:  dec a
+        cp 0FFh
+        jr nz,.go
+        call dig_init               ; home again: a new gallery
+        jr dig_draw
+.go:    ld e,a
+        ld d,0
+        ld hl,DIGBUF+80
+        add hl,de
+        ld b,a
+        ld a,(hl)
+        cp E_BOULDER
+        jr z,dig_draw               ; (cannot happen: rocks only fall behind him)
+        ld (hl),E_PLAYER            ; earth dug, gem gathered
+        ld a,(dig_x)
+        cp 0FFh
+        jr z,.first
+        ld e,a
+        ld hl,DIGBUF+80
+        add hl,de
+        ld (hl),E_SPACE
+.first: ld a,b
+        ld (dig_x),a
 dig_draw:
         ld a,(dig_x)
-        or a
+        cp 0FFh
         jr z,.nm
         ld a,1
         ld (pl_moved),a
-        ld a,3
+        ld a,(dig_dir)
+        add a,a
+        cpl
+        add a,4                     ; face 3 = right, 1 = left
         ld (pl_face),a
         call patch_looks_pl
 .nm:    ld hl,DIGBUF
-        ld de,VRAM+(DIG_ROW-1)*40
-        ld b,120
+        ld de,VRAM+(DIG_ROW-2)*40
+        ld b,160
 .d:     push bc
         push hl
         ld a,(hl)
@@ -411,6 +423,29 @@ dig_draw:
         inc hl
         inc de
         djnz .d
+        ret
+
+dig_fall:                           ; HL = a row of DIGBUF: drop its rocks and gems one row
+        ld d,h
+        ld e,l
+        ld hl,40
+        add hl,de
+        ex de,hl                    ; HL = the row, DE = the row below
+        ld b,40
+.f:     ld a,(hl)
+        cp E_BOULDER
+        jr z,.r
+        cp E_DIAMOND
+        jr nz,.n
+.r:     ld a,(de)
+        or a
+        jr nz,.n
+        ld a,(hl)
+        ld (de),a
+        ld (hl),E_SPACE
+.n:     inc hl
+        inc de
+        djnz .f
         ret
 
 ; the run-time looks (player, space, magic) for the front end

@@ -1,7 +1,7 @@
 """pictures.py - the full-screen pictures of UNDERMINED's attract mode and
 ending, drawn in ROM characters, plus the lists of cells the Z80 animates.
 
-    story()     "The Legend": the mountain by night, its caves lit inside
+    story()     "The Legend": the seven wings in cross-section, down to the heart
     daybreak()  the ending: out of the mountain, the sun coming up
 
 Each returns (cells, anim): cells is 1000 (char, attr) pairs for the
@@ -37,6 +37,7 @@ class Pic:
         if 0 <= x < W and 0 <= y < H:
             self.ch[y * W + x] = g & 0xFF
             self.at[y * W + x] = ((g >> 8) << 7) | at(fg, bg)
+        return self
 
     def get(self, x, y):
         return self.ch[y * W + x]
@@ -68,40 +69,83 @@ def mountain(p, cx, top, base, fg, snow=3, bg=BLACK):
 
 
 def story():
+    """the legend in cross-section: the mountain on the skyline, and under it
+    the seven wings as seven strata, a mine zig-zagging down to the heart"""
+    import caves
     p = Pic()
     rnd = random.Random(7)
-    anim = {'stars': [], 'gems': [], 'lamps': []}
+    anim = {'stars': [], 'gems': [], 'lamps': [], 'heart': []}
     # the night sky
-    for _ in range(34):
-        x, y = rnd.randrange(W), rnd.randrange(0, 11)
+    for _ in range(26):
+        x, y = rnd.randrange(W), rnd.randrange(0, 6)
         p.put(x, y, STAR if rnd.random() < 0.3 else DOT, rnd.choice((WHITE, WHITE, CYAN, YELLOW)))
         anim['stars'].append(y * W + x)
-    p.put(33, 2, ROCK, YELLOW)                                      # the moon
-    # two peaks; the big one holds the caves
-    mountain(p, 30, 6, 17, BLUE, snow=2)
-    inner = mountain(p, 13, 3, 17, BLUE, snow=3)
-    # tunnels inside the big peak, with gems and a lantern or two
-    tunnel = [(13, 8), (12, 9), (13, 9), (14, 9), (14, 10), (15, 10), (16, 10), (16, 11), (16, 12),
-              (15, 12), (14, 12), (13, 12), (12, 12), (11, 12), (10, 12), (9, 13), (10, 13), (9, 14),
-              (9, 15), (10, 15), (11, 15), (12, 15), (13, 15), (14, 15), (15, 15), (16, 15), (17, 15),
-              (18, 15), (19, 15), (20, 15), (21, 16), (20, 16), (22, 16), (23, 17), (22, 17)]
-    for x, y in tunnel:
-        p.put(x, y, 0, WHITE)
-    for x, y in ((12, 9), (16, 11), (10, 12), (9, 14), (13, 15), (18, 15)):
-        p.put(x, y, GEM, CYAN)
-        anim['gems'].append(y * W + x)
-    for x, y in ((14, 10), (11, 15)):
+    p.put(36, 1, ROCK, YELLOW)                                      # the moon
+    mountain(p, 10, 0, 6, BLUE, snow=2)
+    mountain(p, 22, 3, 6, BLUE, snow=1)
+    anim['stars'] = [o for o in anim['stars'] if p.ch[o] in (STAR, DOT)]
+    # the pithead: a winding wheel on its frame over the shaft
+    p.put(30, 4, ROCK, YELLOW)
+    p.put(29, 5, UR, YELLOW).put(31, 5, UL, YELLOW)
+    # the turf, then the seven wings' rock, one stratum each, deeper and deeper
+    for x in range(W):
+        p.put(x, 7, 0x1EE, GREEN)
+    bands = (2, 2, 2, 2, 1, 1, 2)
+    y = 8
+    rows = {}
+    for w, h in enumerate(bands):
+        g, a = caves.THEMES[w]['dirt']
+        for yy in range(y, y + h):
+            rows[yy] = w
+            for x in range(W):
+                p.ch[yy * W + x] = g
+                p.at[yy * W + x] = a
+        y += h
+    # the mine: down the shaft, then back and forth, wing by wing
+    path = []                                   # (x, y, face) - 0 left, 1 down, 2 right
+
+    def run(x0, x1, y, face=None):
+        st = 1 if x1 >= x0 else -1
+        for x in range(x0, x1 + st, st):
+            path.append((x, y, face if face is not None else (2 if st > 0 else 0)))
+
+    def down(x, y0, y1):
+        for y in range(y0, y1 + 1):
+            path.append((x, y, 1))
+
+    run(39, 31, 6)
+    down(30, 6, 9)
+    run(29, 7, 9)
+    down(7, 10, 11)
+    run(8, 27, 11)
+    down(27, 12, 13)
+    run(26, 10, 13)
+    down(10, 14, 15)
+    run(11, 18, 15)
+    down(18, 16, 19)
+    run(19, 20, 19)
+    for x, y, f in path:
+        if y >= 7:
+            p.put(x, y, 0, WHITE)
+    # the heart: a great gem in its own chamber at the bottom
+    for x in range(14, 27):
+        p.put(x, 18, 0, WHITE).put(x, 19, 0, WHITE)
+    for dx, g in enumerate((UR, FULL, UL)):
+        p.put(22 + dx, 18, g, CYAN)
+    for dx, g in enumerate((DR, FULL, DL)):
+        p.put(22 + dx, 19, g, CYAN)
+    anim['heart'] = [o for y in (18, 19) for o in range(y * W + 22, y * W + 25)]
+    for x in (15, 16, 26):
+        p.put(x, 19, GEM, CYAN)
+        anim['gems'].append(19 * W + x)
+    # gems in each wing's rock, beside the galleries, in that wing's colours
+    for x, y in ((14, 8), (24, 10), (4, 10), (20, 12), (33, 12), (6, 14), (25, 14), (14, 16), (3, 17)):
+        th = caves.THEMES[rows[y]]
+        p.put(x, y, GEM, th['gem'][1][0])           # (they keep their colour: no glint)
+    for x, y in ((18, 9), (16, 11), (20, 13)):
         p.put(x, y, 0x1B1, YELLOW)                                  # lanterns
         anim['lamps'].append(y * W + x)
-    # only the stars the mountains left showing twinkle
-    anim['stars'] = [o for o in anim['stars'] if p.ch[o] in (STAR, DOT)]
-    # the ground, and the way in
-    for x in range(W):
-        p.put(x, 18, 0xD0, RED)
-    for x in (23, 24, 25):
-        p.put(x, 17, 0, WHITE)
-    # the miner walks home along the ground and into the mountain
-    anim['walk'] = [18 * W + x for x in range(39, 24, -1)] + [17 * W + 25, 17 * W + 24, 17 * W + 23]
+    anim['walk'] = [(y * W + x) | (f << 14) for x, y, f in path]
     return p.cells(), anim
 
 
