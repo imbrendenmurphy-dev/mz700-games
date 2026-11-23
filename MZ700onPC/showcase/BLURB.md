@@ -68,6 +68,9 @@ also a good way to explore the classic demos and see how they pull their tricks.
   accurate (T 128–208 free, as in Takeda's eMZ-700), conservative (T 128–191, as measured on NTSC hardware),
   picture lines only, or off.
 - Monitor ROM accesses take one wait state. The /VBLK, HBLANK, TEMPO and cursor-blink signals are all on time.
+- **Checked on a real PAL MZ-700.** Two test programs measure the CPU clock, the field, the VRAM wait window, and
+  HBLANK and VBLANK down to the T-state. On the real machine they give the same numbers as the emulator. They
+  are included in `test\`, so you can run them on your own machine.
 
 **Video**
 - 40 × 25 colour text from the CG-ROM, drawn line by line as the beam goes. European or Japanese character ROM.

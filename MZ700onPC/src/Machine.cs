@@ -18,7 +18,7 @@ public sealed class MzMachine
     public const int MCLK = 17734475, CLOCK = MCLK / 5;          // Z80 at 3,546,895 Hz
     public const int LINE_M = 1136, LINES = 312, FRAME_M = LINE_M * LINES;   // 227.2 T per line, 70886.4 T per field
     public const int FT = (FRAME_M + 4) / 5, LT = 228;           // T-state slots per field / per line (for the visualiser)
-    public const int VIS = 200;                                   // picture lines (0-199); /VBLK low on 200-311
+    public const int VIS = 200;                                   // picture lines (0-199); /VBLK low from line 199 T 128 to line 311 T 128
     public const int DISP_M = 640;                                // picture: the first 128 T of each line (320 pixels)
     public int Clock { get { return CLOCK; } }
 
@@ -266,7 +266,11 @@ public sealed class MzMachine
     public long NowM { get { return Cpu.Cyc * 5; } }
     long AccM { get { return Cpu.AccessT * 5; } }                   // the bus access in progress (Z80 machine-cycle timing)
     public int Line { get { return (int)((NowM - FrameStartM) / LINE_M); } }
-    public bool VBlankAt(long m) { return (m % FRAME_M) / LINE_M >= VIS; }
+    // /VBLK changes at the start of HBLANK: it falls when the last picture line's pixels end (line 199, T 128) and
+    // rises at line 311's T 128, a line ahead of the picture. Measured on a PAL MZ-700 with test\hwtest2.asm.
+    public const int VB_SHIFT = LINE_M - DISP_M;
+    public static long VbPos(long m) { return (m + VB_SHIFT) % FRAME_M; }
+    public bool VBlankAt(long m) { return VbPos(m) / LINE_M >= VIS; }
     public bool HBlankAt(long m) { return (m % LINE_M) >= DISP_M; }
 
     // ---------------------------------------------------------------- memory
@@ -442,7 +446,7 @@ public sealed class MzMachine
     {
         int v = 0x1E;
         if (Joystick == JoyType.None) return v;
-        long pos = m % FRAME_M;
+        long pos = VbPos(m);                                          // timed from the /VBLK fall
         if (pos >= (long)VIS * LINE_M)
         {
             double t = (pos - (long)VIS * LINE_M) / 5.0;

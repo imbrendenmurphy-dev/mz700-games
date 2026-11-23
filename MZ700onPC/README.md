@@ -35,7 +35,7 @@ It builds with the C# compiler that comes with Windows (`build.bat`). There is n
 | `roms\` | `1z013a.rom` (monitor, 4K), `mz700fon.int` (European CG-ROM), `mz700fon.jpn` (Japanese), optionally `mz1e05.rom` (the floppy interface ROM). Not in git. |
 | `tools\mkmzt.py` | wraps a raw binary in an MZT header: `py tools\mkmzt.py game.bin GAME.MZT 0x1200` |
 | `tools\fdipl.asm`, `tools\mkipl.ps1` | the built-in floppy boot ROM, and the script that rebuilds `src\FdIpl.cs` from it |
-| `test\` | test programs: `rastest.asm` (pixel timing), `pcg700.asm`, `pcg1500.asm`, `psgtest.asm` (PSG tones and noise, measured), `psgdemo.asm` (a chord loop on both PSGs), `fdctest.asm` (every FDC command) |
+| `test\` | test programs: `hwtest.asm` and `hwtest2.asm` (timing checks for a real MZ-700), `rastest.asm` (pixel timing), `pcg700.asm`, `pcg1500.asm`, `psgtest.asm` (PSG tones and noise, measured), `psgdemo.asm` (a chord loop on both PSGs), `fdctest.asm` (every FDC command) |
 | `showcase\` | `BLURB.md` (the pitch and tech specs) and fullscreen visualiser screenshots |
 | `mz700onpc.ini` | settings, written on exit |
 
@@ -103,7 +103,8 @@ Where these come from: Takeda Toshiya's Common Source Code Project (eMZ-700), MA
 **Timing**
 - The master clock is 17.734475 MHz. The CPU runs at that ÷5, a line is 1136 master clocks (227.2 T), and a field
   is 312 lines (70886.4 T).
-- The picture takes the first 128 T of lines 0–199. /VBLK (`E002` bit 7) is low on lines 200–311.
+- The picture takes the first 128 T of lines 0–199. /VBLK (`E002` bit 7) is low from T 128 of line 199 to T 128 of line 311: it changes as HBLANK starts
+  (measured on hardware with `test\hwtest2.asm`).
 - `E008` bit 7 is 0 during HBLANK, from T 128 to the end of the line. This is CSP's polarity; MAME has it the other way.
 
 **Pixel-exact video**
@@ -131,6 +132,39 @@ Where these come from: Takeda Toshiya's Common Source Code Project (eMZ-700), MA
     fetches a cell's data at its first pixel.
   - Effects measured against other effects in the same picture are exact. Their absolute position against a real
     TV's edge hasn't been checked against hardware.
+  - On a plain MZ-700 neither of these can show. The only thing that changes the picture is VRAM, and a VRAM write
+    made during the picture is held in WAIT until HBLANK. They matter only for the MZ-1500 palette.
+
+**Checked against a real MZ-700**
+Two test programs measure the machine's timing and show each number beside what MZ700onPC gives. Load them on
+the real machine like any game. They need no add-ons, run with interrupts off and repeat forever.
+`test\hwtest.png` and `test\hwtest2.png` are what the emulator shows.
+
+`test\hwtest.mzt` / `HWTEST.MZF`:
+1. **CPU loops per field:** a 35 T loop counted from one VBLANK to the next, which checks the CPU clock and the
+   312-line field together. 2025; a reading 1 either way is normal jitter.
+2. **VRAM writes per field:** blocks of back-to-back writes to unused VRAM. This shows how wide the free window is
+   and whether VBLANK is free. Accurate (T 128–208) gives 2992, conservative (T 128–191) 2496, picture lines only
+   4672 and no waits 7712. A `<` marks the closest model.
+3. **HBLANK pulses:** `E008` bit 7 falling edges, counted from a /VBLK fall to the next. The count is 311, not
+   312, because /VBLK falls at the moment line 199's pulse starts, so that one is missed.
+4. **HBLANK low percent:** how much of each line bit 7 reads low: 44% (99.2 of 227.2 T). The opposite polarity
+   would read about 56%.
+
+`test\hwtest2.mzt` / `HWTEST2.MZF` times every `E008` bit 7 pulse and gap for a field from the /VBLK fall. It
+reports the wait to the first pulse, the pulses during VBLANK, any line with no pulse, the pulse and gap lengths,
+and the raw timings around a gap. It was checked on emulator builds with the pulse removed from line 0, 199, 200,
+201, 270 or 311.
+
+**Results on a PAL MZ-700 (2026-11-23).**
+- HWTEST: 2025 loops, 2992 VRAM writes (accurate model), 311 pulses, 43% low.
+- HWTEST2: first pulse after 1 loop, 112 pulses in VBLANK, no line without a pulse, pulse 2–3, gap 1–2.
+- Every number matches the emulator except 43% against 44%, which is sampling. That covers the CPU clock, the
+  field, the VRAM wait window, VBLANK waits, the HBLANK signal and its polarity, and the /VBLK edges.
+- The first run showed one real difference. /VBLK changes at the start of HBLANK, not at the start of a line: it
+  falls at T 128 of line 199, as that line's pixels end, and rises at T 128 of line 311. MZ700onPC had it a line
+  boundary later, which made programs that wait for VBLANK start 99 T late. That is fixed, and the MZ-1X03
+  joystick pulses are timed from the new /VBLK fall.
 
 **VRAM wait states** (Machine → VRAM wait states)
 - **Accurate (default):** an access to `D000`–`DFFF` outside T 128–208 of its line waits until T 128. This applies on
