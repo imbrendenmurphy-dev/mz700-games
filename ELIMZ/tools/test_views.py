@@ -27,7 +27,7 @@ check('rear: no crosshair, front: crosshair', True)
 
 
 def screen(key, title, shot, leave='space'):
-    g.run(3, [key])
+    g.run(6, [key])                         # a short press: two frames' worth
     g.run(20)
     t = g.screen_text()
     g.shot(shot)
@@ -46,7 +46,7 @@ for key, title, shot in (('f1', 'HELP', 'v_help'), ('f2', 'GALAXY CHART', 'v_cha
 
 # F3: the cursor picks a target
 t0 = m[S['target_sys']]
-g.run(3, ['f3'])
+g.run(6, ['f3'])
 g.run(20)
 g.run(150, ['right'])                       # auto-repeat carries it along
 g.run(10)

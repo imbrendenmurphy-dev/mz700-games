@@ -110,6 +110,22 @@ def looks(systems, start):
     return out
 
 
+# moons: about two systems in five have one.  0 = none, else its colour
+# (bits 0-2, never the planet's) and where it lies by the planet (bits
+# 4-5).  The start system has one, so it is seen early.
+def moons(systems, start, look):
+    rng = random.Random(7171)
+    out = []
+    for i, s in enumerate(systems):
+        has = rng.random() < 0.4
+        col = rng.choice([c for c in (WHITE, YELLOW, CYAN, MAGENTA, RED) if c != look[i] & 7])
+        side = rng.randrange(4)
+        if i == start:
+            has, col, side = True, WHITE, 0
+        out.append(col | side << 4 if has else 0)
+    return out
+
+
 def gen_asm(db_lines):
     systems, start = make()
     nl = chr(10)
@@ -121,7 +137,9 @@ def gen_asm(db_lines):
     for lab, key in (('SYS_GX', 'x'), ('SYS_GY', 'y'), ('SYS_ECON', 'econ'), ('SYS_GOV', 'gov'),
                      ('SYS_TECH', 'tech')):
         out += ['%s:' % lab, db_lines([s[key] for s in systems])]
-    out += ['SYS_LOOK:', db_lines(looks(systems, start))]
+    look = looks(systems, start)
+    out += ['SYS_LOOK:', db_lines(look)]
+    out += ['SYS_MOON:', db_lines(moons(systems, start, look))]
     out += ['SYS_CX:', db_lines([s['x'] * 5 // 16 for s in systems]),
             'SYS_CY:', db_lines([s['y'] * 5 // 16 for s in systems])]
     names = []

@@ -152,6 +152,8 @@ view_xf:
         djnz .o
         ld hl,planet
         call xf1
+        ld hl,moon
+        call xf1
         ld hl,sunv
         call xf1
         ld hl,dust
@@ -565,9 +567,12 @@ sysinfo_screen:
         ld hl,sunv
         ld bc,6
         ldir
-        ld hl,SI_PLANET
-        ld de,planet
+        ld hl,moon
         ld bc,6
+        ldir
+        ld hl,SI_PLANET                 ; (and its moon, if it has one)
+        ld de,planet
+        ld bc,12
         ldir
         ld a,(cur_sys)
         and 3
@@ -582,10 +587,10 @@ sysinfo_screen:
         ld de,sunv
         ld bc,6
         ldir
+        call moon_prep
         call planet_prep
         call span_clear
-        call sun_draw
-        call planet_draw
+        call bodies_draw
         xor a
         ld (pl_on),a
         call present
@@ -596,7 +601,21 @@ sysinfo_screen:
         ld de,sunv
         ld bc,6
         ldir
+        ld de,moon
+        ld bc,6
+        ldir
         ; the facts
+        ld hl,txt_moons
+        ld bc,29*256+21
+        ld a,CYAN<<4
+        call print_at
+        ld a,(mn_on)
+        or a
+        ld hl,txt_nomoon
+        jr z,$+5
+        ld hl,txt_one
+        ld c,WHITE<<4
+        call print
         ld hl,txt_econ
         ld bc,2*256+20
         ld a,CYAN<<4
@@ -656,6 +675,10 @@ sysinfo_screen:
         jp wait_release
 
 SI_PLANET:      dw 3600,-2400,12000     ; near, below and right of centre
+SI_MOON:        dw -9400,4700,15000     ; (follows SI_PLANET) up and left
+txt_moons:      db "MOONS ",0
+txt_nomoon:     db "0",0
+txt_one:        db "1",0
 txt_sysdata:    db "SYSTEM DATA - ",0
 txt_s_facts:    db "THE SYSTEM",0
 txt_star:       db "STAR        ",0

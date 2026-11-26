@@ -335,12 +335,29 @@ obj_edges:
 ; frame and overlaps its disc (then its outline is cleared first)
 ; ---------------------------------------------------------------------
 occl_check:
+        call occl_one                   ; the planet
+        ret nz
+        ld a,(mn_blk+pl_r-PL_BLK)       ; then the moon, if it is drawn
+        cp 6                            ; and big enough to matter
+        jr nc,.m
+        xor a
+        ret
+.m:     ld a,(mn_blk)
+        or a
+        ret z
+        call body_swap_blk
+        call occl_one
+        push af
+        call body_swap_blk
+        pop af
+        ret
+occl_one:
         ld a,(pl_on)
         or a
         ret z
         ld l,(ix+O_Z)
         ld h,(ix+O_Z+1)
-        ld de,(planet+4)
+        ld de,(pl_vz)
         or a
         sbc hl,de
         jr nc,.no                       ; not in front of it
@@ -675,7 +692,7 @@ crescent:
         ld a,1
         ld (pl_on),a
         call half_widths
-        ld hl,planet                    ; p: the planet's direction, unit 64
+        ld hl,(bp_v)                    ; p: the body's direction, unit 64
         call vtb_fast
         call vlen                       ; A = |(dbx,dby,dbz)|
         ld (pl_len),a
@@ -1338,6 +1355,8 @@ sys_look:
 SUN_R           equ 3                   ; the ring's radius
 
 sun_draw:
+        xor a                           ; (sun_by: where it was last time)
+        ld (sun_seen),a
         ld hl,(sunv+4)                  ; ahead of us, inside the view's
         ld de,-2800h                    ; angle (z > 0.62)?
         add hl,de
@@ -1371,6 +1390,8 @@ sun_draw:
         ret nc
         sub 8
         ld (sun_y),a
+        ld a,1
+        ld (sun_seen),a
         call sun_clear
         ld hl,plot_sun                  ; near the planet: test each dot
         jr c,$+5
@@ -1599,3 +1620,275 @@ plot_sun:
 .ret:   ret
 .out:   pop de
 .draw:  jp plot_mask.draw
+
+; ---------------------------------------------------------------------
+; the moon: a second body, drawn with the planet's code.  Its state
+; (PL_BLK, BLKSZ bytes, and its half widths) lives in mn_blk / mn_hwt
+; and is swapped in to draw it.  The nearer body is drawn first and its
+; whole disc joins the ship mask, so the farther body and the sun are
+; hidden behind it.
+; ---------------------------------------------------------------------
+MOON_R          equ 3000
+
+; exchange the body in PL_BLK (and HWT) with the one in mn_blk (mn_hwt)
+body_swap:
+        ld a,(pl_r)                     ; the half widths: the larger disc's
+        ld hl,mn_blk+1
+        cp (hl)
+        jr nc,$+3
+        ld a,(hl)
+        inc a
+        ld b,a
+        ld hl,HWT
+        ld de,mn_hwt
+        call xchg_b
+body_swap_blk:
+        ld hl,PL_BLK
+        ld de,mn_blk
+        ld b,BLKSZ
+; exchange B bytes at HL and DE (flags kept)
+xchg_b: ld c,(hl)
+        ld a,(de)
+        ld (hl),a
+        ld a,c
+        ld (de),a
+        inc hl
+        inc de
+        djnz xchg_b
+        ret
+
+; before planet_prep: the moon's place and shape, into mn_blk
+moon_prep:
+        ld a,(mn_on)
+        or a
+        ret z
+        ld hl,moon
+        ld de,MOON_R
+        call body_prep
+        ld a,(mn_on)                    ; its colour
+        and 7
+        ld (pl_col),a
+        jp body_swap
+
+; the sun and the bodies, round the ships (in place of sun_draw and
+; planet_draw)
+bodies_draw:
+        ld a,(mn_on)
+        or a
+        jr z,.plain
+        ld a,(mn_blk+pl_mode-PL_BLK)
+        or a
+        jr z,.plain                     ; the moon is out of sight
+        ld hl,(mn_blk+pl_vz-PL_BLK)
+        ld de,(pl_vz)
+        or a
+        sbc hl,de
+        sbc a,a                         ; FFh: the moon is the nearer
+        push af
+        or a
+        call nz,body_swap
+        call planet_draw                ; the nearer
+        call discs_meet                 ; over the farther: it hides it
+        call nc,disc_mask
+        call body_swap
+        call planet_draw                ; the farther
+        call sun_by                     ; by the sun: it hides it
+        call nc,disc_mask
+        pop af
+        or a
+        call z,body_swap                ; the planet back in place
+        jp sun_draw
+.plain: call sun_draw
+        jp planet_draw
+
+; NC if the two bodies' discs (PL_BLK, mn_blk) may overlap on screen
+discs_meet:
+        ld a,(mn_blk+pl_r-PL_BLK)
+        ld hl,pl_r
+        add a,(hl)
+        add a,2
+        ld e,a
+        ld d,0                          ; DE = reach
+        ld hl,(pl_cx)
+        ld bc,(mn_blk+pl_cx-PL_BLK)
+        call .far
+        ret c
+        ld hl,(pl_cy)
+        ld bc,(mn_blk+pl_cy-PL_BLK)
+; C if |HL - BC| > DE
+.far:   push de
+        or a
+        sbc hl,bc
+        call abs_hl
+        pop de
+        ex de,hl
+        or a
+        sbc hl,de
+        ret
+
+; NC if the sun may lie behind the body in PL_BLK (where it was drawn
+; last frame: it moves little)
+sun_by: ld a,(sun_seen)
+        or a
+        scf
+        ret z                           ; out of sight
+        ld a,(pl_r)
+        add a,12                        ; the ring and its rays
+        ld e,a
+        ld d,0
+        ld a,(sun_x)
+        call .sx
+        ld bc,(pl_cx)
+        push de
+        call discs_meet.far
+        pop de
+        ret c
+        ld a,(sun_y)
+        call .sx
+        ld bc,(pl_cy)
+        jr discs_meet.far
+.sx:    ld l,a                          ; HL = A sign-extended
+        add a,a
+        sbc a,a
+        ld h,a
+        ret
+
+; the body's whole disc joins the mask (SPMIN / SPMAX) row by row
+disc_mask:
+        ld a,(pl_mode)
+        cp 2
+        ret nz
+        ld a,(pl_r)                     ; rows cy - r .. cy + r
+        ld e,a
+        ld d,0
+        ld hl,(pl_cy)
+        or a
+        sbc hl,de
+        bit 7,h
+        jr z,$+5
+        ld hl,0
+        ld a,h
+        or a
+        ret nz
+        ld a,l
+        cp VH
+        ret nc
+        ld c,a
+.row:   push bc
+        ld hl,(pl_cy)
+        call crescent_rows.hw           ; A = half width, C if off the disc
+        pop bc
+        jr nc,.in
+        ld hl,(pl_cy)                   ; off the disc: past it?
+        bit 7,h
+        ret nz
+        ld a,h
+        or a
+        jr nz,.next
+        ld a,c
+        cp l
+        ret nc
+        jr .next
+.in:    ld e,a
+        ld d,0
+        ld hl,(pl_cx)
+        or a
+        sbc hl,de
+        push hl                         ; x0 = cx - w
+        add hl,de
+        add hl,de                       ; x1 = cx + w
+        bit 7,h
+        jr nz,.off                      ; all left of the view
+        ld a,h
+        or a
+        jr nz,.c1
+        ld a,l
+        cp VW
+        jr c,$+4
+.c1:    ld a,VW-1
+        ld b,a
+        pop hl
+        bit 7,h
+        jr z,$+5
+        ld hl,0
+        ld a,h
+        or a
+        jr nz,.next
+        ld a,l
+        cp VW
+        jr nc,.next                     ; all right of it
+        ld h,high SPMIN
+        ld l,c
+        cp (hl)
+        jr nc,$+3
+        ld (hl),a
+        set 6,l
+        ld a,b
+        cp (hl)
+        jr c,$+3
+        ld (hl),a
+        jr .next
+.off:   pop hl
+.next:  inc c
+        ld a,c
+        cp VH
+        jr c,.row
+        ret
+
+; the moon's place by its planet (world_init), by SYS_MOON bits 4-5
+moon_place:
+        push ix
+        call .p
+        pop ix
+        ret
+.p:     ld a,(cur_sys)
+        ld l,a
+        ld h,high SYS_MOON
+        ld a,(hl)
+        ld (mn_on),a
+        rrca
+        rrca
+        rrca
+        rrca
+        and 3
+        ld e,a
+        add a,a
+        add a,e
+        add a,a                         ; * 6
+        ld e,a
+        ld d,0
+        ld hl,MOFF
+        add hl,de
+        ex de,hl                        ; DE -> the offset
+        ld hl,planet
+        ld ix,moon
+        ld b,3
+.c:     push bc
+        ld c,(hl)
+        inc hl
+        ld b,(hl)
+        inc hl
+        ex de,hl
+        ld a,(hl)
+        inc hl
+        push hl
+        ld h,(hl)
+        ld l,a
+        add hl,bc
+        ld (ix+0),l
+        ld (ix+1),h
+        pop hl
+        inc hl
+        ex de,hl
+        inc ix
+        inc ix
+        pop bc
+        djnz .c
+        ret
+
+; where a moon lies from its planet: left and up, right and up, left and
+; down, right and down (|x|+|y|+|z| stays near clamp_far's 31000)
+MOFF:   dw -16000,3000,0
+        dw 8000,5000,-4000
+        dw -10000,-4000,-2000
+        dw 4000,-5000,-5000

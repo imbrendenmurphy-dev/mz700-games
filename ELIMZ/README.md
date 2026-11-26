@@ -17,7 +17,7 @@ The keys follow ZX Spectrum Elite, the standard for space-trading players.
 | E | ECM: a jammer pulse destroys every seeker in flight (costs energy) |
 | C | docking computer on/off (if fitted; it plays the waltz) |
 | H | hyperspace to the chosen target (needs fuel) |
-| J | jump drive, held: rush ahead while nothing is near (MASS LOCKED near ships, the station, the planet or the sun) |
+| J | jump drive, held: rush ahead while nothing is near (MASS LOCKED near ships, the station, the planet, its moon or the sun) |
 | 1 / 2 / 3 / 4 | front / rear / left / right view |
 | I / O / P | galactic chart / local chart / data on the system (also F2 / F3 / F4) |
 | F1 | help: every key |
@@ -33,7 +33,7 @@ The keys follow ZX Spectrum Elite, the standard for space-trading players.
 | I / O / P | galactic chart / local chart / data on the system |
 | S / L | save / load the pilot |
 
-The galactic chart chooses the jump target with the cursor keys; the local chart is a zoomed map of the systems in reach, with their names and the fuel circle. Data on the system shows a picture of its planet and sun with its economy, government, tech level, star and world type.
+The galactic chart chooses the jump target with the cursor keys; the local chart is a zoomed map of the systems in reach, with their names and the fuel circle. Data on the system shows a picture of its planet, moon and sun with its economy, government, tech level, number of moons, star and world type.
 
 A new game starts docked at the home station with 100 credits in a Kestrel, so you can read the system data, trade, refuel and fit equipment before launching.
 
@@ -65,6 +65,7 @@ To dock, fly straight into the slot on the station's front face. The station spi
 - **Views:** keys 1-4 look ahead, behind, left or right. For the length of the drawing every world vector (ships, planet, sun, dust) is turned into that camera and back again, so physics, lasers, scanner and compass stay in the front view. The sights and laser beams show only ahead.
 - **Hidden lines:** each model carries the planes of its convex hull, worked out by `build.py`. Once per object the camera is moved into the model's space, then three byte multiplies a face say whether it faces us. Only edges on a face towards us are drawn, so ships and the station look solid. Far ships (under about four dots across) skip the test, and from inside the station's hull every edge is drawn.
 - **The planet and its sun:** every system has its own planet colour and star colour (`tools/galaxy.py`: farm worlds lean green, industrial ones yellow and red; stars are mostly yellow, some white, red or blue-white, each with one of four corona colours, so sixteen star looks in all), and the galaxy chart shows each star in its colour. The sun is a small ring with a burnt-out centre, as if the bright star had dazzled the sensor, and a corona of eight flickering rays, and it sits on one of four sides of the planet depending on the system. It is hidden behind ships and behind the planet's whole disc, night side included, so it can peek over the limb or be eclipsed. The planet is a back-lit crescent with its night side black against the stars, lit from the sun's direction. The lit part is the disc minus the same disc shifted away from the sun, which turns with the world, so the crescent stays true as you roll. Ships hide it: the planet is placed first but drawn after the ships, and while a ship over it is drawn, `plot` notes each dot row's span so the planet skips those dots. A cell a ship has drawn in keeps the ship's colour.
+- **Moons:** about two systems in five, the home system among them, have a moon beside the planet (`tools/galaxy.py` SYS_MOON: its colour, never the planet's, and which side of the planet it lies). It is drawn by the planet's own crescent code, so it is lit from the sun's side and waxes and wanes as you fly round it; when the sun lies behind it you see only its dark side against the stars. The two bodies swap their drawing state (`body_swap` in `src/hidden.asm`). The nearer one is drawn first and its whole disc joins the ship mask, so the farther one, and the sun, are hidden behind it. Flying into a moon is fatal, and it locks the jump drive like the planet. It costs under 1 fps in open space.
 - The universe rotates around the player with small-angle rotations that need only shifts. Multiplication uses quarter-square tables.
 - A hexagonal orbital hub that spins, a planet, star dust, Dart and Mantis pirates (the AI rolls, pitches, fires and breaks off when close), and Hauler traders.
 - **Info screens** share one look: a box-drawn bezel with the title set into its top line and the key hints into its bottom line, section rules with their own titles, labels and values in aligned columns, and menu entries as key caps (white on blue).
@@ -103,6 +104,9 @@ Frames are paced by 8253 counter 1, which counts scan lines, so a frame that mis
 
 ## Next steps
 Testing on real hardware, especially the new sound engine. More speed (a faster line drawer, a reciprocal table for the projection).
+
+## Memory
+The program loads at 1200h as one block. The market and docked menus (`src/trade.asm`, about 2.9 KB) are assembled to run at C000h, above the variables, and `start` copies them up before anything else, which leaves the code below the view buffers at A000h about 3 KB of room.
 
 ## Build and test
 ```

@@ -24,6 +24,7 @@ def load_syms():
 
 
 S = load_syms()
+HI0, HI1 = S['HIGHBASE'], S['high_end']   # code copied to high RAM
 
 
 class Game:
@@ -31,7 +32,7 @@ class Game:
         self.m = MZ700(os.path.join(ROOT, 'rom', 'mz700fon.int'))
         self.m.vram_wait = vram_wait
         self.m.load_mzf(os.path.join(ROOT, 'build', 'ARGOSY.MZT'))
-        self.end = S['end_of_program']
+        self.end = S['end_of_resident']
         self.shots = os.path.join(ROOT, 'build', 'shots')
         os.makedirs(self.shots, exist_ok=True)
 
@@ -62,7 +63,7 @@ class Game:
         step = c.step
         while c.t < end:
             step()
-            if not (lo <= c.pc < hi):
+            if not (lo <= c.pc < hi or HI0 <= c.pc < HI1):
                 if c.pc in (0x21, 0x24, 0x27, 0x2A):
                     self.tape_call(c.pc)
                     continue

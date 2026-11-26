@@ -631,6 +631,7 @@ txt_poor:       db "NOT ENOUGH CREDITS",0
 JSTEP           equ 800
 LOCK_SHIP       equ 7000                ; |x|+|y|+|z| inside which ships lock it
 LOCK_PLANET     equ 16000
+LOCK_MOON       equ 7000
 SUN_LOCK        equ 4000                ; sun_d inside which the sun locks it
 
 jump_step:
@@ -647,6 +648,9 @@ jump_step:
         ld de,-JSTEP
         add hl,de
         ld (planet+4),hl
+        ld hl,(moon+4)
+        add hl,de
+        ld (moon+4),hl
         ld ix,objects
         ld b,MAXOBJ
 .o:     ld a,(ix+O_TYPE)
@@ -693,6 +697,16 @@ mass_lock:
         or a
         sbc hl,de
         ret c
+        ld a,(mn_on)                    ; the moon
+        or a
+        jr z,.nm
+        ld hl,moon
+        call clamp_far.sum
+        ld de,LOCK_MOON
+        or a
+        sbc hl,de
+        ret c
+.nm:
         ld ix,objects
         ld b,MAXOBJ
 .o:     ld a,(ix+O_TYPE)

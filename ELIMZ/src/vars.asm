@@ -159,6 +159,11 @@ pl_cy           ds 2
 pl_len          ds 1
 pl_ox           ds 1
 pl_oy           ds 1
+pl_mode         ds 1
+pl_col          ds 1
+pl_vz           ds 2                ; the body's z (occl_check)
+PL_BLK          equ pl_on
+BLKSZ           equ $-pl_on         ; one body's state: body_swap
 pl_w            ds 1
 pl_a0           ds 2
 pl_a1           ds 2
@@ -168,8 +173,6 @@ vl_max          ds 1
 sunv            ds 6
 vtb_s           ds 1
 oc_rs           ds 2
-pl_mode         ds 1
-pl_col          ds 1
 sun_col         ds 1
 sun_var         ds 1
 sun_x           ds 1
@@ -224,7 +227,7 @@ xf_z            ds 2
 lc_gx           ds 1
 lc_gy           ds 1
 lc_bd           ds 1
-si_save         ds 12
+si_save         ds 18
 tn_f            ds 1
 tn_z            ds 1
 tn_p            ds 2
@@ -307,6 +310,7 @@ TSY             ds 48
 
 ; world
 planet          ds 6
+moon            ds 6                ; 0 in a system without one
 dust            ds 6*NDUST
 objects         ds MAXOBJ*OBJSZ
 killer          ds 2                ; fx.asm: the death camera
@@ -314,4 +318,10 @@ kbest           ds 2
 cam_d           ds 2
 frags           ds NFRAG*FRSZ
 gl_w            ds 1                ; screens.asm: glinting
+mn_blk          ds BLKSZ            ; the moon's state (hidden.asm)
+mn_hwt          ds 120              ; and its half widths
+bp_v            ds 2                ; body_prep: the body's position
+bp_r            ds 2                ; and radius
+mn_on           ds 1                ; this system has a moon
+sun_seen        ds 1                ; sun_draw: sun_x, sun_y are set
 vars_end:

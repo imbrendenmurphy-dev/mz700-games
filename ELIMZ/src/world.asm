@@ -158,7 +158,8 @@ world_init:
         ld (planet+2),hl
         ld hl,21000
         ld (planet+4),hl
-.pl:    call sun_reset
+.pl:    call moon_place              ; a moon by the planet, in some systems
+        call sun_reset
         ld a,(cur_sys)                  ; the sun, beyond the planet, on
         and 3                           ; one of four sides by system
         ld e,a
@@ -550,6 +551,8 @@ rotate_world:
         djnz .o
         ld hl,planet
         call .vhl
+        ld hl,moon
+        call .vhl
         ld hl,sunv                      ; the sun turns with the world
         call .vhl
         call poll
@@ -671,6 +674,11 @@ world_step:
         ld hl,planet
         call clamp_far
         call planet_crash
+        ld hl,moon+4                    ; the moon too
+        call sub_speed
+        ld hl,moon
+        call clamp_far
+        call moon_crash
         ld hl,dust
         ld b,NDUST
 .d:     push bc
@@ -801,8 +809,18 @@ load_v:
 ; planet collision
 planet_crash:
         ld hl,planet
-        call clamp_far.sum
         ld de,PLANET_R+PLANET_R/2
+        jr body_crash
+moon_crash:
+        ld a,(mn_on)
+        or a
+        ret z
+        ld hl,moon
+        ld de,MOON_R+MOON_R/2
+body_crash:
+        push de
+        call clamp_far.sum
+        pop de
         or a
         sbc hl,de
         ret nc
@@ -1587,7 +1605,8 @@ txt_bump:       db "COLLISION - USE THE PORT!",0
 ; render: planet, dust, ships, crosshair, lasers
 ; ---------------------------------------------------------------------
 render:
-        call planet_prep                ; where the planet is: it is drawn
+        call moon_prep                  ; where the moon and planet are:
+        call planet_prep                ; they are drawn
         call span_clear                 ; after the ships, round them
         call poll
         ld ix,objects
@@ -1611,8 +1630,8 @@ render:
         add ix,de
         pop bc
         djnz .o
-        call sun_draw                   ; the sun, then the planet: both
-        call planet_draw                ; round the ships
+        call bodies_draw                ; the sun, the planet and moon,
+                                        ; round the ships
 .dust:  xor a
         ld (pl_on),a
         ld a,WHITE
@@ -1710,15 +1729,26 @@ TYPE_COL:
 
 planet_prep:
         call sys_look                   ; this system's colours
+        ld hl,planet
+        ld de,PLANET_R
+; the same for any body: HL -> its position, DE = its radius
+body_prep:
+        ld (bp_v),hl
+        ld (bp_r),de
         xor a
         ld (pl_mode),a
         ld (pl_on),a
-        ld hl,(planet+4)
-        ld de,-2000
+        ld de,4
+        add hl,de
+        ld e,(hl)
+        inc hl
+        ld d,(hl)
+        ld (pl_vz),de
+        ld hl,-2000
         add hl,de
         bit 7,h
         ret nz                          ; behind (or too close to draw)
-        ld hl,planet
+        ld hl,(bp_v)
         call load_v
         call project
         ld hl,(vz_)                     ; r = R*32/z = R / (z/32)
@@ -1727,7 +1757,7 @@ planet_prep:
         rr l
         djnz .s
         ex de,hl
-        ld hl,PLANET_R
+        ld hl,(bp_r)
         call div16u
         ld a,h
         or a

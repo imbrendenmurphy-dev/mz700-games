@@ -24,6 +24,7 @@ RBUF            equ 0B000h          ; radar: 5 rows x 16 cells
 RSHD            equ 0B100h
 STACKTOP        equ 0CFF0h
 VARBASE         equ 0B600h          ; above the view and map pages
+HIGHBASE        equ 0C000h          ; code copied up at start (trade.asm)
 
 ; ---------------------------------------------------------------- screen layout
 VIEW_ROW        equ 1               ; view = rows 1..18
@@ -102,6 +103,10 @@ B_FIRE          equ 4
 start:
         di
         ld sp,STACKTOP
+        ld hl,high_load             ; the high RAM code into place
+        ld de,HIGHBASE
+        ld bc,high_end-high_start
+        ldir
         im 1
         xor a
         ld (SNDGATE),a
@@ -197,7 +202,6 @@ new_game:
         include "world.asm"
         include "hud.asm"
         include "screens.asm"
-        include "trade.asm"
         include "combat.asm"
         include "attract.asm"
         include "qol.asm"
@@ -214,9 +218,21 @@ new_game:
         include "../build/gen_music.inc"
         include "../build/gen_galaxy.inc"
 
+end_of_resident:
+        ASSERT end_of_resident <= PIX
+
+; ---------------------------------------------------------------- high RAM
+; the market and docked menus run above the variables: loaded after the
+; resident code and copied up by start
+high_load:
+        DISP HIGHBASE
+high_start:
+        include "trade.asm"
+high_end:
+        ENT
 end_of_program:
-        ASSERT end_of_program <= PIX
-        ASSERT vars_end <= STACKTOP-200h
+        ASSERT high_end <= STACKTOP-200h
+        ASSERT vars_end <= HIGHBASE
 
         SAVEBIN "../build/argosy.bin", start, end_of_program-start
 
